@@ -26,6 +26,10 @@ namespace stevensTerminal
 
 	/************* Types and Constants *************/
 
+	// UI Layout Constants
+	constexpr int DEFAULT_MENU_WIDTH = 18;  // Default width for menu items
+	constexpr int MIN_CELL_WIDTH = 8;       // Minimum width for grid cells
+
 	// Label style options for bar graphs
 	enum class BarGraphLabelStyle {
 		None,
@@ -442,7 +446,7 @@ namespace stevensTerminal
 		
 		//First, we need to receive the terminal size to determine how to shape the vertical menus
 		std::pair<int,int> screenSize = get_screen_size();
-		int individualMenuWidth = 18; //This is the max length in characters for items in the menu, including the select number (6 - defenes-). 18 is a good default value, as
+		int individualMenuWidth = DEFAULT_MENU_WIDTH; //This is the max length in characters for items in the menu, including the select number (6 - defenes-). DEFAULT_MENU_WIDTH is a good default value, as
 									//including our borders, 4 menus and 3 borders of size 2 to separate them totals 79 characters. 
 		int verticalMenusPerRow = 0; //The number of menus to display in a row
 		int charactersLeftPerRow = screenSize.first; //The number of characters left in a row
@@ -455,7 +459,7 @@ namespace stevensTerminal
 			}
 			else
 			{
-				individualMenuWidth = 18;
+				individualMenuWidth = DEFAULT_MENU_WIDTH;
 			}
 		}
 		else
@@ -842,7 +846,6 @@ namespace stevensTerminal
 				for(int columnIndex = 0; columnIndex < columns; columnIndex++) //Print each column after each other separated by tabs
 				{
 					//void(0);
-					const int MIN_CELL_WIDTH = 8;
 					if (responseGrid[columnIndex][rowIndex].length() < MIN_CELL_WIDTH)
 					{
 						while(true)
@@ -1008,12 +1011,12 @@ namespace stevensTerminal
 			for(int columnIndex = 0; columnIndex < columns; columnIndex++) //Print each column after each other separated by tabs
 			{
 				//void(0);
-				if (elementGrid[columnIndex][rowIndex].length() < 8)
+				if (elementGrid[columnIndex][rowIndex].length() < MIN_CELL_WIDTH)
 				{
 					while(true)
 					{
 						elementGrid[columnIndex][rowIndex] += " ";
-						if (elementGrid[columnIndex][rowIndex].length() == 8)
+						if (elementGrid[columnIndex][rowIndex].length() == MIN_CELL_WIDTH)
 						{
 							break;
 						}
