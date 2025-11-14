@@ -6,6 +6,7 @@
 
 #include "stevensStringLib.h"
 #include <iterator>
+#include <functional>
 
 #ifndef STEVENSMAPLIB
 #define STEVENSMAPLIB

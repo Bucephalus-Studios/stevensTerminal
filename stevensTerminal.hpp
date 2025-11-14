@@ -23,7 +23,95 @@ namespace stevensTerminal
 	/************* Variables *************/
 	// Core variables are now in Core.hpp
 	// Additional variables for this module:
- 
+
+	/************* Types and Constants *************/
+
+	// UI Layout Constants
+	constexpr int DEFAULT_MENU_WIDTH = 18;  // Default width for menu items
+	constexpr int MIN_CELL_WIDTH = 8;       // Minimum width for grid cells
+
+	// Label style options for bar graphs
+	enum class BarGraphLabelStyle {
+		None,
+		TextOnly,
+		PercentageOnly,
+		TextAndPercentage
+	};
+
+	// Result of label formatting calculation
+	struct BarGraphLabelFormat {
+		std::string text;
+		BarGraphLabelStyle style;
+		int width;
+		int indent;
+	};
+
+	/************* Helper Functions *************/
+
+	/**
+	 * @brief Calculates the optimal label format based on available space
+	 * @param labelText The text label to display
+	 * @param percentage The percentage value (0.0 to 1.0)
+	 * @param availableWidth How much space is available in the bar
+	 * @param showText Whether text labels are enabled
+	 * @param showPercentage Whether percentage labels are enabled
+	 * @return Formatted label with calculated width and indent
+	 */
+	inline BarGraphLabelFormat calculateBarGraphLabel(
+		const std::string& labelText,
+		float percentage,
+		int availableWidth,
+		bool showText,
+		bool showPercentage)
+	{
+		BarGraphLabelFormat result;
+		result.style = BarGraphLabelStyle::None;
+		result.text = "";
+		result.width = 0;
+		result.indent = 0;
+
+		if (!showText && !showPercentage) {
+			return result;
+		}
+
+		std::string percentageStr = std::to_string(stevensMathLib::roundToNearest10th(percentage * 100));
+
+		// Try text + percentage first (most informative)
+		if (showText && showPercentage) {
+			std::string combined = labelText + " " + percentageStr + "%";
+			if (static_cast<int>(combined.length()) <= availableWidth) {
+				result.text = combined;
+				result.style = BarGraphLabelStyle::TextAndPercentage;
+				result.width = combined.length();
+				result.indent = (availableWidth - result.width) / 2;
+				return result;
+			}
+		}
+
+		// Try percentage only (compact)
+		if (showPercentage) {
+			std::string percentageLabel = percentageStr + "%";
+			if (static_cast<int>(percentageLabel.length()) <= availableWidth) {
+				result.text = percentageLabel;
+				result.style = BarGraphLabelStyle::PercentageOnly;
+				result.width = percentageLabel.length();
+				result.indent = (availableWidth - result.width) / 2;
+				return result;
+			}
+		}
+
+		// Try text only
+		if (showText && static_cast<int>(labelText.length()) <= availableWidth) {
+			result.text = labelText;
+			result.style = BarGraphLabelStyle::TextOnly;
+			result.width = labelText.length();
+			result.indent = (availableWidth - result.width) / 2;
+			return result;
+		}
+
+		// Nothing fits - return empty
+		return result;
+	}
 
 	/************* Methods *************/
 	void horizontalStackedBarGraph(	std::vector<std::string> labels,
@@ -51,134 +139,104 @@ namespace stevensTerminal
 		prints a horizontalStackedBarGraph in the console
 	*/
 	{
-		std::cout << "horizontalStackedBarGraph" << std::endl;
-		if(textStyling); //This must be on for our game to produce colored graphs
+		// Input validation
+		if(labels.size() != colorCombos.size() || labels.size() != distribution.size())
 		{
-			//Find the percentages of each of our labels
-			float sumOfDistributions = 0;
-			for(int i = 0; i < labels.size(); i++)
-			{
-				sumOfDistributions += distribution[i];
-			}
-			std::vector<float> distributionPercentages;
-			for(int i = 0; i < labels.size(); i++)
-			{
-				distributionPercentages.push_back(distribution[i] / sumOfDistributions);
-			}
-
-			//Find out, based on percentages, how much of the bar to color for each label
-			std::vector<int> barSpace;
-			for(int i = 0; i < labels.size(); i++)
-			{
-				barSpace.push_back(static_cast<int>(floor(distributionPercentages[i]*width)));
-			}
-
-			//Print the bar!
-			for(int i = 0; i < labels.size(); i++)
-			{
-				int indent = 0;
-				std::string currentLabel = ""; 
-				std::string labelStyle = "none";
-				int labelLength = 0;
-				//If we decide to print text labels or percentage labels on our graph, we prepare the formatting for those here
-				if (textLabels == true || percentageLabels == true)
-				{
-					//Calculate the length of the label
-					if(textLabels && percentageLabels)
-					{
-						labelLength = labels[i].length() + 1 + std::to_string(stevensMathLib::roundToNearest10th(distributionPercentages[i]*100)).length() + 1;
-						labelStyle = "text and percentage";
-					}
-					else if (textLabels)
-					{
-						labelLength = labels[i].length() + 1;
-						labelStyle = "text";
-					}
-					else if (percentageLabels)
-					{
-						labelLength = std::to_string(stevensMathLib::roundToNearest10th(distributionPercentages[i]*100)).length() + 1;
-						labelStyle = "percentage";
-					}
-					else
-					{
-						labelLength = 0;
-						labelStyle = "none";
-					}
-
-					//Decide the center position for the label
-					indent = 0;
-					if(barSpace[i] > labelLength)
-					{
-						indent = floor((barSpace[i] - labelLength)/2); //Here, we attempt to place the label in the center of the bar by indenting half of the remaining space
-					}
-					if(barSpace[i] == labelLength)
-					{
-						indent = 0; //No indent if label length equals the bar length
-					}
-					else
-					{
-						//If we do not have enough space, if we wanted to print both the text and percentage label, we check to see if we can just print the percentage label
-						if (textLabels && percentageLabels)
-						{
-							labelLength = std::to_string(stevensMathLib::roundToNearest10th(distributionPercentages[i]*100)).length() + 1;
-							//Do our checks again here
-							if(barSpace[i] > labelLength)
-							{
-								labelStyle = "percentage";
-								indent = floor((barSpace[i] - labelLength)/2);
-							}
-							if(barSpace[i] == labelLength)
-							{
-								labelStyle = "percentage";
-								indent = 0;
-							}
-							else
-							{
-								labelStyle = "none";
-							}
-						}
-					}
-
-					//Make label
-					if(labelStyle == "text and percentage")
-					{
-						currentLabel = labels[i] + " " + std::to_string(stevensMathLib::roundToNearest10th(distributionPercentages[i]*100)) + "%";
-					}
-					else if (labelStyle == "text")
-					{
-						currentLabel = labels[i];
-					}
-					else if (labelStyle == "percentage")
-					{
-						currentLabel = std::to_string(stevensMathLib::roundToNearest10th(distributionPercentages[i]*100)) + "%";
-					}
-					else
-					{
-						currentLabel = "";
-					}
-				}
-				int charsToColor = barSpace[i];
-				int labelChar = 0;
-				while(charsToColor > 0)
-				{
-					if (indent == 0 && labelChar < currentLabel.length())
-					{
-						std::string s(1,currentLabel[labelChar]);
-						print(s, {{"textColor", std::get<1>(colorCombos[i])}, {"bgColor", get<0>(colorCombos[i])}, {"bold","true"}}); //print label text in bold
-						labelChar++;
-					}
-					else
-					{
-						print(" ", {{"textColor", std::get<1>(colorCombos[i])}, {"bgColor", get<0>(colorCombos[i])}}); 
-						indent--;
-					}
-					charsToColor--;
-				}
-			}
-
-			std::cout << "\n";
+			std::cerr << "Error: horizontalStackedBarGraph requires labels, colorCombos, and distribution vectors to have equal sizes" << std::endl;
+			return;
 		}
-		std::cout << "function complete" << std::endl;
+		if(width <= 0)
+		{
+			std::cerr << "Error: horizontalStackedBarGraph width must be positive" << std::endl;
+			return;
+		}
+		if(labels.empty())
+		{
+			return; // Nothing to graph
+		}
+
+		if(!textStyling)
+		{
+			return; // Styling must be enabled for colored graphs
+		}
+
+		// Calculate total distribution
+		float sumOfDistributions = 0;
+		for(size_t labelIndex = 0; labelIndex < labels.size(); labelIndex++)
+		{
+			sumOfDistributions += distribution[labelIndex];
+		}
+
+		// Guard against division by zero
+		if(sumOfDistributions == 0)
+		{
+			return; // Cannot create bar graph with zero total distribution
+		}
+
+		// Calculate percentages for each label
+		std::vector<float> distributionPercentages;
+		distributionPercentages.reserve(labels.size());
+		for(size_t labelIndex = 0; labelIndex < labels.size(); labelIndex++)
+		{
+			distributionPercentages.push_back(distribution[labelIndex] / sumOfDistributions);
+		}
+
+		// Calculate bar width for each segment (in characters)
+		std::vector<int> segmentWidths;
+		segmentWidths.reserve(labels.size());
+		for(size_t labelIndex = 0; labelIndex < labels.size(); labelIndex++)
+		{
+			int segmentWidth = static_cast<int>(floor(distributionPercentages[labelIndex] * width));
+			segmentWidths.push_back(segmentWidth);
+		}
+
+		// Render each bar segment
+		for(size_t labelIndex = 0; labelIndex < labels.size(); labelIndex++)
+		{
+			// Calculate optimal label for this segment
+			BarGraphLabelFormat labelFormat = calculateBarGraphLabel(
+				labels[labelIndex],
+				distributionPercentages[labelIndex],
+				segmentWidths[labelIndex],
+				textLabels,
+				percentageLabels
+			);
+
+			// Get colors for this segment
+			const std::string& bgColor = std::get<0>(colorCombos[labelIndex]);
+			const std::string& textColor = std::get<1>(colorCombos[labelIndex]);
+
+			// Print the segment character by character
+			int charsRemaining = segmentWidths[labelIndex];
+			int indentRemaining = labelFormat.indent;
+			size_t labelCharIndex = 0;
+
+			while(charsRemaining > 0)
+			{
+				// Print indent spaces first
+				if(indentRemaining > 0)
+				{
+					print(" ", {{"textColor", textColor}, {"bgColor", bgColor}});
+					indentRemaining--;
+				}
+				// Then print label characters
+				else if(labelCharIndex < labelFormat.text.length())
+				{
+					std::string charAsString(1, labelFormat.text[labelCharIndex]);
+					print(charAsString, {{"textColor", textColor}, {"bgColor", bgColor}, {"bold", "true"}});
+					labelCharIndex++;
+				}
+				// Fill remaining space
+				else
+				{
+					print(" ", {{"textColor", textColor}, {"bgColor", bgColor}});
+				}
+
+				charsRemaining--;
+			}
+		}
+
+		std::cout << "\n";
 	}
 	
 
@@ -197,92 +255,88 @@ namespace stevensTerminal
 	*/
 	{
 		//Indent the X labels to account for the longest Y label
-		int longestLabelLength = 0;
-		for(int i = 0; i < yLabels.size(); i++)
+		int longestYLabelLength = 0;
+		for(size_t yLabelIndex = 0; yLabelIndex < yLabels.size(); yLabelIndex++)
 		{
-			if(get<0>(yLabels[i]).length() > longestLabelLength)
+			size_t currentYLabelLength = get<0>(yLabels[yLabelIndex]).length();
+			if(currentYLabelLength > longestYLabelLength)
 			{
-				//cout << get<0>(yLabels[i]).length();
-				longestLabelLength = get<0>(yLabels[i]).length();
+				longestYLabelLength = currentYLabelLength;
 			}
 		}
-		std::string indent(longestLabelLength + 1,' ');
-		print(indent);
+		std::string leftIndent(longestYLabelLength + 1, ' ');
+		print(leftIndent);
 
-		//Print X labels
-		for(int i = 0; i < xLabels.size(); i++)
+		//Print X labels (column headers)
+		for(size_t xLabelIndex = 0; xLabelIndex < xLabels.size(); xLabelIndex++)
 		{
-			print(get<0>(xLabels[i]), {{"textColor", get<1>(xLabels[i])}});
+			const std::string& labelText = get<0>(xLabels[xLabelIndex]);
+			const std::string& textColor = get<1>(xLabels[xLabelIndex]);
+			print(labelText, {{"textColor", textColor}});
 			print("\t");
 		}
 		print("\n");
 
-
-		int row = 0;
-		int column = 0;
-		float cellValue = -1;
-		std::string cellEntry = "";
-		int cellEntryLength = -1;
-		//Print the Y labels and table content for each row
-		while(row < tableContent.size())
+		// Print table rows with Y labels and cell content
+		for(size_t rowIndex = 0; rowIndex < tableContent.size(); rowIndex++)
 		{
-			column = 0;
-			//Indent an amount equal to 1 plus the difference between the length of the current Y label and the longest Y label, after printing the Y label
-			std::string yLabelIndent(longestLabelLength - get<0>(yLabels[row]).length() + 1, ' ');
-			//print(get<0>(yLabels[row]) + yLabelIndent,false,0,get<1>(yLabels[row])); //Will need to indent after printing to account for the longest yLabel length
-			while(column < tableContent[0].size())
+			// Calculate indent for current Y label to align with longest Y label
+			const std::string& currentYLabel = get<0>(yLabels[rowIndex]);
+			std::string yLabelIndent(longestYLabelLength - currentYLabel.length() + 1, ' ');
+
+			// Print each cell in the row
+			for(size_t columnIndex = 0; columnIndex < tableContent[0].size(); columnIndex++)
 			{
-				//Set the value of the cell's current float vlaue and reset the cell's string entry value to empty
-				cellValue = tableContent[row][column];
-				cellEntry = "";
-				//Print the cell's entry based on the table type variable
+				// Get cell value and prepare entry string
+				float cellValue = tableContent[rowIndex][columnIndex];
+				std::string cellEntry;
+
+				// Format cell based on table type
 				if (tableType == "religionData")
 				{
-					if (row == 0) //Make sure followers row is all integers
+					if (rowIndex == 0) // Followers row: use integers
 					{
 						cellEntry = std::to_string(static_cast<int>(cellValue));
-						print(cellEntry);
-						cellEntryLength = cellEntry.length();
 					}
-					else if (row == 1) //Make sure devotion is rounded to tenths place
+					else if (rowIndex == 1) // Devotion row: round to tenths
 					{
 						cellEntry = std::to_string(stevensMathLib::roundToNearest10th(cellValue));
-						print(cellEntry);
-						cellEntryLength = cellEntry.length();
+					}
+					else
+					{
+						cellEntry = std::to_string(cellValue);
 					}
 				}
 				else if(tableType == "factionData")
 				{
-					if(row == 0) //Round politcal power
+					if(rowIndex == 0) // Political power row: round to tenths
 					{
 						cellEntry = std::to_string(stevensMathLib::roundToNearest10th(cellValue));
-						print(cellEntry);
-						cellEntryLength = cellEntry.length();
+					}
+					else
+					{
+						cellEntry = std::to_string(cellValue);
 					}
 				}
 				else
 				{
 					cellEntry = std::to_string(cellValue);
-					print(cellEntry);
-					cellEntryLength = cellEntry.length();
 				}
 
-				//Based on the length of the cell entry, we print a varying amount of tabs. If the entry is less than 6 characters, we must print an additional tab
-				if(cellEntryLength < 6)
+				print(cellEntry);
+
+				// Add tabs for column alignment based on entry length
+				const int TAB_WIDTH_THRESHOLD = 6;
+				if(cellEntry.length() < TAB_WIDTH_THRESHOLD)
 				{
 					print("\t\t");
 				}
-				else if(cellEntryLength >= 6)
+				else
 				{
 					print("\t");
 				}
-				//May need to add more cases based on entry size, or even just make a rule
-
-				//Go on to the next column
-				column++;
 			}
 			print("\n");
-			row++;
 		}
 	}
 
@@ -392,7 +446,7 @@ namespace stevensTerminal
 		
 		//First, we need to receive the terminal size to determine how to shape the vertical menus
 		std::pair<int,int> screenSize = get_screen_size();
-		int individualMenuWidth = 18; //This is the max length in characters for items in the menu, including the select number (6 - defenes-). 18 is a good default value, as
+		int individualMenuWidth = DEFAULT_MENU_WIDTH; //This is the max length in characters for items in the menu, including the select number (6 - defenes-). DEFAULT_MENU_WIDTH is a good default value, as
 									//including our borders, 4 menus and 3 borders of size 2 to separate them totals 79 characters. 
 		int verticalMenusPerRow = 0; //The number of menus to display in a row
 		int charactersLeftPerRow = screenSize.first; //The number of characters left in a row
@@ -405,7 +459,7 @@ namespace stevensTerminal
 			}
 			else
 			{
-				individualMenuWidth = 18;
+				individualMenuWidth = DEFAULT_MENU_WIDTH;
 			}
 		}
 		else
@@ -426,77 +480,77 @@ namespace stevensTerminal
 
 		//Prepare the vector of selectNums based on their menu length
 		int startingSelectNum = 1;
-		std::vector<int> selectNum;
-		selectNum.resize(menus.size(),0);
-		for(int i = 0; i < menus.size(); i++)
+		std::vector<int> selectNumByMenu;
+		selectNumByMenu.resize(menus.size(),0);
+		for(size_t menuIndex = 0; menuIndex < menus.size(); menuIndex++)
 		{
-			if (i == 0) //
+			if (menuIndex == 0) //
 			{
-				selectNum[0] = 1;
+				selectNumByMenu[0] = 1;
 			}
 			else
 			{
-				selectNum[i] = startingSelectNum + menus[i-1].size();
-				startingSelectNum = selectNum[i];
+				selectNumByMenu[menuIndex] = startingSelectNum + menus[menuIndex-1].size();
+				startingSelectNum = selectNumByMenu[menuIndex];
 			}
 		}
 
-		std::string selectNumString = "";
-		int currBorderChar = 0;
+		std::string formattedSelectNum = "";
+		int currentBorderCharIndex = 0;
 		int	currentResponseNum = 1; //The number of the response to print in the menu
-		int menusLeftToPrint = menus.size();
+		int remainingMenusToPrint = menus.size();
 		int extraRowsForTextWrapAround = 0;
 		int menuLength = maxMenuLength;
-		std::vector< int > menuItemOffset;
-		std::vector< std::queue<std::string> > textThatWrapsOver;
-		std::vector< std::queue<std::string> > queuedItems;
+		std::vector< int > menuItemRowOffsets;
+		std::vector< std::queue<std::string> > wrappedTextQueues;
+		std::vector< std::queue<std::string> > queuedMenuItems;
 		std::queue<std::string> emptyQueue;
-		std::vector<int> numberOfItemsPrinted; //A vector that keeps track of the number of items printed from each menu
-		numberOfItemsPrinted.resize(menus.size(),0); 
-		int availableSpace = individualMenuWidth;
-		while(menusLeftToPrint > 0)
+		std::vector<int> itemsPrintedPerMenu; //A vector that keeps track of the number of items printed from each menu
+		itemsPrintedPerMenu.resize(menus.size(),0); 
+		int charsRemaining = individualMenuWidth;
+		while(remainingMenusToPrint > 0)
 		{
 			//START A NEW MENU ROW
-			textThatWrapsOver.resize(menus.size(),emptyQueue);
-			queuedItems.resize(menus.size(),emptyQueue);
-			menuItemOffset.resize(menus.size(),0); //How many rows down a particular row is offset from displaying its contents on the standard indices 
-			if(verticalMenusPerRow > menusLeftToPrint) //If we don't have to print a full row of vertical menus, we just print the remainder of menus
+			wrappedTextQueues.resize(menus.size(),emptyQueue);
+			queuedMenuItems.resize(menus.size(),emptyQueue);
+			menuItemRowOffsets.resize(menus.size(),0); //How many rows down a particular row is offset from displaying its contents on the standard indices
+			if(verticalMenusPerRow > remainingMenusToPrint) //If we don't have to print a full row of vertical menus, we just print the remainder of menus
 			{
-				verticalMenusPerRow = menusLeftToPrint;
+				verticalMenusPerRow = remainingMenusToPrint;
 			}
-			for(int k = 0; k < verticalMenusPerRow; k++) //Loop over the menu labels to print them
+			for(size_t menuColumnIndex = 0; menuColumnIndex < verticalMenusPerRow; menuColumnIndex++) //Loop over the menu labels to print them
 			{
-				availableSpace = individualMenuWidth;
-				std::string potentialTextToWrap = localizedWrap(menuLabels[k],availableSpace); //Prints the menu label. If it's too long, then we return the part of the label that wraps belong the allotted space.
-				availableSpace -= menuLabels[k].length();
-				if(potentialTextToWrap != "")
+				charsRemaining = individualMenuWidth;
+				std::string overflowText = localizedWrap(menuLabels[menuColumnIndex],charsRemaining); //Prints the menu label. If it's too long, then we return the part of the label that wraps belong the allotted space.
+				charsRemaining -= menuLabels[menuColumnIndex].length();
+				if(overflowText != "")
 				{
-					textThatWrapsOver[k].push(potentialTextToWrap);
-					if(increaseOffset(menuItemOffset,k));
+					wrappedTextQueues[menuColumnIndex].push(overflowText);
+					if(increaseOffset(menuItemRowOffsets,menuColumnIndex))
 					{
 						menuLength++;
 					}
 				}
-				while(availableSpace > 0) //If we have leftover space in a place where a menu label is printed, then we print spaces until we have none left
+				while(charsRemaining > 0) //If we have leftover space in a place where a menu label is printed, then we print spaces until we have none left
 				{
 					std::cout << " ";
-					availableSpace--;
+					charsRemaining--;
 				}
-				if(k+1 < verticalMenusPerRow) //If we still have menus left to print, then we print a border
+				if(menuColumnIndex+1 < verticalMenusPerRow) //If we still have menus left to print, then we print a border
 				{
 					std::cout << " ";
 					if(borderPattern.length() > 0)
 					{
-						std::cout << borderPattern[currBorderChar];
+						std::cout << borderPattern[currentBorderCharIndex];
 					}
 				}
 			}
 			std::cout << "\n"; //Go to the next line after printing the menu labels
 			//Go to the next border pattern character because we go to the next line
-			currBorderChar++;
-			if(currBorderChar >= borderPattern.length())
+			currentBorderCharIndex++;
+			if(currentBorderCharIndex >= borderPattern.length())
 			{
-				currBorderChar = 0;
+				currentBorderCharIndex = 0;
 			}
 
 			/*
@@ -511,9 +565,9 @@ namespace stevensTerminal
 
 			std::vector<int> emptyMenuIndices = {};
 			/// Find empty menus ///
-			for(int e = 0; e < menus.size(); e++)
+			for(size_t emptyCheckIndex = 0; emptyCheckIndex < menus.size(); emptyCheckIndex++)
 			{
-				if(menus[e].size() == 0)
+				if(menus[emptyCheckIndex].size() == 0)
 				{
 					emptyMenuIndices.push_back(1);
 				}
@@ -524,108 +578,108 @@ namespace stevensTerminal
 			}
 
 			/// PRINT ITEMS IN MENU ///
-			int i = 0;
-			while(i < menuLength) //i is the variable indicating the inner index of indexing menus: menus[j][i], here we begin printing line by line the items in the menus
+			int itemRowIndex = 0;
+			while(itemRowIndex < menuLength) //itemRowIndex is the variable indicating the inner index of indexing menus: menus[menuColumnIndex][itemRowIndex], here we begin printing line by line the items in the menus
 			{
-				for(int j = 0; j < menus.size(); j++) //j is the index of the current row of menus, the outer index of menus
+				for(size_t menuColumnIndex = 0; menuColumnIndex < menus.size(); menuColumnIndex++) //menuColumnIndex is the index of the current row of menus, the outer index of menus
 				{
-					availableSpace = individualMenuWidth;
-					//cout << "i: " << i << " " << "j: " << j;
-					//We need to check to see if there exists an element at index i in menu j
-					if (i >= menus[j].size() && textThatWrapsOver[j].empty() && queuedItems[j].empty()) //If we index past the size of a list and we have no wrapped text to print
+					charsRemaining = individualMenuWidth;
+					//cout << "itemRowIndex: " << itemRowIndex << " " << "menuColumnIndex: " << menuColumnIndex;
+					//We need to check to see if there exists an element at index itemRowIndex in menu menuColumnIndex
+					if (itemRowIndex >= menus[menuColumnIndex].size() && wrappedTextQueues[menuColumnIndex].empty() && queuedMenuItems[menuColumnIndex].empty()) //If we index past the size of a list and we have no wrapped text to print
 					{
 						//If a menu is empty and we want to show "None" in empty menus, we print "None" here
-						if(emptyMenuIndices[j] == 1 && showNone)
+						if(emptyMenuIndices[menuColumnIndex] == 1 && showNone)
 						{
 							std::cout << "None";
-							emptyMenuIndices[j] = 2;
-							availableSpace -= 4;
-							while (availableSpace > 0)
+							emptyMenuIndices[menuColumnIndex] = 2;
+							charsRemaining -= 4;
+							while (charsRemaining > 0)
 							{
 								std::cout << " ";
-								availableSpace--;
+								charsRemaining--;
 							}
 							goto printBorder;
 							continue;
 						}
 						//Otherwise, we print empty spaces
-						//cout << "print empty space";	
-						availableSpace = individualMenuWidth;
-						while(availableSpace > 0)
+						//cout << "print empty space";
+						charsRemaining = individualMenuWidth;
+						while(charsRemaining > 0)
 						{
 							std::cout << " ";
-							availableSpace--;
+							charsRemaining--;
 						}
 					}
 					else
 					{
-						if (!textThatWrapsOver[j].empty()) //If we have text wrapping over from the line above, then we print it
+						if (!wrappedTextQueues[menuColumnIndex].empty()) //If we have text wrapping over from the line above, then we print it
 						{
 							//cout << "wrap";
-							std::string textToPrint = textThatWrapsOver[j].front();
-							std::string potentialTextToWrap = localizedWrap(textToPrint,availableSpace);
-							availableSpace -= textToPrint.length();
-							textThatWrapsOver[j].pop();
-							if(potentialTextToWrap != "")
+							std::string textToPrint = wrappedTextQueues[menuColumnIndex].front();
+							std::string overflowText = localizedWrap(textToPrint,charsRemaining);
+							charsRemaining -= textToPrint.length();
+							wrappedTextQueues[menuColumnIndex].pop();
+							if(overflowText != "")
 							{
 								//cout << "text wrapped again";
-								textThatWrapsOver[j].push(potentialTextToWrap);
-								if(increaseOffset(menuItemOffset,j));
+								wrappedTextQueues[menuColumnIndex].push(overflowText);
+								if(increaseOffset(menuItemRowOffsets,menuColumnIndex))
 								{
 									menuLength++;
 								}
 							}
 							else
 							{
-								numberOfItemsPrinted[j]++;
+								itemsPrintedPerMenu[menuColumnIndex]++;
 							}
-							while (availableSpace > 0)
+							while (charsRemaining > 0)
 							{
 								std::cout << " ";
-								availableSpace--;
+								charsRemaining--;
 							}
-							if(numberOfItemsPrinted[j] < menus[j].size()) //If we have a menu item to print after the wraparound text, we queue it here
+							if(itemsPrintedPerMenu[menuColumnIndex] < menus[menuColumnIndex].size()) //If we have a menu item to print after the wraparound text, we queue it here
 							{
-								queuedItems[j].push(menus[j][i+1-menuItemOffset[j]]);
+								queuedMenuItems[menuColumnIndex].push(menus[menuColumnIndex][itemRowIndex+1-menuItemRowOffsets[menuColumnIndex]]);
 							}
 						}
-						else if (!queuedItems[j].empty()) //If we have some menu items that have been queued to be printed...
+						else if (!queuedMenuItems[menuColumnIndex].empty()) //If we have some menu items that have been queued to be printed...
 						{
 							//cout << "queuedprint";
-							std::string queuedItem = queuedItems[j].front();
+							std::string queuedItem = queuedMenuItems[menuColumnIndex].front();
 							if (showResponseNums) //Print the response number if it is requested
 							{
-								selectNumString = std::to_string(selectNum[j]) + " - ";
-								selectNum[j]++;
-								availableSpace -= selectNumString.length();
-								std::cout << selectNumString;
+								formattedSelectNum = std::to_string(selectNumByMenu[menuColumnIndex]) + " - ";
+								selectNumByMenu[menuColumnIndex]++;
+								charsRemaining -= formattedSelectNum.length();
+								std::cout << formattedSelectNum;
 							}
-							std::string potentialTextToWrap = localizedWrap(queuedItem,availableSpace);
-							availableSpace -= queuedItem.length();
-							queuedItems[j].pop();
-							if(potentialTextToWrap != "")
+							std::string overflowText = localizedWrap(queuedItem,charsRemaining);
+							charsRemaining -= queuedItem.length();
+							queuedMenuItems[menuColumnIndex].pop();
+							if(overflowText != "")
 							{
-								textThatWrapsOver[j].push(potentialTextToWrap);
-								if(increaseOffset(menuItemOffset,j));
+								wrappedTextQueues[menuColumnIndex].push(overflowText);
+								if(increaseOffset(menuItemRowOffsets,menuColumnIndex))
 								{
-									//I TOOK THE MENU LENGTH INCREASE OUT OF THIS ONE AND IT WORKS I DON'T KNOW WHY
-									//menuLength++;
-									void(0);
+									// Note: menuLength increment removed here - appears to cause issues with this specific case
+									// The increaseOffset call still updates the offset, but we don't increment menuLength
+									// This may need further investigation to understand why this case differs
 								}
 							}
 							else
 							{
-								numberOfItemsPrinted[j]++;
+								itemsPrintedPerMenu[menuColumnIndex]++;
 								//We need to check to queue other content here that has been passed over by wrapping
-								if(numberOfItemsPrinted[j] < menus[j].size())
+								if(itemsPrintedPerMenu[menuColumnIndex] < menus[menuColumnIndex].size())
 								{
-									queuedItems[j].push(menus[j][i+1-menuItemOffset[j]]);
+									queuedMenuItems[menuColumnIndex].push(menus[menuColumnIndex][itemRowIndex+1-menuItemRowOffsets[menuColumnIndex]]);
 								}
 							}
-							while (availableSpace > 0)
+							while (charsRemaining > 0)
 							{
 								std::cout << " ";
-								availableSpace--;
+								charsRemaining--;
 							}
 						}
 						else //If we have no text wrapping over from the line above and no items in the queue to print, then we print at the current row and column
@@ -633,78 +687,78 @@ namespace stevensTerminal
 							//cout << "stdprint";
 							if (showResponseNums) //Print the response number if it is requested
 							{
-								selectNumString = std::to_string(selectNum[j]) + " - ";
-								selectNum[j]++;
-								availableSpace -= selectNumString.length();
-								std::cout << selectNumString;
+								formattedSelectNum = std::to_string(selectNumByMenu[menuColumnIndex]) + " - ";
+								selectNumByMenu[menuColumnIndex]++;
+								charsRemaining -= formattedSelectNum.length();
+								std::cout << formattedSelectNum;
 							}
-							std::string potentialTextToWrap = localizedWrap(menus[j][i-menuItemOffset[j]],availableSpace);
-							availableSpace -= menus[j][i-menuItemOffset[j]].length();
-							if(potentialTextToWrap != "")
+							std::string overflowText = localizedWrap(menus[menuColumnIndex][itemRowIndex-menuItemRowOffsets[menuColumnIndex]],charsRemaining);
+							charsRemaining -= menus[menuColumnIndex][itemRowIndex-menuItemRowOffsets[menuColumnIndex]].length();
+							if(overflowText != "")
 							{
 								//cout << "text wrapped";
-								textThatWrapsOver[j].push(potentialTextToWrap);
+								wrappedTextQueues[menuColumnIndex].push(overflowText);
 								//extraRowsForTextWrapAround++;
 								//menuLength++;
-								if(increaseOffset(menuItemOffset,j));
+								if(increaseOffset(menuItemRowOffsets,menuColumnIndex))
 								{
-									//cout << "menuItemOffset[" << j << "]: " << menuItemOffset[j] << endl;
+									//cout << "menuItemRowOffsets[" << menuColumnIndex << "]: " << menuItemRowOffsets[menuColumnIndex] << endl;
 									menuLength++;
 								}
-								//cout << "menuOffset: " << menuItemOffset[j];
+								//cout << "menuOffset: " << menuItemRowOffsets[menuColumnIndex];
 							}
 							else
 							{
-								numberOfItemsPrinted[j]++;
+								itemsPrintedPerMenu[menuColumnIndex]++;
 							}
-							while (availableSpace > 0)
+							while (charsRemaining > 0)
 							{
 								std::cout << " ";
-								availableSpace--;
+								charsRemaining--;
 							}
-							
+
 							//cout << "standard text printed";
 						}
 					}
 
 					printBorder: //Jump point for printing the border
-					if(j+1 < menus.size()) //Print menu border
+					if(menuColumnIndex+1 < menus.size()) //Print menu border
 					{
 						std::cout << " ";
 						if(borderPattern.length() > 0)
 						{
-							std::cout << borderPattern[currBorderChar];
+							std::cout << borderPattern[currentBorderCharIndex];
 						}
 					}
 					//cout << "row done";
 					//cout << menuLength;
 				}
 				//Go to the next line if we have more menus to print
-				if((i + 1 < menuLength) && (menusLeftToPrint-verticalMenusPerRow >= 0))
+				if((itemRowIndex + 1 < menuLength) && (remainingMenusToPrint-verticalMenusPerRow >= 0))
 				{
 					std::cout << "\n";
 				}
-				currBorderChar++;
-				if(currBorderChar >= borderPattern.length())
+				currentBorderCharIndex++;
+				if(currentBorderCharIndex >= borderPattern.length())
 				{
-					currBorderChar = 0;
+					currentBorderCharIndex = 0;
 				}
-				i++;
+				itemRowIndex++;
 				//cout << menuLength << endl;
 			}
 			//cout << "menuLength:" << menuLength;
-			menusLeftToPrint -= verticalMenusPerRow;
+			remainingMenusToPrint -= verticalMenusPerRow;
 		}
 
 		/*
 		Structure of return tuple:
 		0 - Last selectnum used in the vertical menu
-		1 - A vector, where each index represents a vertical from left to right. The number stored at each index indicates the selectnum 
+		1 - A vector, where each index represents a vertical from left to right. The number stored at each index indicates the selectnum
 			of the menu which can be selected to view more of the vertical menu in question.
 		*/
 		std::vector<int> viewMoreNums;
-		std::tuple<int,std::vector<int> > returnTuple(selectNum.back(),viewMoreNums);
-		return selectNum.back();
+		std::tuple<int,std::vector<int> > returnTuple(selectNumByMenu.back(),viewMoreNums);
+		return selectNumByMenu.back();
 	}
 
 
@@ -734,16 +788,16 @@ namespace stevensTerminal
 
 		if (responses.size() <=  rows) //If the given amount of rows is greater than or equal to the number of responses, we can just print out our responses vertically in a single column
 		{
-			for(int i = 0; i < responses.size(); i++)
+			for(size_t responseIndex = 0; responseIndex < responses.size(); responseIndex++)
 			{
 				selectNum++;
 				if (showResponseNums)
 				{
-					print(std::to_string(selectNum) + " - " + strlib::cap1stChar(responses[i]) + "\n");
+					print(std::to_string(selectNum) + " - " + strlib::cap1stChar(responses[responseIndex]) + "\n");
 				}
 				else
 				{
-					print(strlib::cap1stChar(responses[i]) + "\n");
+					print(strlib::cap1stChar(responses[responseIndex]) + "\n");
 				}
 			}
 		}
@@ -754,13 +808,13 @@ namespace stevensTerminal
 			std::vector< std::vector<std::string> > responseGrid; //responseGrid[column][response in row of index]
 			std::vector<std::string> emptyVec;
 			emptyVec.resize(rows); //mske the columns contain the number of rows we designate in the function call
-			int colNum = 0;
+			int columnIndex = 0;
 			//cout << "Just before while loop\n";
 			while(responsesToCount > 0) //Go through each column and fill a column vector with responses
 			{
 				responseGrid.push_back(emptyVec); //add a column here
 				//cout << "column added\n";
-				for(int rowNum = 0; rowNum < rows; rowNum++) //Add a response to each row of a column
+				for(int rowIndex = 0; rowIndex < rows; rowIndex++) //Add a response to each row of a column
 				{
 					selectNum++;
 					if (responsesToCount > 0)
@@ -768,15 +822,15 @@ namespace stevensTerminal
 						//cout << responses.front();
 						if (showResponseNums)
 						{
-							responseGrid[colNum][rowNum] = std::to_string(selectNum) + " - " + strlib::cap1stChar(responses.front());
+							responseGrid[columnIndex][rowIndex] = std::to_string(selectNum) + " - " + strlib::cap1stChar(responses.front());
 						}
 						else
 						{
-							responseGrid[colNum][rowNum] = strlib::cap1stChar(responses.front());
+							responseGrid[columnIndex][rowIndex] = strlib::cap1stChar(responses.front());
 						}
 						//cout << "response added\n";
 						responses.erase(responses.begin());
-						responsesToCount--;		
+						responsesToCount--;
 					}
 					else
 					{
@@ -784,26 +838,26 @@ namespace stevensTerminal
 						break;
 					}
 				}
-				colNum++;
+				columnIndex++;
 			}
 			//Now we have our responses in a grid/2D vector structure. We can print them out in lines now.
-			for(int rowNum = 0; rowNum < rows; rowNum++)
+			for(int rowIndex = 0; rowIndex < rows; rowIndex++)
 			{
-				for(int colNum = 0; colNum < columns; colNum++) //Print each column after each other separated by tabs
+				for(int columnIndex = 0; columnIndex < columns; columnIndex++) //Print each column after each other separated by tabs
 				{
 					//void(0);
-					if (responseGrid[colNum][rowNum].length() < 8)
+					if (responseGrid[columnIndex][rowIndex].length() < MIN_CELL_WIDTH)
 					{
 						while(true)
 						{
-							responseGrid[colNum][rowNum] += " ";
-							if (responseGrid[colNum][rowNum].length() == 8)
+							responseGrid[columnIndex][rowIndex] += " ";
+							if (responseGrid[columnIndex][rowIndex].length() == MIN_CELL_WIDTH)
 							{
 								break;
 							}
 						}
 					}
-					std::cout << responseGrid[colNum][rowNum] + "\t";
+					std::cout << responseGrid[columnIndex][rowIndex] + "\t";
 				}
 				std::cout << "\n"; //Once we finish a row we print a newline
 			}
@@ -842,9 +896,9 @@ namespace stevensTerminal
 		//If no formatting is applied, then we just print all of the objects out on their own lines
 		if(format.empty())
 		{
-			for(int i = 0; i < vec.size(); i++)
+			for(size_t elementIndex = 0; elementIndex < vec.size(); elementIndex++)
 			{
-				print(vec[i]);
+				print(vec[elementIndex]);
 			}
 			return;
 		}
@@ -914,7 +968,7 @@ namespace stevensTerminal
 			emptyStringVec.resize(vec.size());
 			rows = vec.size();
 		}
-		int currCol = 0;
+		int currentColumnIndex = 0;
 		//cout << "Just before while loop\n";
 		while(vec.size() > 0) //Go through each column and fill a column vector with responses
 		{
@@ -923,7 +977,7 @@ namespace stevensTerminal
 			appendTextGrid.push_back(emptyStringVec);
 			//cout << "vec.size() == " << vec.size() << "\n";
 			//cout << "column added\n";
-			for(int currRow = 0; currRow < rows; currRow++) //Add an element to each row of a column
+			for(int rowIndex = 0; rowIndex < rows; rowIndex++) //Add an element to each row of a column
 			{
 				if (vec.size() > 0)
 				{
@@ -931,9 +985,9 @@ namespace stevensTerminal
 					{
 						prependString = std::to_string(numberLabel) + " - " + prependString;
 					}
-					prependTextGrid[currCol][currRow] = prependString;
-					appendTextGrid[currCol][currRow] = appendString;
-					elementGrid[currCol][currRow] = vec.front();
+					prependTextGrid[currentColumnIndex][rowIndex] = prependString;
+					appendTextGrid[currentColumnIndex][rowIndex] = appendString;
+					elementGrid[currentColumnIndex][rowIndex] = vec.front();
 					//cout << "response added\n";
 					//We've added the vector object to the grid we will print. We can erase it from its source vector.
 					vec.erase(vec.begin());
@@ -949,29 +1003,29 @@ namespace stevensTerminal
 					break;
 				}
 			}
-			currCol++;
+			currentColumnIndex++;
 		}
 		//Now we have our responses in a grid/2D vector structure. We can print them out in lines now.
-		for(int rowNum = 0; rowNum < rows; rowNum++)
+		for(int rowIndex = 0; rowIndex < rows; rowIndex++)
 		{
-			for(int colNum = 0; colNum < columns; colNum++) //Print each column after each other separated by tabs
+			for(int columnIndex = 0; columnIndex < columns; columnIndex++) //Print each column after each other separated by tabs
 			{
 				//void(0);
-				if (elementGrid[colNum][rowNum].length() < 8)
+				if (elementGrid[columnIndex][rowIndex].length() < MIN_CELL_WIDTH)
 				{
 					while(true)
 					{
-						elementGrid[colNum][rowNum] += " ";
-						if (elementGrid[colNum][rowNum].length() == 8)
+						elementGrid[columnIndex][rowIndex] += " ";
+						if (elementGrid[columnIndex][rowIndex].length() == MIN_CELL_WIDTH)
 						{
 							break;
 						}
 					}
 				}
 				//cout << "printing a row!" << endl;
-				print(prependTextGrid[colNum][rowNum]);
-				print(elementGrid[colNum][rowNum]);
-				print(appendTextGrid[colNum][rowNum] + "\t");
+				print(prependTextGrid[columnIndex][rowIndex]);
+				print(elementGrid[columnIndex][rowIndex]);
+				print(appendTextGrid[columnIndex][rowIndex] + "\t");
 			}
 			std::cout << "\n"; //Once we finish a row we print a newline
 		}
@@ -1029,9 +1083,9 @@ namespace stevensTerminal
 		//If no formatting is applied, then we just print all of the objects out sequentially in a single column
 		if(format.empty())
 		{
-			for(int i = 0; i < vec.size(); i++)
+			for(size_t elementIndex = 0; elementIndex < vec.size(); elementIndex++)
 			{
-				stringToPrint += vec[i] + "\n";
+				stringToPrint += vec[elementIndex] + "\n";
 			}
 			return stringToPrint;
 		}
@@ -1153,7 +1207,7 @@ namespace stevensTerminal
 			int workingIndex = startingIndex;
 
 			//Construct and insert each row into elementGrid
-			for(int row = 0; row < rows; row++ )
+			for(int rowIndex = 0; rowIndex < rows; rowIndex++ )
 			{
 				//Initialize vectors that will make up the row
 				std::vector<T> workingElementRow = {};
@@ -1256,12 +1310,12 @@ namespace stevensTerminal
 
 		/*** WRITE THE FORMATTED VECTOR TO A STRING ***/
 		// std::cout << "elementGrid dimensions: " << elementGrid.size();
-		// getch(); 
+		// getch();
 		//Now we have our responses in a grid/2D vector structure. We can them write them to the stringToPrint now.
-		for(int rowNum = 0; rowNum < rows; rowNum++)
+		for(int rowIndex = 0; rowIndex < rows; rowIndex++)
 		{
 			//If we don't have elements to print at this row, stop finish creating the stringToPrint
-			if( rowNum >= elementGrid.size())
+			if( rowIndex >= elementGrid.size())
 			{
 				break;
 			}
@@ -1269,50 +1323,50 @@ namespace stevensTerminal
 			int columnsToPrint;
 			if(allowOverflow)
 			{
-				columnsToPrint = elementGrid.at(rowNum).size();
+				columnsToPrint = elementGrid.at(rowIndex).size();
 			}
 			else
 			{
 				columnsToPrint = columns;
 			}
 
-			for(int colNum = 0; colNum < columnsToPrint; colNum++) //Print each column after each other separated by tabs
+			for(int columnIndex = 0; columnIndex < columnsToPrint; columnIndex++) //Print each column after each other separated by tabs
 			{
 				//If we don't have an item to print in the current column, skip it
-				if( colNum >= elementGrid.at(rowNum).size() )
+				if( columnIndex >= elementGrid.at(rowIndex).size() )
 				{
 					continue;
 				}
 
 				//Get what should be printed in the cell
-				std::string cell =	prependTextGrid.at(rowNum).at(colNum) +
-									elementGrid.at(rowNum).at(colNum) + 
-									appendTextGrid.at(rowNum).at(colNum);
+				std::string cell =	prependTextGrid.at(rowIndex).at(columnIndex) +
+									elementGrid.at(rowIndex).at(columnIndex) +
+									appendTextGrid.at(rowIndex).at(columnIndex);
 
 				//Before we add the cell to the print string, check to see if we have a specific width for this column
 				//or if we are using a default column width
-				if( (columnWidths.contains(colNum)) ||
+				if( (columnWidths.contains(columnIndex)) ||
 					(defaultColumnWidth != "none") )
 				{
 					//Get the width of the column that we can print to
 					size_t columnWidth;
-					if(columnWidths.contains(colNum))
+					if(columnWidths.contains(columnIndex))
 					{
 						//If we specified an integer column size for this column, use it
-						if( stevensStringLib::isInteger( columnWidths.at(colNum)) )
+						if( stevensStringLib::isInteger( columnWidths.at(columnIndex)) )
 						{
-							columnWidth = std::stoi( columnWidths.at(colNum) );
+							columnWidth = std::stoi( columnWidths.at(columnIndex) );
 						}
 						//If we didn't use the "auto" setting
 						else
 						{
-							columnWidth = greatestCellSizePerColumn.at(colNum);
+							columnWidth = greatestCellSizePerColumn.at(columnIndex);
 						}
 					}
 					//If we didn't supply the width of the column, use the "auto" column sizing
 					else
 					{
-						columnWidth = greatestCellSizePerColumn.at(colNum);
+						columnWidth = greatestCellSizePerColumn.at(columnIndex);
 					}
 					//Resize the cell based on our given column size
 					cell = stevensTerminal::resizeStyledString(cell, columnWidth);
@@ -1515,7 +1569,20 @@ namespace stevensTerminal
 			std::vector<std::string> widthStrings = stevensStringLib::separate(format["column widths"], ',');
 			for(const auto& widthStr : widthStrings)
 			{
-				columnWidths.push_back(std::stoi(widthStr));
+				try
+				{
+					columnWidths.push_back(std::stoi(widthStr));
+				}
+				catch(const std::invalid_argument& e)
+				{
+					std::cerr << "Error: Invalid column width '" << widthStr << "' - must be a valid integer" << std::endl;
+					return ""; // Return empty string on error
+				}
+				catch(const std::out_of_range& e)
+				{
+					std::cerr << "Error: Column width '" << widthStr << "' is out of range" << std::endl;
+					return ""; // Return empty string on error
+				}
 			}
 		}
 		else if(!format.contains("column width") || format["column width"] == "use width of largest entry")

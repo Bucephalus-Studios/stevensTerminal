@@ -345,4 +345,24 @@ static void BM_EfficientPatternMatch(benchmark::State& state) {
 }
 BENCHMARK(BM_EfficientPatternMatch);
 
+// ==== STRING LIBRARY BENCHMARKS ====
+
+
+
+static void BM_VectorLib_Contains(benchmark::State& state) {
+    std::vector<int> vec;
+    for(int i = 0; i < state.range(0); ++i) {
+        vec.push_back(i);
+    }
+    int searchValue = state.range(0) - 1; // Worst case: last element
+    
+    for (auto _ : state) {
+        bool result = stevensVectorLib::contains(vec, searchValue);
+        benchmark::DoNotOptimize(result);
+    }
+    
+    state.SetComplexityN(state.range(0));
+}
+BENCHMARK(BM_VectorLib_Contains)->Range(8, 8192)->Complexity();
+
 BENCHMARK_MAIN();
