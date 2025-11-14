@@ -784,16 +784,16 @@ namespace stevensTerminal
 
 		if (responses.size() <=  rows) //If the given amount of rows is greater than or equal to the number of responses, we can just print out our responses vertically in a single column
 		{
-			for(int i = 0; i < responses.size(); i++)
+			for(size_t responseIndex = 0; responseIndex < responses.size(); responseIndex++)
 			{
 				selectNum++;
 				if (showResponseNums)
 				{
-					print(std::to_string(selectNum) + " - " + strlib::cap1stChar(responses[i]) + "\n");
+					print(std::to_string(selectNum) + " - " + strlib::cap1stChar(responses[responseIndex]) + "\n");
 				}
 				else
 				{
-					print(strlib::cap1stChar(responses[i]) + "\n");
+					print(strlib::cap1stChar(responses[responseIndex]) + "\n");
 				}
 			}
 		}
@@ -804,13 +804,13 @@ namespace stevensTerminal
 			std::vector< std::vector<std::string> > responseGrid; //responseGrid[column][response in row of index]
 			std::vector<std::string> emptyVec;
 			emptyVec.resize(rows); //mske the columns contain the number of rows we designate in the function call
-			int colNum = 0;
+			int columnIndex = 0;
 			//cout << "Just before while loop\n";
 			while(responsesToCount > 0) //Go through each column and fill a column vector with responses
 			{
 				responseGrid.push_back(emptyVec); //add a column here
 				//cout << "column added\n";
-				for(int rowNum = 0; rowNum < rows; rowNum++) //Add a response to each row of a column
+				for(int rowIndex = 0; rowIndex < rows; rowIndex++) //Add a response to each row of a column
 				{
 					selectNum++;
 					if (responsesToCount > 0)
@@ -818,15 +818,15 @@ namespace stevensTerminal
 						//cout << responses.front();
 						if (showResponseNums)
 						{
-							responseGrid[colNum][rowNum] = std::to_string(selectNum) + " - " + strlib::cap1stChar(responses.front());
+							responseGrid[columnIndex][rowIndex] = std::to_string(selectNum) + " - " + strlib::cap1stChar(responses.front());
 						}
 						else
 						{
-							responseGrid[colNum][rowNum] = strlib::cap1stChar(responses.front());
+							responseGrid[columnIndex][rowIndex] = strlib::cap1stChar(responses.front());
 						}
 						//cout << "response added\n";
 						responses.erase(responses.begin());
-						responsesToCount--;		
+						responsesToCount--;
 					}
 					else
 					{
@@ -834,26 +834,27 @@ namespace stevensTerminal
 						break;
 					}
 				}
-				colNum++;
+				columnIndex++;
 			}
 			//Now we have our responses in a grid/2D vector structure. We can print them out in lines now.
-			for(int rowNum = 0; rowNum < rows; rowNum++)
+			for(int rowIndex = 0; rowIndex < rows; rowIndex++)
 			{
-				for(int colNum = 0; colNum < columns; colNum++) //Print each column after each other separated by tabs
+				for(int columnIndex = 0; columnIndex < columns; columnIndex++) //Print each column after each other separated by tabs
 				{
 					//void(0);
-					if (responseGrid[colNum][rowNum].length() < 8)
+					const int MIN_CELL_WIDTH = 8;
+					if (responseGrid[columnIndex][rowIndex].length() < MIN_CELL_WIDTH)
 					{
 						while(true)
 						{
-							responseGrid[colNum][rowNum] += " ";
-							if (responseGrid[colNum][rowNum].length() == 8)
+							responseGrid[columnIndex][rowIndex] += " ";
+							if (responseGrid[columnIndex][rowIndex].length() == MIN_CELL_WIDTH)
 							{
 								break;
 							}
 						}
 					}
-					std::cout << responseGrid[colNum][rowNum] + "\t";
+					std::cout << responseGrid[columnIndex][rowIndex] + "\t";
 				}
 				std::cout << "\n"; //Once we finish a row we print a newline
 			}
@@ -892,9 +893,9 @@ namespace stevensTerminal
 		//If no formatting is applied, then we just print all of the objects out on their own lines
 		if(format.empty())
 		{
-			for(int i = 0; i < vec.size(); i++)
+			for(size_t elementIndex = 0; elementIndex < vec.size(); elementIndex++)
 			{
-				print(vec[i]);
+				print(vec[elementIndex]);
 			}
 			return;
 		}
@@ -964,7 +965,7 @@ namespace stevensTerminal
 			emptyStringVec.resize(vec.size());
 			rows = vec.size();
 		}
-		int currCol = 0;
+		int currentColumnIndex = 0;
 		//cout << "Just before while loop\n";
 		while(vec.size() > 0) //Go through each column and fill a column vector with responses
 		{
@@ -973,7 +974,7 @@ namespace stevensTerminal
 			appendTextGrid.push_back(emptyStringVec);
 			//cout << "vec.size() == " << vec.size() << "\n";
 			//cout << "column added\n";
-			for(int currRow = 0; currRow < rows; currRow++) //Add an element to each row of a column
+			for(int rowIndex = 0; rowIndex < rows; rowIndex++) //Add an element to each row of a column
 			{
 				if (vec.size() > 0)
 				{
@@ -981,9 +982,9 @@ namespace stevensTerminal
 					{
 						prependString = std::to_string(numberLabel) + " - " + prependString;
 					}
-					prependTextGrid[currCol][currRow] = prependString;
-					appendTextGrid[currCol][currRow] = appendString;
-					elementGrid[currCol][currRow] = vec.front();
+					prependTextGrid[currentColumnIndex][rowIndex] = prependString;
+					appendTextGrid[currentColumnIndex][rowIndex] = appendString;
+					elementGrid[currentColumnIndex][rowIndex] = vec.front();
 					//cout << "response added\n";
 					//We've added the vector object to the grid we will print. We can erase it from its source vector.
 					vec.erase(vec.begin());
@@ -999,29 +1000,29 @@ namespace stevensTerminal
 					break;
 				}
 			}
-			currCol++;
+			currentColumnIndex++;
 		}
 		//Now we have our responses in a grid/2D vector structure. We can print them out in lines now.
-		for(int rowNum = 0; rowNum < rows; rowNum++)
+		for(int rowIndex = 0; rowIndex < rows; rowIndex++)
 		{
-			for(int colNum = 0; colNum < columns; colNum++) //Print each column after each other separated by tabs
+			for(int columnIndex = 0; columnIndex < columns; columnIndex++) //Print each column after each other separated by tabs
 			{
 				//void(0);
-				if (elementGrid[colNum][rowNum].length() < 8)
+				if (elementGrid[columnIndex][rowIndex].length() < 8)
 				{
 					while(true)
 					{
-						elementGrid[colNum][rowNum] += " ";
-						if (elementGrid[colNum][rowNum].length() == 8)
+						elementGrid[columnIndex][rowIndex] += " ";
+						if (elementGrid[columnIndex][rowIndex].length() == 8)
 						{
 							break;
 						}
 					}
 				}
 				//cout << "printing a row!" << endl;
-				print(prependTextGrid[colNum][rowNum]);
-				print(elementGrid[colNum][rowNum]);
-				print(appendTextGrid[colNum][rowNum] + "\t");
+				print(prependTextGrid[columnIndex][rowIndex]);
+				print(elementGrid[columnIndex][rowIndex]);
+				print(appendTextGrid[columnIndex][rowIndex] + "\t");
 			}
 			std::cout << "\n"; //Once we finish a row we print a newline
 		}
@@ -1079,9 +1080,9 @@ namespace stevensTerminal
 		//If no formatting is applied, then we just print all of the objects out sequentially in a single column
 		if(format.empty())
 		{
-			for(int i = 0; i < vec.size(); i++)
+			for(size_t elementIndex = 0; elementIndex < vec.size(); elementIndex++)
 			{
-				stringToPrint += vec[i] + "\n";
+				stringToPrint += vec[elementIndex] + "\n";
 			}
 			return stringToPrint;
 		}
@@ -1203,7 +1204,7 @@ namespace stevensTerminal
 			int workingIndex = startingIndex;
 
 			//Construct and insert each row into elementGrid
-			for(int row = 0; row < rows; row++ )
+			for(int rowIndex = 0; rowIndex < rows; rowIndex++ )
 			{
 				//Initialize vectors that will make up the row
 				std::vector<T> workingElementRow = {};
@@ -1306,12 +1307,12 @@ namespace stevensTerminal
 
 		/*** WRITE THE FORMATTED VECTOR TO A STRING ***/
 		// std::cout << "elementGrid dimensions: " << elementGrid.size();
-		// getch(); 
+		// getch();
 		//Now we have our responses in a grid/2D vector structure. We can them write them to the stringToPrint now.
-		for(int rowNum = 0; rowNum < rows; rowNum++)
+		for(int rowIndex = 0; rowIndex < rows; rowIndex++)
 		{
 			//If we don't have elements to print at this row, stop finish creating the stringToPrint
-			if( rowNum >= elementGrid.size())
+			if( rowIndex >= elementGrid.size())
 			{
 				break;
 			}
@@ -1319,50 +1320,50 @@ namespace stevensTerminal
 			int columnsToPrint;
 			if(allowOverflow)
 			{
-				columnsToPrint = elementGrid.at(rowNum).size();
+				columnsToPrint = elementGrid.at(rowIndex).size();
 			}
 			else
 			{
 				columnsToPrint = columns;
 			}
 
-			for(int colNum = 0; colNum < columnsToPrint; colNum++) //Print each column after each other separated by tabs
+			for(int columnIndex = 0; columnIndex < columnsToPrint; columnIndex++) //Print each column after each other separated by tabs
 			{
 				//If we don't have an item to print in the current column, skip it
-				if( colNum >= elementGrid.at(rowNum).size() )
+				if( columnIndex >= elementGrid.at(rowIndex).size() )
 				{
 					continue;
 				}
 
 				//Get what should be printed in the cell
-				std::string cell =	prependTextGrid.at(rowNum).at(colNum) +
-									elementGrid.at(rowNum).at(colNum) + 
-									appendTextGrid.at(rowNum).at(colNum);
+				std::string cell =	prependTextGrid.at(rowIndex).at(columnIndex) +
+									elementGrid.at(rowIndex).at(columnIndex) +
+									appendTextGrid.at(rowIndex).at(columnIndex);
 
 				//Before we add the cell to the print string, check to see if we have a specific width for this column
 				//or if we are using a default column width
-				if( (columnWidths.contains(colNum)) ||
+				if( (columnWidths.contains(columnIndex)) ||
 					(defaultColumnWidth != "none") )
 				{
 					//Get the width of the column that we can print to
 					size_t columnWidth;
-					if(columnWidths.contains(colNum))
+					if(columnWidths.contains(columnIndex))
 					{
 						//If we specified an integer column size for this column, use it
-						if( stevensStringLib::isInteger( columnWidths.at(colNum)) )
+						if( stevensStringLib::isInteger( columnWidths.at(columnIndex)) )
 						{
-							columnWidth = std::stoi( columnWidths.at(colNum) );
+							columnWidth = std::stoi( columnWidths.at(columnIndex) );
 						}
 						//If we didn't use the "auto" setting
 						else
 						{
-							columnWidth = greatestCellSizePerColumn.at(colNum);
+							columnWidth = greatestCellSizePerColumn.at(columnIndex);
 						}
 					}
 					//If we didn't supply the width of the column, use the "auto" column sizing
 					else
 					{
-						columnWidth = greatestCellSizePerColumn.at(colNum);
+						columnWidth = greatestCellSizePerColumn.at(columnIndex);
 					}
 					//Resize the cell based on our given column size
 					cell = stevensTerminal::resizeStyledString(cell, columnWidth);
