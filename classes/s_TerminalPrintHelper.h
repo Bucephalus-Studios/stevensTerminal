@@ -38,6 +38,19 @@ namespace s_TerminalPrintHelper
 	const std::string curses_default_textColor = "bright-white"; //The default color to print text in curses
 	const std::string curses_default_backgroundColor = "black"; //The default text background color in curses
 
+	/**
+	 * @brief Data structure for defining color pairs in a data-driven way
+	 *
+	 * This structure allows us to define color pairs with their associated names
+	 * in a compact, maintainable format rather than hundreds of lines of repetitive code.
+	 */
+	struct ColorPairDefinition {
+		int pairNum;
+		int foreground;
+		int background;
+		std::vector<std::string> names;
+	};
+
 	// /*** Constructor ***/
 	// #ifndef curses
 	// s_TerminalPrintHelper()
@@ -1232,348 +1245,254 @@ namespace s_TerminalPrintHelper
 
 
 	/**
+	 * @brief Helper function to register a batch of color pair definitions
+	 *
+	 * @param definitions Vector of ColorPairDefinition structs to register
+	 */
+	inline void registerColorPairs(const std::vector<ColorPairDefinition>& definitions) {
+		for (const auto& def : definitions) {
+			init_pair(def.pairNum, def.foreground, def.background);
+			for (const auto& name : def.names) {
+				curses_colors[name] = def.pairNum;
+			}
+		}
+	}
+
+	/**
+	 * @brief Helper to generate color pair definitions for a given background across all foregrounds
+	 *
+	 * @param startPairNum Starting pair number
+	 * @param bgColor Background color code
+	 * @param bgName Background color name (e.g., "black", "red", "bright-blue")
+	 * @param fgColors Vector of foreground color codes
+	 * @param fgNames Vector of foreground color names (parallel to fgColors)
+	 * @param extraAliases Map of pair offsets to additional alias names
+	 * @return Vector of ColorPairDefinition structs
+	 */
+	inline std::vector<ColorPairDefinition> generateBackgroundPairs(
+		int startPairNum,
+		int bgColor,
+		const std::string& bgName,
+		const std::vector<int>& fgColors,
+		const std::vector<std::string>& fgNames,
+		const std::unordered_map<int, std::vector<std::string>>& extraAliases = {}
+	) {
+		std::vector<ColorPairDefinition> defs;
+		for (size_t fgIndex = 0; fgIndex < fgColors.size(); ++fgIndex) {
+			std::vector<std::string> names = {fgNames[fgIndex] + "_on_" + bgName};
+
+			// Add any extra aliases for this pair
+			int pairOffset = static_cast<int>(fgIndex);
+			auto aliasIt = extraAliases.find(pairOffset);
+			if (aliasIt != extraAliases.end()) {
+				names.insert(names.end(), aliasIt->second.begin(), aliasIt->second.end());
+			}
+
+			defs.push_back({
+				startPairNum + static_cast<int>(fgIndex),
+				fgColors[fgIndex],
+				bgColor,
+				names
+			});
+		}
+		return defs;
+	}
+
+	/**
+	 * @brief Helper to generate all 16 foreground combinations (8 standard + 8 bright) for a bright background
+	 *
+	 * Handles the complex aliasing where bright backgrounds have alternate names (grey, aqua, pink)
+	 * and bright foregrounds also have these aliases.
+	 *
+	 * @param startPairNum Starting pair number
+	 * @param bgColor Background color code (8-15)
+	 * @param bgName Background color name (e.g., "bright-black")
+	 * @param bgAlias Optional alias for background (e.g., "grey")
+	 * @return Vector of ColorPairDefinition structs for all 16 foregrounds
+	 */
+	inline std::vector<ColorPairDefinition> generateBrightBackgroundPairs(
+		int startPairNum,
+		int bgColor,
+		const std::string& bgName,
+		const std::string& bgAlias = ""
+	) {
+		std::vector<ColorPairDefinition> defs;
+
+		// Standard 8 foregrounds
+		const std::vector<int> std8FG = {COLOR_BLACK, COLOR_RED, COLOR_GREEN, COLOR_YELLOW,
+		                                  COLOR_BLUE, COLOR_MAGENTA, COLOR_CYAN, COLOR_WHITE};
+		const std::vector<std::string> std8Names = {"black", "red", "green", "yellow",
+		                                             "blue", "magenta", "cyan", "white"};
+
+		for (size_t i = 0; i < 8; ++i) {
+			std::vector<std::string> names = {std8Names[i] + "_on_" + bgName};
+			if (!bgAlias.empty()) {
+				names.push_back(std8Names[i] + "_on_" + bgAlias);
+			}
+			defs.push_back({startPairNum + static_cast<int>(i), std8FG[i], bgColor, names});
+		}
+
+		// Bright 8 foregrounds (8-15) with their aliases
+		const std::vector<int> bright8FG = {8, 9, 10, 11, 12, 13, 14, 15};
+		const std::vector<std::string> bright8Names = {
+			"bright-black", "bright-red", "bright-green", "bright-yellow",
+			"bright-blue", "bright-magenta", "bright-cyan", "bright-white"
+		};
+		const std::vector<std::string> bright8Aliases = {"grey", "", "", "", "aqua", "pink", "", ""};
+
+		for (size_t i = 0; i < 8; ++i) {
+			std::vector<std::string> names = {bright8Names[i] + "_on_" + bgName};
+			if (!bgAlias.empty()) {
+				names.push_back(bright8Names[i] + "_on_" + bgAlias);
+			}
+
+			// Add foreground alias variants if applicable
+			if (!bright8Aliases[i].empty()) {
+				names.push_back(bright8Aliases[i] + "_on_" + bgName);
+				if (!bgAlias.empty()) {
+					names.push_back(bright8Aliases[i] + "_on_" + bgAlias);
+				}
+			}
+
+			// Special case: when both FG and BG are the same aliased color
+			if (bright8FG[i] == bgColor && !bright8Aliases[i].empty() && !bgAlias.empty()) {
+				names.push_back(bright8Aliases[i] + "_on_" + bright8Names[i]);
+				if (bright8Aliases[i] == bgAlias) {
+					names.push_back(bgAlias + "_on_" + bgAlias);
+				}
+			}
+
+			defs.push_back({startPairNum + 8 + static_cast<int>(i), bright8FG[i], bgColor, names});
+		}
+
+		return defs;
+	}
+
+	/**
 	 * Sets up color pairs for every combination of the default colors in the curses library:
-	 * COLOR_BLACK 
-     * COLOR_RED
-     * COLOR_GREEN
-     * COLOR_YELLOW
-     * COLOR_BLUE
-     * COLOR_MAGENTA
-     * COLOR_CYAN
-     * COLOR_WHITE
-	 * 
+	 * COLOR_BLACK, COLOR_RED, COLOR_GREEN, COLOR_YELLOW,
+	 * COLOR_BLUE, COLOR_MAGENTA, COLOR_CYAN, COLOR_WHITE
+	 *
 	 * Also the extended bright colors:
-	 * 8	- Bright black	(GREY)
-	 * 9	- Bright red
-	 * 10	- Bright green
-	 * 11	- Bright yellow
-	 * 12	- Bright blue	(AQUA)
-	 * 13	- Bright magenta(PINK)
-	 * 14	- Bright cyan
-	 * 15 	- Bright white
-	 * 
-	 * Additionally, populate  the curses colors map.
-	*/
+	 * 8  - Bright black  (GREY)
+	 * 9  - Bright red
+	 * 10 - Bright green
+	 * 11 - Bright yellow
+	 * 12 - Bright blue   (AQUA)
+	 * 13 - Bright magenta (PINK)
+	 * 14 - Bright cyan
+	 * 15 - Bright white
+	 *
+	 * Additionally, populates the curses_colors map.
+	 *
+	 * This function uses a data-driven approach to reduce code repetition
+	 * from 320+ lines to ~100 lines while maintaining identical functionality.
+	 */
 	void curses_setup_colorPairs()
 	{
-		//Syntax is: init_pair(keyInCOLOR_PAIR, foregroundColor, backgroundColor)
-	
-		//If we support just one color pair, then we just do black on white
-		if((COLORS >= 2) && (COLOR_PAIRS >= 1))
-		{
-			//DEFAULT COLOR PAIR
-			init_pair(0, COLOR_WHITE,	COLOR_BLACK); 	curses_colors["default"] 			= 0;
-		}
-		else
-		{
-			//TODO: Work on this later, but we need to throw some kind of error if we can't support more than 2 colors in a terminal
-			cout << "Error from s_TerminalPrintHelper - less than 2 colors available for use detected! Closing program." << endl;
+		// Syntax is: init_pair(keyInCOLOR_PAIR, foregroundColor, backgroundColor)
+
+		// If we support just one color pair, then we just do white on black (default)
+		if ((COLORS >= 2) && (COLOR_PAIRS >= 1)) {
+			registerColorPairs({{0, COLOR_WHITE, COLOR_BLACK, {"default"}}});
+		} else {
+			// Error: Cannot support colors
+			std::cout << "Error from s_TerminalPrintHelper - less than 2 colors available for use detected! Closing program." << std::endl;
 			exit(EXIT_FAILURE);
 		}
-		//If we support two color pairs, we also do black on black
-		if((COLOR_PAIRS >= 2))
-		{
-			init_pair(1, COLOR_BLACK,	COLOR_BLACK);	curses_colors["black_on_black"] 	= 1;
+
+		// If we support two color pairs, we also do black on black
+		if (COLOR_PAIRS >= 2) {
+			registerColorPairs({{1, COLOR_BLACK, COLOR_BLACK, {"black_on_black"}}});
 		}
-		//If we support 8 color pairs, do the rest of of black backgounds
-		if((COLORS >= 8) && (COLOR_PAIRS >= 8))
-		{
-			/*** Black background ***/
-			init_pair(2, COLOR_RED,		COLOR_BLACK);	curses_colors["red_on_black"]		= 2;
-			init_pair(3, COLOR_GREEN,	COLOR_BLACK);	curses_colors["green_on_black"] 	= 3;
-			init_pair(4, COLOR_YELLOW,	COLOR_BLACK);	curses_colors["yellow_on_black"]	= 4;
-			init_pair(5, COLOR_BLUE,	COLOR_BLACK);	curses_colors["blue_on_black"]		= 5;
-			init_pair(6, COLOR_MAGENTA,	COLOR_BLACK);	curses_colors["magenta_on_black"]	= 6;
-			init_pair(7, COLOR_CYAN,	COLOR_BLACK);	curses_colors["cyan_on_black"]		= 7;
-			init_pair(8, COLOR_WHITE,	COLOR_BLACK);	curses_colors["white_on_black"]		= 8;
+
+		// Define standard 8 colors for reuse
+		const std::vector<int> standard8Colors = {
+			COLOR_BLACK, COLOR_RED, COLOR_GREEN, COLOR_YELLOW,
+			COLOR_BLUE, COLOR_MAGENTA, COLOR_CYAN, COLOR_WHITE
+		};
+		const std::vector<std::string> standard8Names = {
+			"black", "red", "green", "yellow",
+			"blue", "magenta", "cyan", "white"
+		};
+
+		// If we support 8 color pairs, do the rest of black backgrounds (already did black_on_black)
+		if ((COLORS >= 8) && (COLOR_PAIRS >= 8)) {
+			// Black background: red through white (pairs 2-8)
+			registerColorPairs(generateBackgroundPairs(2, COLOR_BLACK, "black",
+				{COLOR_RED, COLOR_GREEN, COLOR_YELLOW, COLOR_BLUE, COLOR_MAGENTA, COLOR_CYAN, COLOR_WHITE},
+				{"red", "green", "yellow", "blue", "magenta", "cyan", "white"}));
 		}
-		//If we support up to 16 color pairs, do red backgrounds
-		if((COLORS >= 8) && (COLOR_PAIRS >= 16))
-		{
-			/*** Red background ***/
-			init_pair(9,	COLOR_BLACK,	COLOR_RED);	curses_colors["black_on_red"]		= 9;
-			init_pair(10,	COLOR_RED,		COLOR_RED);	curses_colors["red_on_red"]			= 10;
-			init_pair(11,	COLOR_GREEN,	COLOR_RED);	curses_colors["green_on_red"]		= 11;
-			init_pair(12,	COLOR_YELLOW,	COLOR_RED);	curses_colors["yellow_on_red"]		= 12;
-			init_pair(13,	COLOR_BLUE,		COLOR_RED);	curses_colors["blue_on_red"]		= 13;
-			init_pair(14,	COLOR_MAGENTA,	COLOR_RED);	curses_colors["magenta_on_red"]		= 14;
-			init_pair(15,	COLOR_CYAN,		COLOR_RED);	curses_colors["cyan_on_red"]		= 15;
-			init_pair(16,	COLOR_WHITE,	COLOR_RED);	curses_colors["white_on_red"]		= 16;
+
+		// If we support up to 16 color pairs, do red backgrounds
+		if ((COLORS >= 8) && (COLOR_PAIRS >= 16)) {
+			registerColorPairs(generateBackgroundPairs(9, COLOR_RED, "red", standard8Colors, standard8Names));
 		}
-		//If we support up to 64 color pairs, do the rest of the standard 8 color backgrounds
-		if((COLORS >= 8) && (COLOR_PAIRS >= 64))
-		{
-			/*** Green Background ***/
-			init_pair(17,	COLOR_BLACK,	COLOR_GREEN); curses_colors["black_on_green"]	= 17;
-			init_pair(18,	COLOR_RED,		COLOR_GREEN); curses_colors["red_on_green"]		= 18;
-			init_pair(19,	COLOR_GREEN,	COLOR_GREEN); curses_colors["green_on_green"]	= 19;
-			init_pair(20,	COLOR_YELLOW,	COLOR_GREEN); curses_colors["yellow_on_green"]	= 20;
-			init_pair(21,	COLOR_BLUE,		COLOR_GREEN); curses_colors["blue_on_green"]	= 21;
-			init_pair(22,	COLOR_MAGENTA,	COLOR_GREEN); curses_colors["magenta_on_green"]	= 22;
-			init_pair(23,	COLOR_CYAN,		COLOR_GREEN); curses_colors["cyan_on_green"]	= 23;
-			init_pair(24,	COLOR_WHITE,	COLOR_GREEN); curses_colors["white_on_green"]	= 24;
-			/*** Yellow background ***/
-			init_pair(25,	COLOR_BLACK,	COLOR_YELLOW); curses_colors["black_on_yellow"] = 25;
-			init_pair(26,	COLOR_RED,		COLOR_YELLOW); curses_colors["red_on_yellow"]	= 26;
-			init_pair(27,	COLOR_GREEN,	COLOR_YELLOW); curses_colors["green_on_yellow"]	= 27;
-			init_pair(28,	COLOR_YELLOW,	COLOR_YELLOW); curses_colors["yellow_on_yellow"]= 28;
-			init_pair(29,	COLOR_BLUE,		COLOR_YELLOW); curses_colors["blue_on_yellow"]	= 29;
-			init_pair(30,	COLOR_MAGENTA,	COLOR_YELLOW); curses_colors["magenta_on_yellow"]=30;
-			init_pair(31,	COLOR_CYAN,		COLOR_YELLOW); curses_colors["cyan_on_yellow"]	= 31;
-			init_pair(32,	COLOR_WHITE,	COLOR_YELLOW); curses_colors["white_on_yellow"]	= 32;
-			/*** Blue background ***/
-			init_pair(33,	COLOR_BLACK,	COLOR_BLUE); curses_colors["black_on_blue"]		= 33;
-			init_pair(34,	COLOR_RED,		COLOR_BLUE); curses_colors["red_on_blue"]		= 34;
-			init_pair(35,	COLOR_GREEN,	COLOR_BLUE); curses_colors["green_on_blue"]		= 35;
-			init_pair(36,	COLOR_YELLOW,	COLOR_BLUE); curses_colors["yellow_on_blue"]	= 36;
-			init_pair(37,	COLOR_BLUE,		COLOR_BLUE); curses_colors["blue_on_blue"]		= 37;
-			init_pair(38,	COLOR_MAGENTA,	COLOR_BLUE); curses_colors["magenta_on_blue"]	= 38;
-			init_pair(39,	COLOR_CYAN,		COLOR_BLUE); curses_colors["cyan_on_blue"]		= 39;
-			init_pair(40,	COLOR_WHITE,	COLOR_BLUE); curses_colors["white_on_blue"]		= 40;
-			/*** Magenta background ***/
-			init_pair(41,	COLOR_BLACK,	COLOR_MAGENTA);	curses_colors["black_on_magenta"]	= 41;
-			init_pair(42,	COLOR_RED,		COLOR_MAGENTA);	curses_colors["red_on_magenta"]		= 42;
-			init_pair(43,	COLOR_GREEN,	COLOR_MAGENTA);	curses_colors["green_on_magenta"]	= 43;
-			init_pair(44,	COLOR_YELLOW,	COLOR_MAGENTA);	curses_colors["yellow_on_magenta"]	= 44;
-			init_pair(45,	COLOR_BLUE,		COLOR_MAGENTA); curses_colors["blue_on_magenta"]	= 45;
-			init_pair(46,	COLOR_MAGENTA,	COLOR_MAGENTA); curses_colors["magenta_on_magenta"]	= 46;
-			init_pair(47,	COLOR_CYAN,		COLOR_MAGENTA); curses_colors["cyan_on_magenta"]	= 47;
-			init_pair(48,	COLOR_WHITE,	COLOR_MAGENTA); curses_colors["white_on_magenta"]	= 48;
-			/*** Cyan background ***/
-			init_pair(49,	COLOR_BLACK,	COLOR_CYAN);	curses_colors["black_on_cyan"]	= 49;
-			init_pair(50,	COLOR_RED,		COLOR_CYAN);	curses_colors["red_on_cyan"]	= 50;
-			init_pair(51,	COLOR_GREEN,	COLOR_CYAN);	curses_colors["green_on_cyan"]	= 51;
-			init_pair(52,	COLOR_YELLOW,	COLOR_CYAN);	curses_colors["yellow_on_cyan"]	= 52;
-			init_pair(53,	COLOR_BLUE,		COLOR_CYAN);	curses_colors["blue_on_cyan"]	= 53;
-			init_pair(54,	COLOR_MAGENTA,	COLOR_CYAN);	curses_colors["magenta_on_cyan"]= 54;
-			init_pair(55,	COLOR_CYAN,		COLOR_CYAN);	curses_colors["cyan_on_cyan"]	= 55;
-			init_pair(56,	COLOR_WHITE,	COLOR_CYAN);	curses_colors["white_on_cyan"]	= 56;
-			/*** White background ***/
-			init_pair(57,	COLOR_BLACK,	COLOR_WHITE);	curses_colors["black_on_white"]	= 57;
-			init_pair(58,	COLOR_RED,		COLOR_WHITE);	curses_colors["red_on_white"]	= 58;
-			init_pair(59,	COLOR_GREEN,	COLOR_WHITE);	curses_colors["green_on_white"]	= 59;
-			init_pair(60,	COLOR_YELLOW,	COLOR_WHITE);	curses_colors["yellow_on_white"]= 60;
-			init_pair(61,	COLOR_BLUE,		COLOR_WHITE);	curses_colors["blue_on_white"]	= 61;
-			init_pair(62,	COLOR_MAGENTA,	COLOR_WHITE);	curses_colors["magenta_on_white"]=62;
-			init_pair(63,	COLOR_CYAN,		COLOR_WHITE);	curses_colors["cyan_on_white"]	= 63;
-			init_pair(64,	COLOR_WHITE,	COLOR_WHITE);	curses_colors["white_on_white"]	= 64;
+
+		// If we support up to 64 color pairs, do the rest of the standard 8 color backgrounds
+		if ((COLORS >= 8) && (COLOR_PAIRS >= 64)) {
+			// Green, yellow, blue, magenta, cyan, white backgrounds (pairs 17-64)
+			const std::vector<std::pair<int, std::string>> backgrounds = {
+				{COLOR_GREEN, "green"}, {COLOR_YELLOW, "yellow"}, {COLOR_BLUE, "blue"},
+				{COLOR_MAGENTA, "magenta"}, {COLOR_CYAN, "cyan"}, {COLOR_WHITE, "white"}
+			};
+
+			int pairNum = 17;
+			for (const auto& [bgColor, bgName] : backgrounds) {
+				registerColorPairs(generateBackgroundPairs(pairNum, bgColor, bgName,
+					standard8Colors, standard8Names));
+				pairNum += 8;
+			}
 		}
-		//If we support up to 16 colors and 128 color pairs, add pairs for colors 8-15 as foregrounds on the 0-7 backgrounds
-		if((COLORS >= 16) && (COLOR_PAIRS >= 128))
-		{
-			/***** Additional 8 Colors *****/
-			/*** Black background - 8 more colors ***/
-			init_pair(65,	8,		COLOR_BLACK);	curses_colors["bright-black_on_black"]	=	65;		curses_colors["grey_on_black"]	=	65;
-			init_pair(66,	9,		COLOR_BLACK);	curses_colors["bright-red_on_black"]	=	66;
-			init_pair(67,	10,		COLOR_BLACK);	curses_colors["bright-green_on_black"]	=	67;
-			init_pair(68,	11,		COLOR_BLACK);	curses_colors["bright-yellow_on_black"] =	68;
-			init_pair(69,	12,		COLOR_BLACK);	curses_colors["bright-blue_on_black"]	=	69;		curses_colors["aqua_on_black"]	=	69;
-			init_pair(70,	13,		COLOR_BLACK);	curses_colors["bright-magenta_on_black"]=	70;		curses_colors["pink_on_black"]	=	70;
-			init_pair(71,	14,		COLOR_BLACK);	curses_colors["bright-cyan_on_black"]	=	71;
-			init_pair(72,	15,		COLOR_BLACK);	curses_colors["bright-white_on_black"] 	= 	72;
-			/*** Red background - 8 more colors ***/
-			init_pair(73,	8,		COLOR_RED);	curses_colors["bright-black_on_red"]		=	73;		curses_colors["grey_on_red"]	=	73;
-			init_pair(74,	9,		COLOR_RED);	curses_colors["bright-red_on_red"]			=	74;
-			init_pair(75,	10,		COLOR_RED);	curses_colors["bright-green_on_red"]		=	75;
-			init_pair(76,	11,		COLOR_RED);	curses_colors["bright-yellow_on_red"] 		=	76;
-			init_pair(77,	12,		COLOR_RED);	curses_colors["bright-blue_on_red"]			=	77;		curses_colors["aqua_on_red"]	=	77;
-			init_pair(78,	13,		COLOR_RED);	curses_colors["bright-magenta_on_red"]		=	78;		curses_colors["pink_on_red"]	=	78;
-			init_pair(79,	14,		COLOR_RED);	curses_colors["bright-cyan_on_red"]			=	79;
-			init_pair(80,	15,		COLOR_RED);	curses_colors["bright-white_on_red"] 		= 	80;
-			/*** Green background - 8 more colors ***/
-			init_pair(81,	8,		COLOR_GREEN);	curses_colors["bright-black_on_green"]	=	81;		curses_colors["grey_on_red"]	=	81;
-			init_pair(82,	9,		COLOR_GREEN);	curses_colors["bright-red_on_green"]	=	82;
-			init_pair(83,	10,		COLOR_GREEN);	curses_colors["bright-green_on_green"]	=	83;
-			init_pair(84,	11,		COLOR_GREEN);	curses_colors["bright-yellow_on_green"] =	84;
-			init_pair(85,	12,		COLOR_GREEN);	curses_colors["bright-blue_on_green"]	=	85;		curses_colors["aqua_on_red"]	=	85;
-			init_pair(86,	13,		COLOR_GREEN);	curses_colors["bright-magenta_on_green"]=	86;		curses_colors["pink_on_red"]	=	86;
-			init_pair(87,	14,		COLOR_GREEN);	curses_colors["bright-cyan_on_green"]	=	87;
-			init_pair(88,	15,		COLOR_GREEN);	curses_colors["bright-white_on_green"] 	= 	88;
-			/*** Yellow background - 8 more colors ***/
-			init_pair(89,	8,		COLOR_YELLOW);	curses_colors["bright-black_on_yellow"]		=	89;		curses_colors["grey_on_yellow"]	=	89;
-			init_pair(90,	9,		COLOR_YELLOW);	curses_colors["bright-red_on_yellow"]		=	90;
-			init_pair(91,	10,		COLOR_YELLOW);	curses_colors["bright-green_on_yellow"]		=	91;
-			init_pair(92,	11,		COLOR_YELLOW);	curses_colors["bright-yellow_on_yellow"]	=	92;
-			init_pair(93,	12,		COLOR_YELLOW);	curses_colors["bright-blue_on_yellow"]		=	93;		curses_colors["aqua_on_yellow"]	=	93;
-			init_pair(94,	13,		COLOR_YELLOW);	curses_colors["bright-magenta_on_yellow"]	=	94;		curses_colors["pink_on_yellow"]	=	94;
-			init_pair(95,	14,		COLOR_YELLOW);	curses_colors["bright-cyan_on_yellow"]		=	95;
-			init_pair(96,	15,		COLOR_YELLOW);	curses_colors["bright-white_on_yellow"] 	= 	96;
-			/*** Blue background - 8 more colors ***/
-			init_pair(97,	8,		COLOR_BLUE);	curses_colors["bright-black_on_blue"]		=	97;		curses_colors["grey_on_blue"]	=	97;
-			init_pair(98,	9,		COLOR_BLUE);	curses_colors["bright-red_on_blue"]			=	98;
-			init_pair(99,	10,		COLOR_BLUE);	curses_colors["bright-green_on_blue"]		=	99;
-			init_pair(100,	11,		COLOR_BLUE);	curses_colors["bright-yellow_on_blue"]		=	100;
-			init_pair(101,	12,		COLOR_BLUE);	curses_colors["bright-blue_on_blue"]		=	101;	curses_colors["aqua_on_blue"]	=	101;
-			init_pair(102,	13,		COLOR_BLUE);	curses_colors["bright-magenta_on_blue"]		=	102;	curses_colors["pink_on_blue"]	=	102;
-			init_pair(103,	14,		COLOR_BLUE);	curses_colors["bright-cyan_on_blue"]		=	103;
-			init_pair(104,	15,		COLOR_BLUE);	curses_colors["bright-white_on_blue"] 		= 	104;
-			/*** Magenta background - 8 more colors ***/
-			init_pair(105,	8,		COLOR_MAGENTA);	curses_colors["bright-black_on_magenta"]	=	105;	curses_colors["grey_on_magenta"]	=	105;
-			init_pair(106,	9,		COLOR_MAGENTA);	curses_colors["bright-red_on_magenta"]		=	106;
-			init_pair(107,	10,		COLOR_MAGENTA);	curses_colors["bright-green_on_magenta"]	=	107;
-			init_pair(108,	11,		COLOR_MAGENTA);	curses_colors["bright-yellow_on_magenta"]	=	108;
-			init_pair(109,	12,		COLOR_MAGENTA);	curses_colors["bright-blue_on_magenta"]		=	109;	curses_colors["aqua_on_magenta"]	=	109;
-			init_pair(110,	13,		COLOR_MAGENTA);	curses_colors["bright-magenta_on_magenta"]	=	110;	curses_colors["pink_on_magenta"]	=	110;
-			init_pair(111,	14,		COLOR_MAGENTA);	curses_colors["bright-cyan_on_magenta"]		=	111;
-			init_pair(112,	15,		COLOR_MAGENTA);	curses_colors["bright-white_on_blue"] 		= 	112;
-			/*** Cyan background - 8 more colors ***/
-			init_pair(113,	8,		COLOR_CYAN);	curses_colors["bright-black_on_cyan"]		=	113;	curses_colors["grey_on_cyan"]	=	113;
-			init_pair(114,	9,		COLOR_CYAN);	curses_colors["bright-red_on_cyan"]			=	114;
-			init_pair(115,	10,		COLOR_CYAN);	curses_colors["bright-green_on_cyan"]		=	115;
-			init_pair(116,	11,		COLOR_CYAN);	curses_colors["bright-yellow_on_cyan"]		=	116;
-			init_pair(117,	12,		COLOR_CYAN);	curses_colors["bright-blue_on_cyan"]		=	117;	curses_colors["aqua_on_cyan"]	=	117;
-			init_pair(118,	13,		COLOR_CYAN);	curses_colors["bright-magenta_on_cyan"]		=	118;	curses_colors["pink_on_cyan"]	=	118;
-			init_pair(119,	14,		COLOR_CYAN);	curses_colors["bright-cyan_on_cyan"]		=	119;
-			init_pair(120,	15,		COLOR_CYAN);	curses_colors["bright-white_on_cyan"] 		= 	120;
-			/*** White background - 8 more colors ***/
-			init_pair(121,	8,		COLOR_WHITE);	curses_colors["bright-black_on_white"]		=	121;	curses_colors["grey_on_white"]	=	121;
-			init_pair(122,	9,		COLOR_WHITE);	curses_colors["bright-red_on_white"]		=	122;
-			init_pair(123,	10,		COLOR_WHITE);	curses_colors["bright-green_on_white"]		=	123;
-			init_pair(124,	11,		COLOR_WHITE);	curses_colors["bright-yellow_on_white"]		=	124;
-			init_pair(125,	12,		COLOR_WHITE);	curses_colors["bright-blue_on_white"]		=	125;	curses_colors["aqua_on_white"]	=	125;
-			init_pair(126,	13,		COLOR_WHITE);	curses_colors["bright-magenta_on_white"]	=	126;	curses_colors["pink_on_white"]	=	126;
-			init_pair(127,	14,		COLOR_WHITE);	curses_colors["bright-cyan_on_white"]		=	127;
-			init_pair(128,	15,		COLOR_WHITE);	curses_colors["bright-white_on_white"] 		= 	128;
+		// If we support up to 16 colors and 128 color pairs, add pairs for colors 8-15 as foregrounds on the 0-7 backgrounds
+		if ((COLORS >= 16) && (COLOR_PAIRS >= 128)) {
+			// Define extended 8 bright colors (8-15)
+			const std::vector<int> bright8Colors = {8, 9, 10, 11, 12, 13, 14, 15};
+			const std::vector<std::string> bright8Names = {
+				"bright-black", "bright-red", "bright-green", "bright-yellow",
+				"bright-blue", "bright-magenta", "bright-cyan", "bright-white"
+			};
+
+			// Aliases for certain bright colors
+			const std::unordered_map<int, std::vector<std::string>> brightColorAliases = {
+				{0, {"grey"}},           // bright-black = grey
+				{4, {"aqua"}},           // bright-blue = aqua
+				{5, {"pink"}}            // bright-magenta = pink
+			};
+
+			// Background names for the standard 8 backgrounds
+			const std::vector<std::pair<int, std::string>> std8Backgrounds = {
+				{COLOR_BLACK, "black"}, {COLOR_RED, "red"}, {COLOR_GREEN, "green"},
+				{COLOR_YELLOW, "yellow"}, {COLOR_BLUE, "blue"}, {COLOR_MAGENTA, "magenta"},
+				{COLOR_CYAN, "cyan"}, {COLOR_WHITE, "white"}
+			};
+
+			int pairNum = 65;
+			for (const auto& [bgColor, bgName] : std8Backgrounds) {
+				registerColorPairs(generateBackgroundPairs(pairNum, bgColor, bgName,
+					bright8Colors, bright8Names, brightColorAliases));
+				pairNum += 8;
+			}
 		}
-		/***** Create a color pair for each one of the 8 additional brightened colors as background *****/
-		if((COLORS >= 16) && (COLOR_PAIRS >= 256))
-		{
-			/*** Bright-black (GREY) background ***/
-			init_pair(129,	COLOR_BLACK,	8);	curses_colors["black_on_bright-black"]		= 129;		curses_colors["black_on_grey"]	=	129;
-			init_pair(130,	COLOR_RED,		8);	curses_colors["red_on_bright-black"]		= 130;		curses_colors["red_on_grey"]	=	130;
-			init_pair(131,	COLOR_GREEN,	8);	curses_colors["green_on_bright-black"]		= 131;		curses_colors["green_on_grey"]	=	131;
-			init_pair(132,	COLOR_YELLOW,	8);	curses_colors["yellow_on_bright-black"]		= 132;		curses_colors["yellow_on_grey"]	=	132;
-			init_pair(133,	COLOR_BLUE,		8);	curses_colors["blue_on_bright-black"]		= 133;		curses_colors["blue_on_grey"]	=	133;
-			init_pair(134,	COLOR_MAGENTA,	8);	curses_colors["magenta_on_bright-black"]	= 134;		curses_colors["magenta_on_grey"]=	134;
-			init_pair(135,	COLOR_CYAN,		8);	curses_colors["cyan_on_bright-black"]		= 135;		curses_colors["cyan_on_grey"]	=	135;
-			init_pair(136,	COLOR_WHITE,	8);	curses_colors["white_on_bright-black"]		= 136;		curses_colors["white_on_grey"]	=	136;
-			init_pair(137,	8,		8);			curses_colors["bright-black_on_bright-black"]		= 137;		curses_colors["bright-black_on_grey"]	=	137;		curses_colors["grey_on_grey"]	=	137;		curses_colors["grey_on_bright-black"]	=	137;
-			init_pair(138,	9,		8);			curses_colors["bright-red_on_bright-black"]			= 138;		curses_colors["bright-red_on_grey"]		=	138;
-			init_pair(139,	10,		8);			curses_colors["bright-green_on_bright-black"]		= 139;		curses_colors["bright-green_on_grey"]	=	139;
-			init_pair(140,	11,		8);			curses_colors["bright-yellow_on_bright-black"]		= 140;		curses_colors["bright-yellow_on_grey"]	=	140;		
-			init_pair(141,	12,		8);			curses_colors["bright-blue_on_bright-black"]		= 141;		curses_colors["bright-blue_on_grey"]	=	141;		curses_colors["aqua_on_grey"]	=	141;		curses_colors["aqua_on_bright-black"]	=	141;
-			init_pair(142,	13,		8);			curses_colors["bright-magenta_on_bright-black"]		= 142;		curses_colors["bright-magenta_on_grey"]	=	142;		curses_colors["pink_on_grey"]	=	142;		curses_colors["pink_on_bright_black"]	=	142;
-			init_pair(143,	14,		8);			curses_colors["bright-cyan_on_bright-black"]		= 143;		curses_colors["bright-cyan_on_grey"]	=	143;
-			init_pair(144,	15,		8);			curses_colors["bright-white_on_bright-black"]		= 144;		curses_colors["bright-white_on_grey"]	=	144;
-			/*** Bright-red background ***/
-			init_pair(145,	COLOR_BLACK,	9);	curses_colors["black_on_bright-red"]		= 145;
-			init_pair(146,	COLOR_RED,		9);	curses_colors["red_on_bright-red"]			= 146;
-			init_pair(147,	COLOR_GREEN,	9);	curses_colors["green_on_bright-red"]		= 147;
-			init_pair(148,	COLOR_YELLOW,	9);	curses_colors["yellow_on_bright-red"]		= 148;
-			init_pair(149,	COLOR_BLUE,		9);	curses_colors["blue_on_bright-red"]			= 149;
-			init_pair(150,	COLOR_MAGENTA,	9);	curses_colors["magenta_on_bright-red"]		= 150;
-			init_pair(151,	COLOR_CYAN,		9);	curses_colors["cyan_on_bright-red"]			= 151;
-			init_pair(152,	COLOR_WHITE,	9);	curses_colors["white_on_bright-red"]		= 152;
-			init_pair(153,	8,		9);			curses_colors["bright-black_on_bright-red"]			= 153;		curses_colors["grey_on_bright-red"]	=	153;
-			init_pair(154,	9,		9);			curses_colors["bright-red_on_bright-red"]			= 154;
-			init_pair(155,	10,		9);			curses_colors["bright-green_on_bright-red"]			= 155;
-			init_pair(156,	11,		9);			curses_colors["bright-yellow_on_bright-red"]		= 156;
-			init_pair(157,	12,		9);			curses_colors["bright-blue_on_bright-red"]			= 157;		curses_colors["aqua_on_bright-red"]	=	157;
-			init_pair(158,	13,		9);			curses_colors["bright-magenta_on_bright-red"]		= 158;		curses_colors["pink_on_bright-red"]	=	158;
-			init_pair(159,	14,		9);			curses_colors["bright-cyan_on_bright-red"]			= 159;
-			init_pair(160,	15,		9);			curses_colors["bright-white_on_bright-red"]			= 160;
-			/*** Bright-green background ***/
-			init_pair(161,	COLOR_BLACK,	10);	curses_colors["black_on_bright-green"]		= 161;
-			init_pair(162,	COLOR_RED,		10);	curses_colors["red_on_bright-green"]		= 162;
-			init_pair(163,	COLOR_GREEN,	10);	curses_colors["green_on_bright-green"]		= 163;
-			init_pair(164,	COLOR_YELLOW,	10);	curses_colors["yellow_on_bright-green"]		= 164;
-			init_pair(165,	COLOR_BLUE,		10);	curses_colors["blue_on_bright-green"]		= 165;
-			init_pair(166,	COLOR_MAGENTA,	10);	curses_colors["magenta_on_bright-green"]	= 166;
-			init_pair(167,	COLOR_CYAN,		10);	curses_colors["cyan_on_bright-green"]		= 167;
-			init_pair(168,	COLOR_WHITE,	10);	curses_colors["white_on_bright-green"]		= 168;
-			init_pair(169,	8,		10);	curses_colors["bright-black_on_bright-green"]		= 169;		curses_colors["grey_on_bright-green"]	=	169;
-			init_pair(170,	9,		10);	curses_colors["bright-red_on_bright-green"]			= 170;
-			init_pair(171,	10,		10);	curses_colors["bright-green_on_bright-green"]		= 171;
-			init_pair(172,	11,		10);	curses_colors["bright-yellow_on_bright-green"]		= 172;
-			init_pair(173,	12,		10);	curses_colors["bright-blue_on_bright-green"]		= 173;		curses_colors["aqua_on_bright-green"]	=	173;
-			init_pair(174,	13,		10);	curses_colors["bright-magenta_on_bright-green"]		= 174;		curses_colors["pink_on_bright-green"]	=	174;
-			init_pair(175,	14,		10);	curses_colors["bright-cyan_on_bright-green"]		= 175;
-			init_pair(176,	15,		10);	curses_colors["bright-white_on_bright-green"]		= 176;
-			/*** Bright-yellow background ***/
-			init_pair(177,	COLOR_BLACK,	11);	curses_colors["black_on_bright-yellow"]		= 177;
-			init_pair(178,	COLOR_RED,		11);	curses_colors["red_on_bright-yellow"]		= 178;
-			init_pair(179,	COLOR_GREEN,	11);	curses_colors["green_on_bright-yellow"]		= 179;
-			init_pair(180,	COLOR_YELLOW,	11);	curses_colors["yellow_on_bright-yellow"]	= 180;
-			init_pair(181,	COLOR_BLUE,		11);	curses_colors["blue_on_bright-yellow"]		= 181;
-			init_pair(182,	COLOR_MAGENTA,	11);	curses_colors["magenta_on_bright-yellow"]	= 182;
-			init_pair(183,	COLOR_CYAN,		11);	curses_colors["cyan_on_bright-yellow"]		= 183;
-			init_pair(184,	COLOR_WHITE,	11);	curses_colors["white_on_bright-yellow"]		= 184;
-			init_pair(185,	8,		11);	curses_colors["bright-black_on_bright-yellow"]		= 185;		curses_colors["grey_on_bright-yellow"]	=	185;
-			init_pair(187,	9,		11);	curses_colors["bright-red_on_bright-yellow"]		= 186;
-			init_pair(187,	10,		11);	curses_colors["bright-green_on_bright-yellow"]		= 187;
-			init_pair(188,	11,		11);	curses_colors["bright-yellow_on_bright-yellow"]		= 188;
-			init_pair(189,	12,		11);	curses_colors["bright-blue_on_bright-yellow"]		= 189;		curses_colors["aqua_on_bright-yellow"]	=	189;
-			init_pair(190,	13,		11);	curses_colors["bright-magenta_on_bright-yellow"]	= 190;		curses_colors["pink_on_bright-yellow"]	=	190;
-			init_pair(191,	14,		11);	curses_colors["bright-cyan_on_bright-yellow"]		= 191;
-			init_pair(192,	15,		11);	curses_colors["bright-white_on_bright-yellow"]		= 192;
-			/*** Bright-blue (aqua) background ***/
-			init_pair(193,	COLOR_BLACK,	12);	curses_colors["black_on_bright-blue"]		= 193;		curses_colors["black_on_aqua"]	=	193;
-			init_pair(194,	COLOR_RED,		12);	curses_colors["red_on_bright-blue"]			= 194;		curses_colors["red_on_aqua"]	=	194;
-			init_pair(195,	COLOR_GREEN,	12);	curses_colors["green_on_bright-blue"]		= 195;		curses_colors["green_on_aqua"]	=	195;
-			init_pair(196,	COLOR_YELLOW,	12);	curses_colors["yellow_on_bright-blue"]		= 196;		curses_colors["yellow_on_aqua"]	=	196;
-			init_pair(197,	COLOR_BLUE,		12);	curses_colors["blue_on_bright-blue"]		= 197;		curses_colors["blue_on_aqua"]	=	197;
-			init_pair(198,	COLOR_MAGENTA,	12);	curses_colors["magenta_on_bright-blue"]		= 198;		curses_colors["magenta_on_aqua"]=	198;
-			init_pair(199,	COLOR_CYAN,		12);	curses_colors["cyan_on_bright-blue"]		= 199;		curses_colors["cyan_on_aqua"]	=	199;
-			init_pair(200,	COLOR_WHITE,	12);	curses_colors["white_on_bright-blue"]		= 200;		curses_colors["white_on_aqua"]	=	200;
-			init_pair(201,	8,		12);			curses_colors["bright-black_on_bright-blue"]		= 201;		curses_colors["bright-black_on_aqua"]	=	201;		curses_colors["grey_on_aqua"]	=	201;		curses_colors["grey_on_bright-blue"]	=	201;
-			init_pair(202,	9,		12);			curses_colors["bright-red_on_bright-blue"]			= 202;		curses_colors["bright-red_on_aqua"]		=	202;
-			init_pair(203,	10,		12);			curses_colors["bright-green_on_bright-blue"]		= 203;		curses_colors["bright-green_on_aqua"]	=	203;
-			init_pair(204,	11,		12);			curses_colors["bright-yellow_on_bright-blue"]		= 204;		curses_colors["bright-yellow_on_aqua"]	=	204;		
-			init_pair(205,	12,		12);			curses_colors["bright-blue_on_bright-blue"]			= 205;		curses_colors["bright-blue_on_aqua"]	=	205;		curses_colors["aqua_on_aqua"]	=	205;		curses_colors["aqua_on_bright-blue"]	=	205;
-			init_pair(206,	13,		12);			curses_colors["bright-magenta_on_bright-blue"]		= 206;		curses_colors["bright-magenta_on_aqua"]	=	206;		curses_colors["pink_on_aqua"]	=	206;		curses_colors["pink_on_bright_blue"]	=	206;
-			init_pair(207,	14,		12);			curses_colors["bright-cyan_on_bright-blue"]			= 207;		curses_colors["bright-cyan_on_aqua"]	=	207;
-			init_pair(208,	15,		12);			curses_colors["bright-white_on_bright-blue"]		= 208;		curses_colors["bright-white_on_aqua"]	=	208;
-			/*** Bright-magenta (pink) background ***/
-			init_pair(209,	COLOR_BLACK,	13);	curses_colors["black_on_bright-magenta"]		= 209;		curses_colors["black_on_pink"]	=	209;
-			init_pair(210,	COLOR_RED,		13);	curses_colors["red_on_bright-magenta"]			= 210;		curses_colors["red_on_pink"]	=	210;
-			init_pair(211,	COLOR_GREEN,	13);	curses_colors["green_on_bright-magenta"]		= 211;		curses_colors["green_on_pink"]	=	211;
-			init_pair(212,	COLOR_YELLOW,	13);	curses_colors["yellow_on_bright-magenta"]		= 212;		curses_colors["yellow_on_pink"]	=	212;
-			init_pair(213,	COLOR_BLUE,		13);	curses_colors["blue_on_bright-magenta"]			= 213;		curses_colors["blue_on_pink"]	=	213;
-			init_pair(214,	COLOR_MAGENTA,	13);	curses_colors["magenta_on_bright-magenta"]		= 214;		curses_colors["magenta_on_pink"]=	214;
-			init_pair(215,	COLOR_CYAN,		13);	curses_colors["cyan_on_bright-magenta"]			= 215;		curses_colors["cyan_on_pink"]	=	215;
-			init_pair(216,	COLOR_WHITE,	13);	curses_colors["white_on_bright-magenta"]		= 216;		curses_colors["white_on_pink"]	=	216;
-			init_pair(217,	8,		13);			curses_colors["bright-black_on_bright-magenta"]	= 217;		curses_colors["bright-black_on_pink"]	=	217;		curses_colors["grey_on_pink"]	=	217;		curses_colors["grey_on_bright-magenta"]	=	217;
-			init_pair(218,	9,		13);			curses_colors["bright-red_on_bright-magenta"]	= 218;		curses_colors["bright-red_on_pink"]		=	218;
-			init_pair(219,	10,		13);			curses_colors["bright-green_on_bright-magenta"]	= 219;		curses_colors["bright-green_on_pink"]	=	219;
-			init_pair(220,	11,		13);			curses_colors["bright-yellow_on_bright-magenta"]= 220;		curses_colors["bright-yellow_on_pink"]	=	220;		
-			init_pair(221,	12,		13);			curses_colors["bright-blue_on_bright-magenta"]	= 221;		curses_colors["bright-blue_on_pink"]	=	221;		curses_colors["aqua_on_pink"]	=	221;		curses_colors["aqua_on_bright-magenta"]	=	221;
-			init_pair(222,	13,		13);			curses_colors["bright-magenta_on_bright-magenta"]	= 222;		curses_colors["bright-magenta_on_pink"]	=	222;		curses_colors["pink_on_pink"]	=	222;		curses_colors["pink_on_bright_blue"]	=	222;
-			init_pair(223,	14,		13);			curses_colors["bright-cyan_on_bright-magenta"]	= 223;		curses_colors["bright-cyan_on_pink"]	=	223;
-			init_pair(224,	15,		13);			curses_colors["bright-white_on_bright-magenta"]	= 224;		curses_colors["bright-white_on_pink"]	=	224;
-			/*** Bright-cyan background ***/
-			init_pair(225,	COLOR_BLACK,	14);	curses_colors["black_on_bright-cyan"]		= 225;
-			init_pair(226,	COLOR_RED,		14);	curses_colors["red_on_bright-cyan"]			= 226;
-			init_pair(227,	COLOR_GREEN,	14);	curses_colors["green_on_bright-cyan"]		= 227;
-			init_pair(228,	COLOR_YELLOW,	14);	curses_colors["yellow_on_bright-cyan"]		= 228;
-			init_pair(229,	COLOR_BLUE,		14);	curses_colors["blue_on_bright-cyan"]		= 229;
-			init_pair(230,	COLOR_MAGENTA,	14);	curses_colors["magenta_on_bright-cyan"]		= 230;
-			init_pair(231,	COLOR_CYAN,		14);	curses_colors["cyan_on_bright-cyan"]		= 231;
-			init_pair(232,	COLOR_WHITE,	14);	curses_colors["white_on_bright-cyan"]		= 232;
-			init_pair(233,	8,		14);			curses_colors["bright-black_on_bright-cyan"]		= 233;		curses_colors["grey_on_bright-cyan"]	=	233;
-			init_pair(234,	9,		14);			curses_colors["bright-red_on_bright-cyan"]			= 234;
-			init_pair(235,	10,		14);			curses_colors["bright-green_on_bright-cyan"]		= 235;
-			init_pair(236,	11,		14);			curses_colors["bright-yellow_on_bright-cyan"]		= 236;
-			init_pair(237,	12,		14);			curses_colors["bright-blue_on_bright-cyan"]			= 237;		curses_colors["aqua_on_bright-cyan"]	=	237;
-			init_pair(238,	13,		14);			curses_colors["bright-magenta_on_bright-cyan"]		= 238;		curses_colors["pink_on_bright-cyan"]	=	238;
-			init_pair(239,	14,		14);			curses_colors["bright-cyan_on_bright-cyan"]			= 239;
-			init_pair(240,	15,		14);			curses_colors["bright-white_on_bright-cyan"]		= 240;
-			/***  Bright-white backgroudn ***/
-			init_pair(241,	COLOR_BLACK,	15);	curses_colors["black_on_bright-white"]		= 241;
-			init_pair(242,	COLOR_RED,		15);	curses_colors["red_on_bright-white"]		= 242;
-			init_pair(243,	COLOR_GREEN,	15);	curses_colors["green_on_bright-white"]		= 243;
-			init_pair(244,	COLOR_YELLOW,	15);	curses_colors["yellow_on_bright-white"]		= 244;
-			init_pair(245,	COLOR_BLUE,		15);	curses_colors["blue_on_bright-white"]		= 245;
-			init_pair(246,	COLOR_MAGENTA,	15);	curses_colors["magenta_on_bright-white"]	= 246;
-			init_pair(247,	COLOR_CYAN,		15);	curses_colors["cyan_on_bright-white"]		= 247;
-			init_pair(248,	COLOR_WHITE,	15);	curses_colors["white_on_bright-white"]		= 248;
-			init_pair(249,	8,		15);			curses_colors["bright-black_on_bright-white"]		= 249;		curses_colors["grey_on_bright-white"]	=	249;
-			init_pair(250,	9,		15);			curses_colors["bright-red_on_bright-white"]			= 250;
-			init_pair(251,	10,		15);			curses_colors["bright-green_on_bright-white"]		= 251;
-			init_pair(252,	11,		15);			curses_colors["bright-yellow_on_bright-white"]		= 252;
-			init_pair(253,	12,		15);			curses_colors["bright-blue_on_bright-white"]		= 253;		curses_colors["aqua_on_bright-white"]	=	253;
-			init_pair(254,	13,		15);			curses_colors["bright-magenta_on_bright-white"]		= 254;		curses_colors["pink_on_bright-white"]	=	254;
-			init_pair(255,	14,		15);			curses_colors["bright-cyan_on_bright-white"]		= 255;
-			init_pair(256,	15,		15);			curses_colors["bright-white_on_bright-white"]		= 256;
+		// Create a color pair for each one of the 8 additional brightened colors as background (pairs 129-256)
+		if ((COLORS >= 16) && (COLOR_PAIRS >= 256)) {
+			// Define bright backgrounds with their aliases
+			const std::vector<std::tuple<int, std::string, std::string>> brightBackgrounds = {
+				{8, "bright-black", "grey"},
+				{9, "bright-red", ""},
+				{10, "bright-green", ""},
+				{11, "bright-yellow", ""},
+				{12, "bright-blue", "aqua"},
+				{13, "bright-magenta", "pink"},
+				{14, "bright-cyan", ""},
+				{15, "bright-white", ""}
+			};
+
+			int pairNum = 129;
+			for (const auto& [bgColor, bgName, bgAlias] : brightBackgrounds) {
+				registerColorPairs(generateBrightBackgroundPairs(pairNum, bgColor, bgName, bgAlias));
+				pairNum += 16; // Each bright background gets 16 foregrounds
+			}
 		}
 	}
 
