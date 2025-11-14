@@ -124,7 +124,7 @@ namespace stevensTerminal
     #ifdef curses
     /**
      * @brief Initialize ncurses color support if available
-     * 
+     *
      * Checks if the terminal supports colors and initializes ncurses
      * color functionality. Must be called after initscr().
      */
@@ -143,6 +143,78 @@ namespace stevensTerminal
         }
     }
     #endif
+
+    /**
+     * @brief Initialize the stevensTerminal library
+     *
+     * This is the recommended way to initialize stevensTerminal. It handles:
+     * - ncurses initialization (initscr)
+     * - Color support setup
+     * - Window manager initialization (optional)
+     * - Display mode configuration
+     *
+     * @param initWindowManager If true, initializes the WindowManager with default windows
+     * @param windowNames Custom window names for WindowManager (only used if initWindowManager is true)
+     *
+     * @example
+     * // Simple initialization without window manager
+     * stevensTerminal::initialize();
+     *
+     * // With default window manager
+     * stevensTerminal::initialize(true);
+     *
+     * // With custom windows
+     * stevensTerminal::initialize(true, {"header", "content", "footer"});
+     */
+    inline void initialize(bool initWindowManager = false,
+                          const std::vector<std::string>& windowNames = {}) {
+        #ifdef curses
+        // Initialize ncurses
+        initscr();
+
+        // Set up color support
+        curses_prepare_color();
+
+        // Configure ncurses behavior
+        cbreak();              // Disable line buffering
+        noecho();              // Don't echo input
+        keypad(stdscr, TRUE);  // Enable function keys
+        curs_set(0);           // Hide cursor
+
+        // Initialize window manager if requested
+        if (initWindowManager) {
+            if (!windowNames.empty()) {
+                windowManager().initialize(windowNames);
+            } else {
+                windowManager().initialize();  // Use default windows
+            }
+        }
+
+        // Set display mode based on screen size
+        setDisplayMode(get_screen_size());
+        #endif
+    }
+
+    /**
+     * @brief Shutdown the stevensTerminal library
+     *
+     * This is the recommended way to clean up stevensTerminal resources.
+     * It handles:
+     * - Window manager cleanup
+     * - ncurses termination (endwin)
+     *
+     * Call this before your program exits to ensure proper cleanup.
+     *
+     * @example
+     * stevensTerminal::initialize();
+     * // ... use the library ...
+     * stevensTerminal::shutdown();
+     */
+    inline void shutdown() {
+        #ifdef curses
+        windowManager().shutdown();  // This handles both window cleanup and endwin()
+        #endif
+    }
 
     /**
      * @brief Check if screen size meets minimum display mode requirements
