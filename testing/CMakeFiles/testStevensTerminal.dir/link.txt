@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/testStevensTerminal.dir/test.cpp.o -o testStevensTerminal  lib/libgtest_main.a lib/libgtest.a 

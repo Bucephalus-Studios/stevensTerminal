@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -DNDEBUG CMakeFiles/benchmarkStevensTerminal.dir/benchmark_terminal.cpp.o -o benchmarkStevensTerminal  benchmark/src/libbenchmark.a benchmark/src/libbenchmark_main.a -lpthread benchmark/src/libbenchmark.a -lrt 
