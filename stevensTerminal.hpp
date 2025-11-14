@@ -23,7 +23,91 @@ namespace stevensTerminal
 	/************* Variables *************/
 	// Core variables are now in Core.hpp
 	// Additional variables for this module:
- 
+
+	/************* Types and Constants *************/
+
+	// Label style options for bar graphs
+	enum class BarGraphLabelStyle {
+		None,
+		TextOnly,
+		PercentageOnly,
+		TextAndPercentage
+	};
+
+	// Result of label formatting calculation
+	struct BarGraphLabelFormat {
+		std::string text;
+		BarGraphLabelStyle style;
+		int width;
+		int indent;
+	};
+
+	/************* Helper Functions *************/
+
+	/**
+	 * @brief Calculates the optimal label format based on available space
+	 * @param labelText The text label to display
+	 * @param percentage The percentage value (0.0 to 1.0)
+	 * @param availableWidth How much space is available in the bar
+	 * @param showText Whether text labels are enabled
+	 * @param showPercentage Whether percentage labels are enabled
+	 * @return Formatted label with calculated width and indent
+	 */
+	inline BarGraphLabelFormat calculateBarGraphLabel(
+		const std::string& labelText,
+		float percentage,
+		int availableWidth,
+		bool showText,
+		bool showPercentage)
+	{
+		BarGraphLabelFormat result;
+		result.style = BarGraphLabelStyle::None;
+		result.text = "";
+		result.width = 0;
+		result.indent = 0;
+
+		if (!showText && !showPercentage) {
+			return result;
+		}
+
+		std::string percentageStr = std::to_string(stevensMathLib::roundToNearest10th(percentage * 100));
+
+		// Try text + percentage first (most informative)
+		if (showText && showPercentage) {
+			std::string combined = labelText + " " + percentageStr + "%";
+			if (static_cast<int>(combined.length()) <= availableWidth) {
+				result.text = combined;
+				result.style = BarGraphLabelStyle::TextAndPercentage;
+				result.width = combined.length();
+				result.indent = (availableWidth - result.width) / 2;
+				return result;
+			}
+		}
+
+		// Try percentage only (compact)
+		if (showPercentage) {
+			std::string percentageLabel = percentageStr + "%";
+			if (static_cast<int>(percentageLabel.length()) <= availableWidth) {
+				result.text = percentageLabel;
+				result.style = BarGraphLabelStyle::PercentageOnly;
+				result.width = percentageLabel.length();
+				result.indent = (availableWidth - result.width) / 2;
+				return result;
+			}
+		}
+
+		// Try text only
+		if (showText && static_cast<int>(labelText.length()) <= availableWidth) {
+			result.text = labelText;
+			result.style = BarGraphLabelStyle::TextOnly;
+			result.width = labelText.length();
+			result.indent = (availableWidth - result.width) / 2;
+			return result;
+		}
+
+		// Nothing fits - return empty
+		return result;
+	}
 
 	/************* Methods *************/
 	void horizontalStackedBarGraph(	std::vector<std::string> labels,
@@ -67,139 +151,88 @@ namespace stevensTerminal
 			return; // Nothing to graph
 		}
 
-		if(textStyling) //This must be on for our game to produce colored graphs
+		if(!textStyling)
 		{
-			//Find the percentages of each of our labels
-			float sumOfDistributions = 0;
-			for(int i = 0; i < labels.size(); i++)
-			{
-				sumOfDistributions += distribution[i];
-			}
-
-			// Guard against division by zero
-			if(sumOfDistributions == 0)
-			{
-				return; // Cannot create bar graph with zero total distribution
-			}
-
-			std::vector<float> distributionPercentages;
-			for(int i = 0; i < labels.size(); i++)
-			{
-				distributionPercentages.push_back(distribution[i] / sumOfDistributions);
-			}
-
-			//Find out, based on percentages, how much of the bar to color for each label
-			std::vector<int> barSpace;
-			for(int i = 0; i < labels.size(); i++)
-			{
-				barSpace.push_back(static_cast<int>(floor(distributionPercentages[i]*width)));
-			}
-
-			//Print the bar!
-			for(int i = 0; i < labels.size(); i++)
-			{
-				int indent = 0;
-				std::string currentLabel = ""; 
-				std::string labelStyle = "none";
-				int labelLength = 0;
-				//If we decide to print text labels or percentage labels on our graph, we prepare the formatting for those here
-				if (textLabels == true || percentageLabels == true)
-				{
-					//Calculate the length of the label
-					if(textLabels && percentageLabels)
-					{
-						labelLength = labels[i].length() + 1 + std::to_string(stevensMathLib::roundToNearest10th(distributionPercentages[i]*100)).length() + 1;
-						labelStyle = "text and percentage";
-					}
-					else if (textLabels)
-					{
-						labelLength = labels[i].length() + 1;
-						labelStyle = "text";
-					}
-					else if (percentageLabels)
-					{
-						labelLength = std::to_string(stevensMathLib::roundToNearest10th(distributionPercentages[i]*100)).length() + 1;
-						labelStyle = "percentage";
-					}
-					else
-					{
-						labelLength = 0;
-						labelStyle = "none";
-					}
-
-					//Decide the center position for the label
-					indent = 0;
-					if(barSpace[i] > labelLength)
-					{
-						indent = floor((barSpace[i] - labelLength)/2); //Here, we attempt to place the label in the center of the bar by indenting half of the remaining space
-					}
-					if(barSpace[i] == labelLength)
-					{
-						indent = 0; //No indent if label length equals the bar length
-					}
-					else
-					{
-						//If we do not have enough space, if we wanted to print both the text and percentage label, we check to see if we can just print the percentage label
-						if (textLabels && percentageLabels)
-						{
-							labelLength = std::to_string(stevensMathLib::roundToNearest10th(distributionPercentages[i]*100)).length() + 1;
-							//Do our checks again here
-							if(barSpace[i] > labelLength)
-							{
-								labelStyle = "percentage";
-								indent = floor((barSpace[i] - labelLength)/2);
-							}
-							if(barSpace[i] == labelLength)
-							{
-								labelStyle = "percentage";
-								indent = 0;
-							}
-							else
-							{
-								labelStyle = "none";
-							}
-						}
-					}
-
-					//Make label
-					if(labelStyle == "text and percentage")
-					{
-						currentLabel = labels[i] + " " + std::to_string(stevensMathLib::roundToNearest10th(distributionPercentages[i]*100)) + "%";
-					}
-					else if (labelStyle == "text")
-					{
-						currentLabel = labels[i];
-					}
-					else if (labelStyle == "percentage")
-					{
-						currentLabel = std::to_string(stevensMathLib::roundToNearest10th(distributionPercentages[i]*100)) + "%";
-					}
-					else
-					{
-						currentLabel = "";
-					}
-				}
-				int charsToColor = barSpace[i];
-				int labelChar = 0;
-				while(charsToColor > 0)
-				{
-					if (indent == 0 && labelChar < currentLabel.length())
-					{
-						std::string s(1,currentLabel[labelChar]);
-						print(s, {{"textColor", std::get<1>(colorCombos[i])}, {"bgColor", get<0>(colorCombos[i])}, {"bold","true"}}); //print label text in bold
-						labelChar++;
-					}
-					else
-					{
-						print(" ", {{"textColor", std::get<1>(colorCombos[i])}, {"bgColor", get<0>(colorCombos[i])}}); 
-						indent--;
-					}
-					charsToColor--;
-				}
-			}
-
-			std::cout << "\n";
+			return; // Styling must be enabled for colored graphs
 		}
+
+		// Calculate total distribution
+		float sumOfDistributions = 0;
+		for(size_t labelIndex = 0; labelIndex < labels.size(); labelIndex++)
+		{
+			sumOfDistributions += distribution[labelIndex];
+		}
+
+		// Guard against division by zero
+		if(sumOfDistributions == 0)
+		{
+			return; // Cannot create bar graph with zero total distribution
+		}
+
+		// Calculate percentages for each label
+		std::vector<float> distributionPercentages;
+		distributionPercentages.reserve(labels.size());
+		for(size_t labelIndex = 0; labelIndex < labels.size(); labelIndex++)
+		{
+			distributionPercentages.push_back(distribution[labelIndex] / sumOfDistributions);
+		}
+
+		// Calculate bar width for each segment (in characters)
+		std::vector<int> segmentWidths;
+		segmentWidths.reserve(labels.size());
+		for(size_t labelIndex = 0; labelIndex < labels.size(); labelIndex++)
+		{
+			int segmentWidth = static_cast<int>(floor(distributionPercentages[labelIndex] * width));
+			segmentWidths.push_back(segmentWidth);
+		}
+
+		// Render each bar segment
+		for(size_t labelIndex = 0; labelIndex < labels.size(); labelIndex++)
+		{
+			// Calculate optimal label for this segment
+			BarGraphLabelFormat labelFormat = calculateBarGraphLabel(
+				labels[labelIndex],
+				distributionPercentages[labelIndex],
+				segmentWidths[labelIndex],
+				textLabels,
+				percentageLabels
+			);
+
+			// Get colors for this segment
+			const std::string& bgColor = std::get<0>(colorCombos[labelIndex]);
+			const std::string& textColor = std::get<1>(colorCombos[labelIndex]);
+
+			// Print the segment character by character
+			int charsRemaining = segmentWidths[labelIndex];
+			int indentRemaining = labelFormat.indent;
+			size_t labelCharIndex = 0;
+
+			while(charsRemaining > 0)
+			{
+				// Print indent spaces first
+				if(indentRemaining > 0)
+				{
+					print(" ", {{"textColor", textColor}, {"bgColor", bgColor}});
+					indentRemaining--;
+				}
+				// Then print label characters
+				else if(labelCharIndex < labelFormat.text.length())
+				{
+					std::string charAsString(1, labelFormat.text[labelCharIndex]);
+					print(charAsString, {{"textColor", textColor}, {"bgColor", bgColor}, {"bold", "true"}});
+					labelCharIndex++;
+				}
+				// Fill remaining space
+				else
+				{
+					print(" ", {{"textColor", textColor}, {"bgColor", bgColor}});
+				}
+
+				charsRemaining--;
+			}
+		}
+
+		std::cout << "\n";
 	}
 	
 
