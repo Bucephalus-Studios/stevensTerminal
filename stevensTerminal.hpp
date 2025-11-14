@@ -251,92 +251,88 @@ namespace stevensTerminal
 	*/
 	{
 		//Indent the X labels to account for the longest Y label
-		int longestLabelLength = 0;
-		for(int i = 0; i < yLabels.size(); i++)
+		int longestYLabelLength = 0;
+		for(size_t yLabelIndex = 0; yLabelIndex < yLabels.size(); yLabelIndex++)
 		{
-			if(get<0>(yLabels[i]).length() > longestLabelLength)
+			size_t currentYLabelLength = get<0>(yLabels[yLabelIndex]).length();
+			if(currentYLabelLength > longestYLabelLength)
 			{
-				//cout << get<0>(yLabels[i]).length();
-				longestLabelLength = get<0>(yLabels[i]).length();
+				longestYLabelLength = currentYLabelLength;
 			}
 		}
-		std::string indent(longestLabelLength + 1,' ');
-		print(indent);
+		std::string leftIndent(longestYLabelLength + 1, ' ');
+		print(leftIndent);
 
-		//Print X labels
-		for(int i = 0; i < xLabels.size(); i++)
+		//Print X labels (column headers)
+		for(size_t xLabelIndex = 0; xLabelIndex < xLabels.size(); xLabelIndex++)
 		{
-			print(get<0>(xLabels[i]), {{"textColor", get<1>(xLabels[i])}});
+			const std::string& labelText = get<0>(xLabels[xLabelIndex]);
+			const std::string& textColor = get<1>(xLabels[xLabelIndex]);
+			print(labelText, {{"textColor", textColor}});
 			print("\t");
 		}
 		print("\n");
 
-
-		int row = 0;
-		int column = 0;
-		float cellValue = -1;
-		std::string cellEntry = "";
-		int cellEntryLength = -1;
-		//Print the Y labels and table content for each row
-		while(row < tableContent.size())
+		// Print table rows with Y labels and cell content
+		for(size_t rowIndex = 0; rowIndex < tableContent.size(); rowIndex++)
 		{
-			column = 0;
-			//Indent an amount equal to 1 plus the difference between the length of the current Y label and the longest Y label, after printing the Y label
-			std::string yLabelIndent(longestLabelLength - get<0>(yLabels[row]).length() + 1, ' ');
-			//print(get<0>(yLabels[row]) + yLabelIndent,false,0,get<1>(yLabels[row])); //Will need to indent after printing to account for the longest yLabel length
-			while(column < tableContent[0].size())
+			// Calculate indent for current Y label to align with longest Y label
+			const std::string& currentYLabel = get<0>(yLabels[rowIndex]);
+			std::string yLabelIndent(longestYLabelLength - currentYLabel.length() + 1, ' ');
+
+			// Print each cell in the row
+			for(size_t columnIndex = 0; columnIndex < tableContent[0].size(); columnIndex++)
 			{
-				//Set the value of the cell's current float vlaue and reset the cell's string entry value to empty
-				cellValue = tableContent[row][column];
-				cellEntry = "";
-				//Print the cell's entry based on the table type variable
+				// Get cell value and prepare entry string
+				float cellValue = tableContent[rowIndex][columnIndex];
+				std::string cellEntry;
+
+				// Format cell based on table type
 				if (tableType == "religionData")
 				{
-					if (row == 0) //Make sure followers row is all integers
+					if (rowIndex == 0) // Followers row: use integers
 					{
 						cellEntry = std::to_string(static_cast<int>(cellValue));
-						print(cellEntry);
-						cellEntryLength = cellEntry.length();
 					}
-					else if (row == 1) //Make sure devotion is rounded to tenths place
+					else if (rowIndex == 1) // Devotion row: round to tenths
 					{
 						cellEntry = std::to_string(stevensMathLib::roundToNearest10th(cellValue));
-						print(cellEntry);
-						cellEntryLength = cellEntry.length();
+					}
+					else
+					{
+						cellEntry = std::to_string(cellValue);
 					}
 				}
 				else if(tableType == "factionData")
 				{
-					if(row == 0) //Round politcal power
+					if(rowIndex == 0) // Political power row: round to tenths
 					{
 						cellEntry = std::to_string(stevensMathLib::roundToNearest10th(cellValue));
-						print(cellEntry);
-						cellEntryLength = cellEntry.length();
+					}
+					else
+					{
+						cellEntry = std::to_string(cellValue);
 					}
 				}
 				else
 				{
 					cellEntry = std::to_string(cellValue);
-					print(cellEntry);
-					cellEntryLength = cellEntry.length();
 				}
 
-				//Based on the length of the cell entry, we print a varying amount of tabs. If the entry is less than 6 characters, we must print an additional tab
-				if(cellEntryLength < 6)
+				print(cellEntry);
+
+				// Add tabs for column alignment based on entry length
+				const int TAB_WIDTH_THRESHOLD = 6;
+				if(cellEntry.length() < TAB_WIDTH_THRESHOLD)
 				{
 					print("\t\t");
 				}
-				else if(cellEntryLength >= 6)
+				else
 				{
 					print("\t");
 				}
-				//May need to add more cases based on entry size, or even just make a rule
-
-				//Go on to the next column
-				column++;
 			}
 			print("\n");
-			row++;
 		}
 	}
 
