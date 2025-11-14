@@ -863,3 +863,927 @@ TEST(Utilities, resize_styled_string_preserves_styling)
     ASSERT_NE(resized.find("textColor"), std::string::npos);
 }
 
+
+/***** UTILITY LIBRARY TESTS *****/
+
+/*** stevensMathLib Tests ***/
+TEST(StevensMathLib, roundToNearest10th_integer)
+{
+    // Test rounding an integer (should return as integer)
+    ASSERT_EQ(stevensMathLib::roundToNearest10th(5.0f), 5.0f);
+    ASSERT_EQ(stevensMathLib::roundToNearest10th(10.0f), 10.0f);
+}
+
+TEST(StevensMathLib, roundToNearest10th_decimal)
+{
+    // Test rounding numbers with decimals
+    ASSERT_FLOAT_EQ(stevensMathLib::roundToNearest10th(3.14159f), 3.1f);
+    ASSERT_FLOAT_EQ(stevensMathLib::roundToNearest10th(2.78f), 2.8f);
+    ASSERT_FLOAT_EQ(stevensMathLib::roundToNearest10th(1.05f), 1.1f);
+}
+
+TEST(StevensMathLib, roundToNearest10th_rounds_to_integer)
+{
+    // Test case where rounding brings us back to an integer
+    ASSERT_EQ(stevensMathLib::roundToNearest10th(4.95f), 5.0f);
+}
+
+TEST(StevensMathLib, round_with_precision)
+{
+    // Test rounding to various precisions
+    ASSERT_FLOAT_EQ(stevensMathLib::round(3.14159f, 2), 3.14f);
+    ASSERT_FLOAT_EQ(stevensMathLib::round(3.14159f, 3), 3.142f);
+    ASSERT_FLOAT_EQ(stevensMathLib::round(2.5f, 0), 3.0f);
+}
+
+TEST(StevensMathLib, randomInt_within_bounds)
+{
+    // Seed RNG for reproducibility
+    stevensMathLib::seedRNG();
+
+    // Test that random int is within bounds
+    for(int i = 0; i < 100; i++) {
+        int result = stevensMathLib::randomInt(0, 10);
+        ASSERT_GE(result, 0);
+        ASSERT_LT(result, 10);
+    }
+}
+
+TEST(StevensMathLib, randomInt_edge_case_equal_bounds)
+{
+    // When upperBound <= lowerBound, should return lowerBound
+    ASSERT_EQ(stevensMathLib::randomInt(5, 5), 5);
+    ASSERT_EQ(stevensMathLib::randomInt(10, 5), 10);
+}
+
+TEST(StevensMathLib, randomFloat_within_bounds)
+{
+    stevensMathLib::seedRNG();
+
+    // Test that random float is within bounds
+    for(int i = 0; i < 100; i++) {
+        float result = stevensMathLib::randomFloat(0.0f, 1.0f);
+        ASSERT_GE(result, 0.0f);
+        ASSERT_LE(result, 1.0f);
+    }
+}
+
+TEST(StevensMathLib, randomFloat_custom_range)
+{
+    stevensMathLib::seedRNG();
+
+    for(int i = 0; i < 100; i++) {
+        float result = stevensMathLib::randomFloat(10.0f, 20.0f);
+        ASSERT_GE(result, 10.0f);
+        ASSERT_LE(result, 20.0f);
+    }
+}
+
+TEST(StevensMathLib, randomIntNotInVec_excludes_blacklist)
+{
+    stevensMathLib::seedRNG();
+
+    std::vector<int> blacklist = {1, 3, 5, 7, 9};
+
+    // Generate multiple random ints and verify none are in blacklist
+    for(int i = 0; i < 50; i++) {
+        int result = stevensMathLib::randomIntNotInVec(blacklist, 0, 10);
+        ASSERT_FALSE(stevensVectorLib::contains(blacklist, result));
+        ASSERT_GE(result, 0);
+        ASSERT_LT(result, 10);
+    }
+}
+
+TEST(StevensMathLib, randomIntNotInVec_throws_when_no_valid_integers)
+{
+    // Create a blacklist that excludes all possible values
+    std::vector<int> blacklist = {0, 1, 2, 3, 4};
+
+    // Should throw when no valid integers remain
+    ASSERT_THROW(stevensMathLib::randomIntNotInVec(blacklist, 0, 5), std::invalid_argument);
+}
+
+TEST(StevensMathLib, floatToInt_safe_conversion)
+{
+    // Test safe conversion of floats to ints
+    ASSERT_EQ(stevensMathLib::floatToInt(3.7f), 3);
+    ASSERT_EQ(stevensMathLib::floatToInt(10.2f), 10);
+    ASSERT_EQ(stevensMathLib::floatToInt(-5.8f), -5);
+}
+
+TEST(StevensMathLib, floatToInt_large_values)
+{
+    // Test handling of very large float values
+    float largeValue = 1e15f;
+    int result = stevensMathLib::floatToInt(largeValue);
+    // Should return max int for values that don't fit
+    ASSERT_TRUE(result == std::numeric_limits<int>::max() || result == static_cast<int>(largeValue));
+}
+
+TEST(StevensMathLib, in_range_inclusive)
+{
+    // Test inclusive range checking
+    ASSERT_TRUE(stevensMathLib::in_range(5, 1, 10, "inclusive"));
+    ASSERT_TRUE(stevensMathLib::in_range(1, 1, 10, "inclusive"));  // Lower bound
+    ASSERT_TRUE(stevensMathLib::in_range(10, 1, 10, "inclusive")); // Upper bound
+    ASSERT_FALSE(stevensMathLib::in_range(0, 1, 10, "inclusive"));
+    ASSERT_FALSE(stevensMathLib::in_range(11, 1, 10, "inclusive"));
+}
+
+TEST(StevensMathLib, in_range_exclusive)
+{
+    // Test exclusive range checking
+    ASSERT_TRUE(stevensMathLib::in_range(5, 1, 10, "exclusive"));
+    ASSERT_FALSE(stevensMathLib::in_range(1, 1, 10, "exclusive"));  // Lower bound excluded
+    ASSERT_FALSE(stevensMathLib::in_range(10, 1, 10, "exclusive")); // Upper bound excluded
+    ASSERT_FALSE(stevensMathLib::in_range(0, 1, 10, "exclusive"));
+}
+
+TEST(StevensMathLib, in_range_float_values)
+{
+    // Test range checking with floats
+    ASSERT_TRUE(stevensMathLib::in_range(2.5f, 1.0f, 5.0f, "inclusive"));
+    ASSERT_FALSE(stevensMathLib::in_range(0.5f, 1.0f, 5.0f, "inclusive"));
+}
+
+
+/*** stevensVectorLib Tests ***/
+TEST(StevensVectorLib, contains_element_present)
+{
+    std::vector<int> vec = {1, 2, 3, 4, 5};
+    ASSERT_TRUE(stevensVectorLib::contains(vec, 3));
+    ASSERT_TRUE(stevensVectorLib::contains(vec, 1));
+    ASSERT_TRUE(stevensVectorLib::contains(vec, 5));
+}
+
+TEST(StevensVectorLib, contains_element_absent)
+{
+    std::vector<int> vec = {1, 2, 3, 4, 5};
+    ASSERT_FALSE(stevensVectorLib::contains(vec, 10));
+    ASSERT_FALSE(stevensVectorLib::contains(vec, 0));
+}
+
+TEST(StevensVectorLib, contains_string_vector)
+{
+    std::vector<std::string> vec = {"apple", "banana", "cherry"};
+    ASSERT_TRUE(stevensVectorLib::contains(vec, std::string("banana")));
+    ASSERT_FALSE(stevensVectorLib::contains(vec, std::string("grape")));
+}
+
+TEST(StevensVectorLib, eraseAllOf_removes_all_instances)
+{
+    std::vector<int> vec = {1, 2, 3, 2, 4, 2, 5};
+    std::vector<int> result = stevensVectorLib::eraseAllOf(vec, 2);
+
+    ASSERT_EQ(result.size(), 4);
+    ASSERT_FALSE(stevensVectorLib::contains(result, 2));
+    ASSERT_TRUE(stevensVectorLib::contains(result, 1));
+    ASSERT_TRUE(stevensVectorLib::contains(result, 3));
+}
+
+TEST(StevensVectorLib, eraseAllOf_element_not_present)
+{
+    std::vector<int> vec = {1, 2, 3, 4, 5};
+    std::vector<int> result = stevensVectorLib::eraseAllOf(vec, 10);
+    ASSERT_EQ(result.size(), 5);
+}
+
+TEST(StevensVectorLib, sumAll_integers)
+{
+    std::vector<int> vec = {1, 2, 3, 4, 5};
+    ASSERT_EQ(stevensVectorLib::sumAll(vec, 0), 15);
+    ASSERT_EQ(stevensVectorLib::sumAll(vec, 10), 25); // With initial value
+}
+
+TEST(StevensVectorLib, sumAll_floats)
+{
+    std::vector<float> vec = {1.5f, 2.5f, 3.0f};
+    ASSERT_FLOAT_EQ(stevensVectorLib::sumAll(vec, 0.0f), 7.0f);
+}
+
+TEST(StevensVectorLib, multiplyAll_integers)
+{
+    std::vector<int> vec = {2, 3, 4};
+    ASSERT_EQ(stevensVectorLib::multiplyAll(vec, 1), 24);
+    ASSERT_EQ(stevensVectorLib::multiplyAll(vec, 2), 48);
+}
+
+TEST(StevensVectorLib, multiplyAll_floats)
+{
+    std::vector<float> vec = {2.0f, 3.0f, 1.5f};
+    ASSERT_FLOAT_EQ(stevensVectorLib::multiplyAll(vec, 1.0f), 9.0f);
+}
+
+TEST(StevensVectorLib, vecOfStrings_to_vecOfInts)
+{
+    std::vector<std::string> strVec = {"1", "2", "3", "42", "-5"};
+    std::vector<int> intVec = stevensVectorLib::vecOfStrings_to_vecOfInts(strVec);
+
+    ASSERT_EQ(intVec.size(), 5);
+    ASSERT_EQ(intVec[0], 1);
+    ASSERT_EQ(intVec[3], 42);
+    ASSERT_EQ(intVec[4], -5);
+}
+
+TEST(StevensVectorLib, vecOfStrings_to_vecOfLongLongInts)
+{
+    std::vector<std::string> strVec = {"1000000000", "2000000000"};
+    std::vector<long long int> llVec = stevensVectorLib::vecOfStrings_to_vecOfLongLongInts(strVec);
+
+    ASSERT_EQ(llVec.size(), 2);
+    ASSERT_EQ(llVec[0], 1000000000LL);
+    ASSERT_EQ(llVec[1], 2000000000LL);
+}
+
+TEST(StevensVectorLib, findElementIndex_found)
+{
+    std::vector<int> vec = {10, 20, 30, 40, 50};
+    ASSERT_EQ(stevensVectorLib::findElementIndex(vec, 30), 2);
+    ASSERT_EQ(stevensVectorLib::findElementIndex(vec, 10), 0);
+    ASSERT_EQ(stevensVectorLib::findElementIndex(vec, 50), 4);
+}
+
+TEST(StevensVectorLib, findElementIndex_not_found)
+{
+    std::vector<int> vec = {10, 20, 30};
+    ASSERT_EQ(stevensVectorLib::findElementIndex(vec, 100), std::numeric_limits<size_t>::max());
+}
+
+TEST(StevensVectorLib, findMin_integers)
+{
+    std::vector<int> vec = {5, 2, 8, 1, 9};
+    ASSERT_EQ(stevensVectorLib::findMin(vec), 1);
+}
+
+TEST(StevensVectorLib, findMin_floats)
+{
+    std::vector<float> vec = {5.5f, 2.2f, 8.8f, 1.1f};
+    ASSERT_FLOAT_EQ(stevensVectorLib::findMin(vec), 1.1f);
+}
+
+TEST(StevensVectorLib, getRandomElement)
+{
+    stevensMathLib::seedRNG();
+    std::vector<int> vec = {1, 2, 3, 4, 5};
+
+    // Test that random element is always in the vector
+    for(int i = 0; i < 20; i++) {
+        int result = stevensVectorLib::getRandomElement(vec);
+        ASSERT_TRUE(stevensVectorLib::contains(vec, result));
+    }
+}
+
+TEST(StevensVectorLib, getRandomElement_throws_on_empty)
+{
+    std::vector<int> emptyVec;
+    ASSERT_THROW(stevensVectorLib::getRandomElement(emptyVec), std::invalid_argument);
+}
+
+TEST(StevensVectorLib, concat_two_vectors)
+{
+    std::vector<int> vec_a = {1, 2, 3};
+    std::vector<int> vec_b = {4, 5, 6};
+    std::vector<int> result = stevensVectorLib::concat(vec_a, vec_b);
+
+    ASSERT_EQ(result.size(), 6);
+    ASSERT_EQ(result[0], 1);
+    ASSERT_EQ(result[3], 4);
+    ASSERT_EQ(result[5], 6);
+}
+
+TEST(StevensVectorLib, concat_empty_vectors)
+{
+    std::vector<int> vec_a;
+    std::vector<int> vec_b = {1, 2, 3};
+    std::vector<int> result = stevensVectorLib::concat(vec_a, vec_b);
+
+    ASSERT_EQ(result.size(), 3);
+}
+
+TEST(StevensVectorLib, getUncommonElements)
+{
+    std::vector<int> vec_a = {1, 2, 3, 4};
+    std::vector<int> vec_b = {3, 4, 5, 6};
+    std::vector<int> result = stevensVectorLib::getUncommonElements(vec_a, vec_b);
+
+    // Should contain elements in a OR b but not both: 1, 2, 5, 6
+    ASSERT_TRUE(stevensVectorLib::contains(result, 1));
+    ASSERT_TRUE(stevensVectorLib::contains(result, 2));
+    ASSERT_TRUE(stevensVectorLib::contains(result, 5));
+    ASSERT_TRUE(stevensVectorLib::contains(result, 6));
+    ASSERT_FALSE(stevensVectorLib::contains(result, 3));
+    ASSERT_FALSE(stevensVectorLib::contains(result, 4));
+}
+
+TEST(StevensVectorLib, getLargestVectorElement)
+{
+    std::vector< std::vector<int> > vecOfVecs = {
+        {1, 2},
+        {3, 4, 5, 6, 7},
+        {8, 9, 10}
+    };
+
+    std::vector<int> largest = stevensVectorLib::getLargestVectorElement(vecOfVecs);
+    ASSERT_EQ(largest.size(), 5);
+}
+
+TEST(StevensVectorLib, getLongestStringElement)
+{
+    std::vector<std::string> vec = {"hi", "hello", "hey", "greetings"};
+    std::string longest = stevensVectorLib::getLongestStringElement(vec);
+    ASSERT_EQ(longest, "greetings");
+}
+
+TEST(StevensVectorLib, reorient2DVector_transpose)
+{
+    std::vector< std::vector<int> > inputVec = {
+        {1, 2, 3},
+        {4, 5, 6}
+    };
+
+    std::vector< std::vector<int> > result = stevensVectorLib::reorient2DVector(inputVec);
+
+    // Should transpose: [[1,4], [2,5], [3,6]]
+    ASSERT_EQ(result.size(), 3);
+    ASSERT_EQ(result[0].size(), 2);
+    ASSERT_EQ(result[0][0], 1);
+    ASSERT_EQ(result[0][1], 4);
+    ASSERT_EQ(result[1][0], 2);
+    ASSERT_EQ(result[2][0], 3);
+}
+
+TEST(StevensVectorLib, eraseDuplicateElements)
+{
+    std::vector<int> vec = {1, 2, 2, 3, 3, 3, 4, 5, 5};
+    std::vector<int> result = stevensVectorLib::eraseDuplicateElements(vec);
+
+    ASSERT_EQ(result.size(), 5);
+    ASSERT_TRUE(stevensVectorLib::contains(result, 1));
+    ASSERT_TRUE(stevensVectorLib::contains(result, 2));
+    ASSERT_TRUE(stevensVectorLib::contains(result, 3));
+    ASSERT_TRUE(stevensVectorLib::contains(result, 4));
+    ASSERT_TRUE(stevensVectorLib::contains(result, 5));
+}
+
+TEST(StevensVectorLib, difference)
+{
+    std::vector<int> vec_a = {1, 2, 3, 4, 5};
+    std::vector<int> vec_b = {3, 4, 6};
+    std::vector<int> result = stevensVectorLib::difference(vec_a, vec_b);
+
+    // Should have 1, 2, 5 (elements in a but not in b)
+    ASSERT_EQ(result.size(), 3);
+    ASSERT_TRUE(stevensVectorLib::contains(result, 1));
+    ASSERT_TRUE(stevensVectorLib::contains(result, 2));
+    ASSERT_TRUE(stevensVectorLib::contains(result, 5));
+    ASSERT_FALSE(stevensVectorLib::contains(result, 3));
+}
+
+TEST(StevensVectorLib, popFront)
+{
+    std::vector<int> vec = {10, 20, 30, 40};
+    int first = stevensVectorLib::popFront(vec);
+
+    ASSERT_EQ(first, 10);
+    ASSERT_EQ(vec.size(), 3);
+    ASSERT_EQ(vec[0], 20);
+}
+
+
+/*** stevensMapLib Tests ***/
+TEST(StevensMapLib, addMaps_values_only)
+{
+    std::map<std::string, int> mapA = {{"a", 1}, {"b", 2}, {"c", 3}};
+    std::map<std::string, int> mapB = {{"b", 10}, {"c", 20}, {"d", 30}};
+
+    auto result = stevensMapLib::addMaps(mapA, mapB, "values", false);
+
+    // Shared keys should be added
+    ASSERT_EQ(result["b"], 12);  // 2 + 10
+    ASSERT_EQ(result["c"], 23);  // 3 + 20
+    // Non-shared keys should be included
+    ASSERT_EQ(result["a"], 1);
+    ASSERT_EQ(result["d"], 30);
+}
+
+TEST(StevensMapLib, addMaps_omit_non_shared)
+{
+    std::map<std::string, int> mapA = {{"a", 1}, {"b", 2}};
+    std::map<std::string, int> mapB = {{"b", 10}, {"c", 20}};
+
+    auto result = stevensMapLib::addMaps(mapA, mapB, "values", true);
+
+    // Only shared keys should appear
+    ASSERT_EQ(result.size(), 1);
+    ASSERT_EQ(result["b"], 12);
+}
+
+TEST(StevensMapLib, combineMaps_no_overwrite)
+{
+    std::map<std::string, int> source = {{"a", 1}, {"b", 2}};
+    std::map<std::string, int> dest = {{"b", 10}, {"c", 20}};
+
+    auto result = stevensMapLib::combineMaps(source, dest, false);
+
+    // Destination value should be kept for shared keys
+    ASSERT_EQ(result["b"], 10);
+    ASSERT_EQ(result["a"], 1);
+    ASSERT_EQ(result["c"], 20);
+}
+
+TEST(StevensMapLib, combineMaps_with_overwrite)
+{
+    std::map<std::string, int> source = {{"a", 1}, {"b", 2}};
+    std::map<std::string, int> dest = {{"b", 10}, {"c", 20}};
+
+    auto result = stevensMapLib::combineMaps(source, dest, true);
+
+    // Source value should overwrite for shared keys
+    ASSERT_EQ(result["b"], 2);
+    ASSERT_EQ(result["a"], 1);
+    ASSERT_EQ(result["c"], 20);
+}
+
+TEST(StevensMapLib, containsOnly)
+{
+    std::map<std::string, int> map1 = {{"key1", 100}};
+    std::map<std::string, int> map2 = {{"key1", 100}, {"key2", 200}};
+
+    ASSERT_TRUE(stevensMapLib::containsOnly(map1, std::string("key1")));
+    ASSERT_FALSE(stevensMapLib::containsOnly(map2, std::string("key1")));
+}
+
+TEST(StevensMapLib, multiplyWithValues)
+{
+    std::map<std::string, int> map = {{"a", 10}, {"b", 20}, {"c", 30}};
+    auto result = stevensMapLib::multiplyWithValues(map, 2.5);
+
+    ASSERT_EQ(result["a"], 25);
+    ASSERT_EQ(result["b"], 50);
+    ASSERT_EQ(result["c"], 75);
+}
+
+TEST(StevensMapLib, sumAllValues)
+{
+    std::map<std::string, int> map = {{"a", 10}, {"b", 20}, {"c", 30}};
+    ASSERT_EQ(stevensMapLib::sumAllValues(map), 60);
+    ASSERT_EQ(stevensMapLib::sumAllValues(map, 10), 70); // With initial value
+}
+
+TEST(StevensMapLib, mapToVector)
+{
+    std::map<std::string, int> map = {{"a", 1}, {"b", 2}, {"c", 3}};
+    auto vec = stevensMapLib::mapToVector(map);
+
+    ASSERT_EQ(vec.size(), 3);
+    // Verify first pair (maps are sorted, so "a" should be first)
+    ASSERT_EQ(vec[0].first, "a");
+    ASSERT_EQ(vec[0].second, 1);
+}
+
+TEST(StevensMapLib, getKeyVector)
+{
+    std::map<std::string, int> map = {{"apple", 1}, {"banana", 2}, {"cherry", 3}};
+    auto keys = stevensMapLib::getKeyVector(map);
+
+    ASSERT_EQ(keys.size(), 3);
+    ASSERT_TRUE(stevensVectorLib::contains(keys, std::string("apple")));
+    ASSERT_TRUE(stevensVectorLib::contains(keys, std::string("banana")));
+    ASSERT_TRUE(stevensVectorLib::contains(keys, std::string("cherry")));
+}
+
+TEST(StevensMapLib, getValueVector)
+{
+    std::map<std::string, int> map = {{"a", 10}, {"b", 20}, {"c", 30}};
+    auto values = stevensMapLib::getValueVector(map);
+
+    ASSERT_EQ(values.size(), 3);
+    ASSERT_TRUE(stevensVectorLib::contains(values, 10));
+    ASSERT_TRUE(stevensVectorLib::contains(values, 20));
+    ASSERT_TRUE(stevensVectorLib::contains(values, 30));
+}
+
+TEST(StevensMapLib, erase_multiple_keys)
+{
+    std::map<std::string, int> map = {{"a", 1}, {"b", 2}, {"c", 3}, {"d", 4}};
+    std::vector<std::string> keysToErase = {"b", "d"};
+
+    auto result = stevensMapLib::erase(map, keysToErase);
+
+    ASSERT_EQ(result.size(), 2);
+    ASSERT_TRUE(result.contains("a"));
+    ASSERT_TRUE(result.contains("c"));
+    ASSERT_FALSE(result.contains("b"));
+    ASSERT_FALSE(result.contains("d"));
+}
+
+TEST(StevensMapLib, getFirstKey)
+{
+    std::map<std::string, int> map = {{"zebra", 1}, {"apple", 2}, {"mango", 3}};
+    // For std::map, elements are sorted, so first should be "apple"
+    ASSERT_EQ(stevensMapLib::getFirstKey(map), "apple");
+}
+
+TEST(StevensMapLib, getFirstValue)
+{
+    std::map<std::string, int> map = {{"zebra", 100}, {"apple", 200}};
+    // First in sorted order is "apple", so value should be 200
+    ASSERT_EQ(stevensMapLib::getFirstValue(map), 200);
+}
+
+TEST(StevensMapLib, getPairWithMaxValue)
+{
+    std::map<std::string, int> map = {{"a", 10}, {"b", 50}, {"c", 30}};
+    auto maxPair = stevensMapLib::getPairWithMaxValue(map);
+
+    ASSERT_EQ(maxPair.first, "b");
+    ASSERT_EQ(maxPair.second, 50);
+}
+
+TEST(StevensMapLib, getPairWithMinValue)
+{
+    std::map<std::string, int> map = {{"a", 10}, {"b", 50}, {"c", 30}};
+    auto minPair = stevensMapLib::getPairWithMinValue(map);
+
+    ASSERT_EQ(minPair.first, "a");
+    ASSERT_EQ(minPair.second, 10);
+}
+
+TEST(StevensMapLib, mapToSortedVector_by_value_ascending)
+{
+    std::unordered_map<std::string, int> map = {{"a", 30}, {"b", 10}, {"c", 20}};
+    auto sorted = stevensMapLib::mapToSortedVector(map, "value", "ascending");
+
+    ASSERT_EQ(sorted.size(), 3);
+    ASSERT_EQ(sorted[0].second, 10);  // "b"
+    ASSERT_EQ(sorted[1].second, 20);  // "c"
+    ASSERT_EQ(sorted[2].second, 30);  // "a"
+}
+
+TEST(StevensMapLib, mapToSortedVector_by_value_descending)
+{
+    std::unordered_map<std::string, int> map = {{"a", 30}, {"b", 10}, {"c", 20}};
+    auto sorted = stevensMapLib::mapToSortedVector(map, "value", "descending");
+
+    ASSERT_EQ(sorted.size(), 3);
+    ASSERT_EQ(sorted[0].second, 30);  // "a"
+    ASSERT_EQ(sorted[1].second, 20);  // "c"
+    ASSERT_EQ(sorted[2].second, 10);  // "b"
+}
+
+
+/*** stevensStringLib Tests ***/
+TEST(StevensStringLib, contains_substring)
+{
+    ASSERT_TRUE(stevensStringLib::contains("Hello World", "World"));
+    ASSERT_TRUE(stevensStringLib::contains("Hello World", "Hello"));
+    ASSERT_FALSE(stevensStringLib::contains("Hello World", "Goodbye"));
+}
+
+TEST(StevensStringLib, contains_char)
+{
+    ASSERT_TRUE(stevensStringLib::contains("Hello", 'e'));
+    ASSERT_FALSE(stevensStringLib::contains("Hello", 'z'));
+}
+
+TEST(StevensStringLib, containsOnly)
+{
+    ASSERT_TRUE(stevensStringLib::containsOnly("111222111", "12"));
+    ASSERT_FALSE(stevensStringLib::containsOnly("111222333", "12"));
+    ASSERT_TRUE(stevensStringLib::containsOnly("", ""));
+    ASSERT_FALSE(stevensStringLib::containsOnly("abc", ""));
+}
+
+TEST(StevensStringLib, eraseCharsFromEnd)
+{
+    ASSERT_STREQ(stevensStringLib::eraseCharsFromEnd("Hello World", 6).c_str(), "Hello");
+    ASSERT_STREQ(stevensStringLib::eraseCharsFromEnd("Test", 2).c_str(), "Te");
+    ASSERT_STREQ(stevensStringLib::eraseCharsFromEnd("Test", 10).c_str(), ""); // More than length
+}
+
+TEST(StevensStringLib, eraseCharsFromStart)
+{
+    ASSERT_STREQ(stevensStringLib::eraseCharsFromStart("Hello World", 6).c_str(), "World");
+    ASSERT_STREQ(stevensStringLib::eraseCharsFromStart("Test", 2).c_str(), "st");
+    ASSERT_STREQ(stevensStringLib::eraseCharsFromStart("Test", 10).c_str(), ""); // More than length
+}
+
+TEST(StevensStringLib, startsWith)
+{
+    ASSERT_TRUE(stevensStringLib::startsWith("Hello World", "Hello"));
+    ASSERT_FALSE(stevensStringLib::startsWith("Hello World", "World"));
+    ASSERT_FALSE(stevensStringLib::startsWith("Hi", "Hello"));
+}
+
+TEST(StevensStringLib, endsWith)
+{
+    ASSERT_TRUE(stevensStringLib::endsWith("Hello World", "World"));
+    ASSERT_FALSE(stevensStringLib::endsWith("Hello World", "Hello"));
+    ASSERT_FALSE(stevensStringLib::endsWith("Hi", "World"));
+}
+
+TEST(StevensStringLib, findAll_substring)
+{
+    std::string str = "abcabcabc";
+    auto indices = stevensStringLib::findAll(str, "abc");
+    ASSERT_EQ(indices.size(), 3);
+    ASSERT_EQ(indices[0], 0);
+    ASSERT_EQ(indices[1], 3);
+    ASSERT_EQ(indices[2], 6);
+}
+
+TEST(StevensStringLib, findAll_char)
+{
+    std::string str = "Hello World";
+    auto indices = stevensStringLib::findAll(str, 'l');
+    ASSERT_EQ(indices.size(), 3);
+    ASSERT_EQ(indices[0], 2);
+    ASSERT_EQ(indices[1], 3);
+    ASSERT_EQ(indices[2], 9);
+}
+
+TEST(StevensStringLib, separate_by_char)
+{
+    auto result = stevensStringLib::separate("apple,banana,cherry", ',');
+    ASSERT_EQ(result.size(), 3);
+    ASSERT_EQ(result[0], "apple");
+    ASSERT_EQ(result[1], "banana");
+    ASSERT_EQ(result[2], "cherry");
+}
+
+TEST(StevensStringLib, separate_by_string)
+{
+    auto result = stevensStringLib::separate("one::two::three", "::");
+    ASSERT_EQ(result.size(), 3);
+    ASSERT_EQ(result[0], "one");
+    ASSERT_EQ(result[1], "two");
+    ASSERT_EQ(result[2], "three");
+}
+
+TEST(StevensStringLib, separate_omit_empty)
+{
+    auto result = stevensStringLib::separate("a,,b,,c", ',', true);
+    ASSERT_EQ(result.size(), 3);
+
+    auto result2 = stevensStringLib::separate("a,,b,,c", ',', false);
+    ASSERT_EQ(result2.size(), 5);
+}
+
+TEST(StevensStringLib, join)
+{
+    std::vector<std::string> vec = {"apple", "banana", "cherry"};
+    ASSERT_EQ(stevensStringLib::join(vec, ", "), "apple, banana, cherry");
+    ASSERT_EQ(stevensStringLib::join(vec, "::"), "apple::banana::cherry");
+}
+
+TEST(StevensStringLib, cap1stChar)
+{
+    ASSERT_EQ(stevensStringLib::cap1stChar("hello"), "Hello");
+    ASSERT_EQ(stevensStringLib::cap1stChar("world"), "World");
+    ASSERT_EQ(stevensStringLib::cap1stChar(""), "");
+}
+
+TEST(StevensStringLib, toUpper)
+{
+    ASSERT_EQ(stevensStringLib::toUpper("hello"), "HELLO");
+    ASSERT_EQ(stevensStringLib::toUpper("Hello World"), "HELLO WORLD");
+}
+
+TEST(StevensStringLib, toLower)
+{
+    ASSERT_EQ(stevensStringLib::toLower("HELLO"), "hello");
+    ASSERT_EQ(stevensStringLib::toLower("Hello World"), "hello world");
+}
+
+TEST(StevensStringLib, isInteger)
+{
+    ASSERT_TRUE(stevensStringLib::isInteger("123"));
+    ASSERT_TRUE(stevensStringLib::isInteger("-456"));
+    ASSERT_FALSE(stevensStringLib::isInteger("12.5"));
+    ASSERT_FALSE(stevensStringLib::isInteger("abc"));
+    ASSERT_FALSE(stevensStringLib::isInteger(""));
+}
+
+TEST(StevensStringLib, isFloat)
+{
+    ASSERT_TRUE(stevensStringLib::isFloat("3.14"));
+    ASSERT_TRUE(stevensStringLib::isFloat("-2.5"));
+    ASSERT_TRUE(stevensStringLib::isFloat("123"));
+    ASSERT_FALSE(stevensStringLib::isFloat("abc"));
+}
+
+TEST(StevensStringLib, isNumber)
+{
+    ASSERT_TRUE(stevensStringLib::isNumber("123"));
+    ASSERT_TRUE(stevensStringLib::isNumber("3.14"));
+    ASSERT_TRUE(stevensStringLib::isNumber("-5.5"));
+    ASSERT_FALSE(stevensStringLib::isNumber("abc"));
+}
+
+TEST(StevensStringLib, stringToBool)
+{
+    ASSERT_TRUE(stevensStringLib::stringToBool("true"));
+    ASSERT_TRUE(stevensStringLib::stringToBool("True"));
+    ASSERT_TRUE(stevensStringLib::stringToBool("1"));
+    ASSERT_FALSE(stevensStringLib::stringToBool("false"));
+    ASSERT_FALSE(stevensStringLib::stringToBool("0"));
+}
+
+TEST(StevensStringLib, boolToString)
+{
+    ASSERT_EQ(stevensStringLib::boolToString(true), "true");
+    ASSERT_EQ(stevensStringLib::boolToString(false), "false");
+}
+
+TEST(StevensStringLib, removeWhitespace)
+{
+    ASSERT_EQ(stevensStringLib::removeWhitespace("Hello World"), "HelloWorld");
+    ASSERT_EQ(stevensStringLib::removeWhitespace("  a  b  c  "), "abc");
+}
+
+TEST(StevensStringLib, reverse)
+{
+    ASSERT_EQ(stevensStringLib::reverse("hello"), "olleh");
+    ASSERT_EQ(stevensStringLib::reverse("12345"), "54321");
+}
+
+TEST(StevensStringLib, isPalindrome)
+{
+    ASSERT_TRUE(stevensStringLib::isPalindrome("racecar"));
+    ASSERT_TRUE(stevensStringLib::isPalindrome("noon"));
+    ASSERT_FALSE(stevensStringLib::isPalindrome("hello"));
+}
+
+TEST(StevensStringLib, multiply)
+{
+    ASSERT_EQ(stevensStringLib::multiply("ab", 3), "ababab");
+    ASSERT_EQ(stevensStringLib::multiply("x", 5), "xxxxx");
+    ASSERT_EQ(stevensStringLib::multiply("test", 0), "");
+}
+
+TEST(StevensStringLib, replaceSubstr)
+{
+    ASSERT_EQ(stevensStringLib::replaceSubstr("hello world", "world", "there"), "hello there");
+    ASSERT_EQ(stevensStringLib::replaceSubstr("aaa", "a", "b"), "bbb");
+}
+
+TEST(StevensStringLib, replaceSubstr_quantity)
+{
+    ASSERT_EQ(stevensStringLib::replaceSubstr("aaa", "a", "b", 2), "bba");
+}
+
+TEST(StevensStringLib, scramble)
+{
+    stevensMathLib::seedRNG();
+    std::string original = "abcdef";
+    std::string scrambled = stevensStringLib::scramble(original);
+
+    // Should have same length
+    ASSERT_EQ(scrambled.length(), original.length());
+    // Should contain same characters (different order likely, but not guaranteed)
+    for(char c : original) {
+        ASSERT_TRUE(stevensStringLib::contains(scrambled, c));
+    }
+}
+
+
+/*** stevensFileLib Tests ***/
+TEST(StevensFileLib, appendToFile_creates_new_file)
+{
+    std::string testFilePath = "/tmp/test_stevens_file_lib_new.txt";
+
+    // Remove file if it exists
+    std::remove(testFilePath.c_str());
+
+    // Append to non-existent file (should create it)
+    stevensFileLib::appendToFile(testFilePath, "Test content\n", true);
+
+    // Verify file exists and has content
+    std::ifstream file(testFilePath);
+    ASSERT_TRUE(file.is_open());
+    std::string line;
+    std::getline(file, line);
+    ASSERT_EQ(line, "Test content");
+    file.close();
+
+    // Cleanup
+    std::remove(testFilePath.c_str());
+}
+
+TEST(StevensFileLib, appendToFile_appends_to_existing)
+{
+    std::string testFilePath = "/tmp/test_stevens_file_lib_append.txt";
+
+    // Create initial file
+    std::ofstream initialFile(testFilePath);
+    initialFile << "Line 1\n";
+    initialFile.close();
+
+    // Append to it
+    stevensFileLib::appendToFile(testFilePath, "Line 2\n");
+
+    // Verify both lines exist
+    auto lines = stevensFileLib::loadFileIntoVector(testFilePath);
+    ASSERT_EQ(lines.size(), 2);
+    ASSERT_EQ(lines[0], "Line 1");
+    ASSERT_EQ(lines[1], "Line 2");
+
+    // Cleanup
+    std::remove(testFilePath.c_str());
+}
+
+TEST(StevensFileLib, loadFileIntoVector)
+{
+    std::string testFilePath = "/tmp/test_stevens_file_lib_load.txt";
+
+    // Create test file
+    std::ofstream testFile(testFilePath);
+    testFile << "Line 1\n";
+    testFile << "Line 2\n";
+    testFile << "Line 3\n";
+    testFile.close();
+
+    // Load into vector
+    auto lines = stevensFileLib::loadFileIntoVector(testFilePath);
+
+    ASSERT_EQ(lines.size(), 3);
+    ASSERT_EQ(lines[0], "Line 1");
+    ASSERT_EQ(lines[1], "Line 2");
+    ASSERT_EQ(lines[2], "Line 3");
+
+    // Cleanup
+    std::remove(testFilePath.c_str());
+}
+
+TEST(StevensFileLib, loadFileIntoVector_skip_empty_lines)
+{
+    std::string testFilePath = "/tmp/test_stevens_file_lib_skip.txt";
+
+    // Create test file with empty lines
+    std::ofstream testFile(testFilePath);
+    testFile << "Line 1\n";
+    testFile << "\n";
+    testFile << "Line 2\n";
+    testFile << "\n";
+    testFile.close();
+
+    // Load with skip empty lines (default)
+    auto linesSkip = stevensFileLib::loadFileIntoVector(testFilePath, {}, '\n', true);
+    ASSERT_EQ(linesSkip.size(), 2);
+
+    // Load without skip
+    auto linesNoSkip = stevensFileLib::loadFileIntoVector(testFilePath, {}, '\n', false);
+    ASSERT_EQ(linesNoSkip.size(), 4);
+
+    // Cleanup
+    std::remove(testFilePath.c_str());
+}
+
+TEST(StevensFileLib, loadFileIntoVector_skip_if_starts_with)
+{
+    std::string testFilePath = "/tmp/test_stevens_file_lib_starts.txt";
+
+    // Create test file
+    std::ofstream testFile(testFilePath);
+    testFile << "# Comment 1\n";
+    testFile << "Data line 1\n";
+    testFile << "# Comment 2\n";
+    testFile << "Data line 2\n";
+    testFile.close();
+
+    // Load skipping lines starting with #
+    std::unordered_map<std::string, std::vector<std::string>> settings;
+    settings["skip if starts with"] = {"#"};
+    auto lines = stevensFileLib::loadFileIntoVector(testFilePath, settings);
+
+    ASSERT_EQ(lines.size(), 2);
+    ASSERT_EQ(lines[0], "Data line 1");
+    ASSERT_EQ(lines[1], "Data line 2");
+
+    // Cleanup
+    std::remove(testFilePath.c_str());
+}
+
+TEST(StevensFileLib, loadFileIntoVectorOfInts)
+{
+    std::string testFilePath = "/tmp/test_stevens_file_lib_ints.txt";
+
+    // Create test file with integers
+    std::ofstream testFile(testFilePath);
+    testFile << "10\n";
+    testFile << "20\n";
+    testFile << "30\n";
+    testFile.close();
+
+    // Load into vector of ints
+    auto ints = stevensFileLib::loadFileIntoVectorOfInts(testFilePath);
+
+    ASSERT_EQ(ints.size(), 3);
+    ASSERT_EQ(ints[0], 10);
+    ASSERT_EQ(ints[1], 20);
+    ASSERT_EQ(ints[2], 30);
+
+    // Cleanup
+    std::remove(testFilePath.c_str());
+}
+

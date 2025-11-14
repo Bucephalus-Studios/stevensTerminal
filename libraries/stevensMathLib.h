@@ -62,7 +62,7 @@ namespace stevensMathLib
 	float round( float value, int precision )
 	{
 		const int adjustment = pow(10,precision);
-		return std::round( value*(adjustment) + 0.5 )/adjustment;
+		return std::round( value * adjustment ) / adjustment;
 	}
 
 

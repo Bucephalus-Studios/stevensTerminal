@@ -227,7 +227,7 @@ namespace stevensVectorLib
         for(int i = 0; i < vec_a.size(); i++)
         {
             //Search vec_b to see if it does not contain the element in vec_a
-            if(!vec_b.find(vec_a[i]))
+            if(std::find(vec_b.begin(), vec_b.end(), vec_a[i]) == vec_b.end())
             {
                 //If vec_b does not contain the element in vec_a, push it back into vec_c
                 vec_c.push_back(vec_a[i]);
@@ -237,7 +237,7 @@ namespace stevensVectorLib
         for(int i = 0; i < vec_b.size(); i++)
         {
             //Search vec_a to see if it does not contain the element in vec_b
-            if(!vec_a.find(vec_b[i]))
+            if(std::find(vec_a.begin(), vec_a.end(), vec_b[i]) == vec_a.end())
             {
                 //If vec_a does not contain the element in vec_b, push it back into vec_c
                 vec_c.push_back(vec_b[i]);
