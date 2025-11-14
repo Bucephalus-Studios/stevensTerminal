@@ -476,77 +476,77 @@ namespace stevensTerminal
 
 		//Prepare the vector of selectNums based on their menu length
 		int startingSelectNum = 1;
-		std::vector<int> selectNum;
-		selectNum.resize(menus.size(),0);
-		for(int i = 0; i < menus.size(); i++)
+		std::vector<int> selectNumByMenu;
+		selectNumByMenu.resize(menus.size(),0);
+		for(size_t menuIndex = 0; menuIndex < menus.size(); menuIndex++)
 		{
-			if (i == 0) //
+			if (menuIndex == 0) //
 			{
-				selectNum[0] = 1;
+				selectNumByMenu[0] = 1;
 			}
 			else
 			{
-				selectNum[i] = startingSelectNum + menus[i-1].size();
-				startingSelectNum = selectNum[i];
+				selectNumByMenu[menuIndex] = startingSelectNum + menus[menuIndex-1].size();
+				startingSelectNum = selectNumByMenu[menuIndex];
 			}
 		}
 
-		std::string selectNumString = "";
-		int currBorderChar = 0;
+		std::string formattedSelectNum = "";
+		int currentBorderCharIndex = 0;
 		int	currentResponseNum = 1; //The number of the response to print in the menu
-		int menusLeftToPrint = menus.size();
+		int remainingMenusToPrint = menus.size();
 		int extraRowsForTextWrapAround = 0;
 		int menuLength = maxMenuLength;
-		std::vector< int > menuItemOffset;
-		std::vector< std::queue<std::string> > textThatWrapsOver;
-		std::vector< std::queue<std::string> > queuedItems;
+		std::vector< int > menuItemRowOffsets;
+		std::vector< std::queue<std::string> > wrappedTextQueues;
+		std::vector< std::queue<std::string> > queuedMenuItems;
 		std::queue<std::string> emptyQueue;
-		std::vector<int> numberOfItemsPrinted; //A vector that keeps track of the number of items printed from each menu
-		numberOfItemsPrinted.resize(menus.size(),0); 
-		int availableSpace = individualMenuWidth;
-		while(menusLeftToPrint > 0)
+		std::vector<int> itemsPrintedPerMenu; //A vector that keeps track of the number of items printed from each menu
+		itemsPrintedPerMenu.resize(menus.size(),0); 
+		int charsRemaining = individualMenuWidth;
+		while(remainingMenusToPrint > 0)
 		{
 			//START A NEW MENU ROW
-			textThatWrapsOver.resize(menus.size(),emptyQueue);
-			queuedItems.resize(menus.size(),emptyQueue);
-			menuItemOffset.resize(menus.size(),0); //How many rows down a particular row is offset from displaying its contents on the standard indices 
-			if(verticalMenusPerRow > menusLeftToPrint) //If we don't have to print a full row of vertical menus, we just print the remainder of menus
+			wrappedTextQueues.resize(menus.size(),emptyQueue);
+			queuedMenuItems.resize(menus.size(),emptyQueue);
+			menuItemRowOffsets.resize(menus.size(),0); //How many rows down a particular row is offset from displaying its contents on the standard indices
+			if(verticalMenusPerRow > remainingMenusToPrint) //If we don't have to print a full row of vertical menus, we just print the remainder of menus
 			{
-				verticalMenusPerRow = menusLeftToPrint;
+				verticalMenusPerRow = remainingMenusToPrint;
 			}
-			for(int k = 0; k < verticalMenusPerRow; k++) //Loop over the menu labels to print them
+			for(size_t menuColumnIndex = 0; menuColumnIndex < verticalMenusPerRow; menuColumnIndex++) //Loop over the menu labels to print them
 			{
-				availableSpace = individualMenuWidth;
-				std::string potentialTextToWrap = localizedWrap(menuLabels[k],availableSpace); //Prints the menu label. If it's too long, then we return the part of the label that wraps belong the allotted space.
-				availableSpace -= menuLabels[k].length();
-				if(potentialTextToWrap != "")
+				charsRemaining = individualMenuWidth;
+				std::string overflowText = localizedWrap(menuLabels[menuColumnIndex],charsRemaining); //Prints the menu label. If it's too long, then we return the part of the label that wraps belong the allotted space.
+				charsRemaining -= menuLabels[menuColumnIndex].length();
+				if(overflowText != "")
 				{
-					textThatWrapsOver[k].push(potentialTextToWrap);
-					if(increaseOffset(menuItemOffset,k))
+					wrappedTextQueues[menuColumnIndex].push(overflowText);
+					if(increaseOffset(menuItemRowOffsets,menuColumnIndex))
 					{
 						menuLength++;
 					}
 				}
-				while(availableSpace > 0) //If we have leftover space in a place where a menu label is printed, then we print spaces until we have none left
+				while(charsRemaining > 0) //If we have leftover space in a place where a menu label is printed, then we print spaces until we have none left
 				{
 					std::cout << " ";
-					availableSpace--;
+					charsRemaining--;
 				}
-				if(k+1 < verticalMenusPerRow) //If we still have menus left to print, then we print a border
+				if(menuColumnIndex+1 < verticalMenusPerRow) //If we still have menus left to print, then we print a border
 				{
 					std::cout << " ";
 					if(borderPattern.length() > 0)
 					{
-						std::cout << borderPattern[currBorderChar];
+						std::cout << borderPattern[currentBorderCharIndex];
 					}
 				}
 			}
 			std::cout << "\n"; //Go to the next line after printing the menu labels
 			//Go to the next border pattern character because we go to the next line
-			currBorderChar++;
-			if(currBorderChar >= borderPattern.length())
+			currentBorderCharIndex++;
+			if(currentBorderCharIndex >= borderPattern.length())
 			{
-				currBorderChar = 0;
+				currentBorderCharIndex = 0;
 			}
 
 			/*
@@ -561,9 +561,9 @@ namespace stevensTerminal
 
 			std::vector<int> emptyMenuIndices = {};
 			/// Find empty menus ///
-			for(int e = 0; e < menus.size(); e++)
+			for(size_t emptyCheckIndex = 0; emptyCheckIndex < menus.size(); emptyCheckIndex++)
 			{
-				if(menus[e].size() == 0)
+				if(menus[emptyCheckIndex].size() == 0)
 				{
 					emptyMenuIndices.push_back(1);
 				}
@@ -574,89 +574,89 @@ namespace stevensTerminal
 			}
 
 			/// PRINT ITEMS IN MENU ///
-			int i = 0;
-			while(i < menuLength) //i is the variable indicating the inner index of indexing menus: menus[j][i], here we begin printing line by line the items in the menus
+			int itemRowIndex = 0;
+			while(itemRowIndex < menuLength) //itemRowIndex is the variable indicating the inner index of indexing menus: menus[menuColumnIndex][itemRowIndex], here we begin printing line by line the items in the menus
 			{
-				for(int j = 0; j < menus.size(); j++) //j is the index of the current row of menus, the outer index of menus
+				for(size_t menuColumnIndex = 0; menuColumnIndex < menus.size(); menuColumnIndex++) //menuColumnIndex is the index of the current row of menus, the outer index of menus
 				{
-					availableSpace = individualMenuWidth;
-					//cout << "i: " << i << " " << "j: " << j;
-					//We need to check to see if there exists an element at index i in menu j
-					if (i >= menus[j].size() && textThatWrapsOver[j].empty() && queuedItems[j].empty()) //If we index past the size of a list and we have no wrapped text to print
+					charsRemaining = individualMenuWidth;
+					//cout << "itemRowIndex: " << itemRowIndex << " " << "menuColumnIndex: " << menuColumnIndex;
+					//We need to check to see if there exists an element at index itemRowIndex in menu menuColumnIndex
+					if (itemRowIndex >= menus[menuColumnIndex].size() && wrappedTextQueues[menuColumnIndex].empty() && queuedMenuItems[menuColumnIndex].empty()) //If we index past the size of a list and we have no wrapped text to print
 					{
 						//If a menu is empty and we want to show "None" in empty menus, we print "None" here
-						if(emptyMenuIndices[j] == 1 && showNone)
+						if(emptyMenuIndices[menuColumnIndex] == 1 && showNone)
 						{
 							std::cout << "None";
-							emptyMenuIndices[j] = 2;
-							availableSpace -= 4;
-							while (availableSpace > 0)
+							emptyMenuIndices[menuColumnIndex] = 2;
+							charsRemaining -= 4;
+							while (charsRemaining > 0)
 							{
 								std::cout << " ";
-								availableSpace--;
+								charsRemaining--;
 							}
 							goto printBorder;
 							continue;
 						}
 						//Otherwise, we print empty spaces
-						//cout << "print empty space";	
-						availableSpace = individualMenuWidth;
-						while(availableSpace > 0)
+						//cout << "print empty space";
+						charsRemaining = individualMenuWidth;
+						while(charsRemaining > 0)
 						{
 							std::cout << " ";
-							availableSpace--;
+							charsRemaining--;
 						}
 					}
 					else
 					{
-						if (!textThatWrapsOver[j].empty()) //If we have text wrapping over from the line above, then we print it
+						if (!wrappedTextQueues[menuColumnIndex].empty()) //If we have text wrapping over from the line above, then we print it
 						{
 							//cout << "wrap";
-							std::string textToPrint = textThatWrapsOver[j].front();
-							std::string potentialTextToWrap = localizedWrap(textToPrint,availableSpace);
-							availableSpace -= textToPrint.length();
-							textThatWrapsOver[j].pop();
-							if(potentialTextToWrap != "")
+							std::string textToPrint = wrappedTextQueues[menuColumnIndex].front();
+							std::string overflowText = localizedWrap(textToPrint,charsRemaining);
+							charsRemaining -= textToPrint.length();
+							wrappedTextQueues[menuColumnIndex].pop();
+							if(overflowText != "")
 							{
 								//cout << "text wrapped again";
-								textThatWrapsOver[j].push(potentialTextToWrap);
-								if(increaseOffset(menuItemOffset,j))
+								wrappedTextQueues[menuColumnIndex].push(overflowText);
+								if(increaseOffset(menuItemRowOffsets,menuColumnIndex))
 								{
 									menuLength++;
 								}
 							}
 							else
 							{
-								numberOfItemsPrinted[j]++;
+								itemsPrintedPerMenu[menuColumnIndex]++;
 							}
-							while (availableSpace > 0)
+							while (charsRemaining > 0)
 							{
 								std::cout << " ";
-								availableSpace--;
+								charsRemaining--;
 							}
-							if(numberOfItemsPrinted[j] < menus[j].size()) //If we have a menu item to print after the wraparound text, we queue it here
+							if(itemsPrintedPerMenu[menuColumnIndex] < menus[menuColumnIndex].size()) //If we have a menu item to print after the wraparound text, we queue it here
 							{
-								queuedItems[j].push(menus[j][i+1-menuItemOffset[j]]);
+								queuedMenuItems[menuColumnIndex].push(menus[menuColumnIndex][itemRowIndex+1-menuItemRowOffsets[menuColumnIndex]]);
 							}
 						}
-						else if (!queuedItems[j].empty()) //If we have some menu items that have been queued to be printed...
+						else if (!queuedMenuItems[menuColumnIndex].empty()) //If we have some menu items that have been queued to be printed...
 						{
 							//cout << "queuedprint";
-							std::string queuedItem = queuedItems[j].front();
+							std::string queuedItem = queuedMenuItems[menuColumnIndex].front();
 							if (showResponseNums) //Print the response number if it is requested
 							{
-								selectNumString = std::to_string(selectNum[j]) + " - ";
-								selectNum[j]++;
-								availableSpace -= selectNumString.length();
-								std::cout << selectNumString;
+								formattedSelectNum = std::to_string(selectNumByMenu[menuColumnIndex]) + " - ";
+								selectNumByMenu[menuColumnIndex]++;
+								charsRemaining -= formattedSelectNum.length();
+								std::cout << formattedSelectNum;
 							}
-							std::string potentialTextToWrap = localizedWrap(queuedItem,availableSpace);
-							availableSpace -= queuedItem.length();
-							queuedItems[j].pop();
-							if(potentialTextToWrap != "")
+							std::string overflowText = localizedWrap(queuedItem,charsRemaining);
+							charsRemaining -= queuedItem.length();
+							queuedMenuItems[menuColumnIndex].pop();
+							if(overflowText != "")
 							{
-								textThatWrapsOver[j].push(potentialTextToWrap);
-								if(increaseOffset(menuItemOffset,j))
+								wrappedTextQueues[menuColumnIndex].push(overflowText);
+								if(increaseOffset(menuItemRowOffsets,menuColumnIndex))
 								{
 									// Note: menuLength increment removed here - appears to cause issues with this specific case
 									// The increaseOffset call still updates the offset, but we don't increment menuLength
@@ -665,17 +665,17 @@ namespace stevensTerminal
 							}
 							else
 							{
-								numberOfItemsPrinted[j]++;
+								itemsPrintedPerMenu[menuColumnIndex]++;
 								//We need to check to queue other content here that has been passed over by wrapping
-								if(numberOfItemsPrinted[j] < menus[j].size())
+								if(itemsPrintedPerMenu[menuColumnIndex] < menus[menuColumnIndex].size())
 								{
-									queuedItems[j].push(menus[j][i+1-menuItemOffset[j]]);
+									queuedMenuItems[menuColumnIndex].push(menus[menuColumnIndex][itemRowIndex+1-menuItemRowOffsets[menuColumnIndex]]);
 								}
 							}
-							while (availableSpace > 0)
+							while (charsRemaining > 0)
 							{
 								std::cout << " ";
-								availableSpace--;
+								charsRemaining--;
 							}
 						}
 						else //If we have no text wrapping over from the line above and no items in the queue to print, then we print at the current row and column
@@ -683,78 +683,78 @@ namespace stevensTerminal
 							//cout << "stdprint";
 							if (showResponseNums) //Print the response number if it is requested
 							{
-								selectNumString = std::to_string(selectNum[j]) + " - ";
-								selectNum[j]++;
-								availableSpace -= selectNumString.length();
-								std::cout << selectNumString;
+								formattedSelectNum = std::to_string(selectNumByMenu[menuColumnIndex]) + " - ";
+								selectNumByMenu[menuColumnIndex]++;
+								charsRemaining -= formattedSelectNum.length();
+								std::cout << formattedSelectNum;
 							}
-							std::string potentialTextToWrap = localizedWrap(menus[j][i-menuItemOffset[j]],availableSpace);
-							availableSpace -= menus[j][i-menuItemOffset[j]].length();
-							if(potentialTextToWrap != "")
+							std::string overflowText = localizedWrap(menus[menuColumnIndex][itemRowIndex-menuItemRowOffsets[menuColumnIndex]],charsRemaining);
+							charsRemaining -= menus[menuColumnIndex][itemRowIndex-menuItemRowOffsets[menuColumnIndex]].length();
+							if(overflowText != "")
 							{
 								//cout << "text wrapped";
-								textThatWrapsOver[j].push(potentialTextToWrap);
+								wrappedTextQueues[menuColumnIndex].push(overflowText);
 								//extraRowsForTextWrapAround++;
 								//menuLength++;
-								if(increaseOffset(menuItemOffset,j))
+								if(increaseOffset(menuItemRowOffsets,menuColumnIndex))
 								{
-									//cout << "menuItemOffset[" << j << "]: " << menuItemOffset[j] << endl;
+									//cout << "menuItemRowOffsets[" << menuColumnIndex << "]: " << menuItemRowOffsets[menuColumnIndex] << endl;
 									menuLength++;
 								}
-								//cout << "menuOffset: " << menuItemOffset[j];
+								//cout << "menuOffset: " << menuItemRowOffsets[menuColumnIndex];
 							}
 							else
 							{
-								numberOfItemsPrinted[j]++;
+								itemsPrintedPerMenu[menuColumnIndex]++;
 							}
-							while (availableSpace > 0)
+							while (charsRemaining > 0)
 							{
 								std::cout << " ";
-								availableSpace--;
+								charsRemaining--;
 							}
-							
+
 							//cout << "standard text printed";
 						}
 					}
 
 					printBorder: //Jump point for printing the border
-					if(j+1 < menus.size()) //Print menu border
+					if(menuColumnIndex+1 < menus.size()) //Print menu border
 					{
 						std::cout << " ";
 						if(borderPattern.length() > 0)
 						{
-							std::cout << borderPattern[currBorderChar];
+							std::cout << borderPattern[currentBorderCharIndex];
 						}
 					}
 					//cout << "row done";
 					//cout << menuLength;
 				}
 				//Go to the next line if we have more menus to print
-				if((i + 1 < menuLength) && (menusLeftToPrint-verticalMenusPerRow >= 0))
+				if((itemRowIndex + 1 < menuLength) && (remainingMenusToPrint-verticalMenusPerRow >= 0))
 				{
 					std::cout << "\n";
 				}
-				currBorderChar++;
-				if(currBorderChar >= borderPattern.length())
+				currentBorderCharIndex++;
+				if(currentBorderCharIndex >= borderPattern.length())
 				{
-					currBorderChar = 0;
+					currentBorderCharIndex = 0;
 				}
-				i++;
+				itemRowIndex++;
 				//cout << menuLength << endl;
 			}
 			//cout << "menuLength:" << menuLength;
-			menusLeftToPrint -= verticalMenusPerRow;
+			remainingMenusToPrint -= verticalMenusPerRow;
 		}
 
 		/*
 		Structure of return tuple:
 		0 - Last selectnum used in the vertical menu
-		1 - A vector, where each index represents a vertical from left to right. The number stored at each index indicates the selectnum 
+		1 - A vector, where each index represents a vertical from left to right. The number stored at each index indicates the selectnum
 			of the menu which can be selected to view more of the vertical menu in question.
 		*/
 		std::vector<int> viewMoreNums;
-		std::tuple<int,std::vector<int> > returnTuple(selectNum.back(),viewMoreNums);
-		return selectNum.back();
+		std::tuple<int,std::vector<int> > returnTuple(selectNumByMenu.back(),viewMoreNums);
+		return selectNumByMenu.back();
 	}
 
 
