@@ -34,17 +34,17 @@
     #include <windows.h>
 #endif
 
-// Stevens library dependencies
-#include "libraries/stevensStringLib.h"
+// Stevens library dependencies (fetched via CMake FetchContent)
+#include "stevensStringLib.h"
 namespace strlib = stevensStringLib;
 
-#include "libraries/stevensMathLib.h"
+#include "stevensMathLib.h"
 
-#include "libraries/stevensMapLib.hpp"
+#include "stevensMapLib.hpp"
 namespace maplib = stevensMapLib;
 
-#include "libraries/stevensVectorLib.hpp"
-#include "libraries/stevensFileLib.hpp"
+#include "stevensVectorLib.hpp"
+#include "stevensFileLib.hpp"
 
 // Stevens Terminal component classes
 #include "classes/s_TerminalDisplayMode.h"

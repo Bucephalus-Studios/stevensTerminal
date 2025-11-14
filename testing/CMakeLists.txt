@@ -19,13 +19,67 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
+# Fetch Stevens utility libraries from GitHub
+FetchContent_Declare(
+  stevensStringLib
+  GIT_REPOSITORY https://github.com/Bucephalus-Studios/stevensStringLib.git
+  GIT_TAG        main
+  GIT_SHALLOW    TRUE
+)
+
+FetchContent_Declare(
+  stevensVectorLib
+  GIT_REPOSITORY https://github.com/Bucephalus-Studios/stevensVectorLib.git
+  GIT_TAG        main
+  GIT_SHALLOW    TRUE
+)
+
+FetchContent_Declare(
+  stevensMapLib
+  GIT_REPOSITORY https://github.com/Bucephalus-Studios/stevensMapLib.git
+  GIT_TAG        main
+  GIT_SHALLOW    TRUE
+)
+
+FetchContent_Declare(
+  stevensMathLib
+  GIT_REPOSITORY https://github.com/Bucephalus-Studios/stevensMathLib.git
+  GIT_TAG        main
+  GIT_SHALLOW    TRUE
+)
+
+FetchContent_Declare(
+  stevensFileLib
+  GIT_REPOSITORY https://github.com/Bucephalus-Studios/stevensFileLib.git
+  GIT_TAG        main
+  GIT_SHALLOW    TRUE
+)
+
+# Populate the libraries (download but don't configure/build)
+# Since they're header-only, we just need the source files
+FetchContent_Populate(stevensStringLib)
+FetchContent_Populate(stevensVectorLib)
+FetchContent_Populate(stevensMapLib)
+FetchContent_Populate(stevensMathLib)
+FetchContent_Populate(stevensFileLib)
+
 # Create test executable
 add_executable(${PROJECT_NAME} test.cpp)
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
 
 # Find ncurses library (required by stevensTerminal)
 find_package(Curses REQUIRED)
-include_directories(${CURSES_INCLUDE_DIR})
+
+# Add include directories for stevensTerminal and fetched libraries
+include_directories(
+	${CMAKE_SOURCE_DIR}/..
+	${stevensstringlib_SOURCE_DIR}
+	${stevensvectorlib_SOURCE_DIR}
+	${stevensmaplib_SOURCE_DIR}
+	${stevensmathlib_SOURCE_DIR}
+	${stevensfilelib_SOURCE_DIR}
+	${CURSES_INCLUDE_DIR}
+)
 
 # Link Google Test and ncurses
 target_link_libraries(${PROJECT_NAME} PUBLIC
