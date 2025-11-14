@@ -1,0 +1,41 @@
+# Build directories
+build/
+testing/build/
+benchmarking/build/
+cmake-build-*/
+*.o
+*.a
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+
+# Downloaded dependencies (now using FetchContent)
+testing/googletest-*
+benchmarking/benchmark/
+_deps/
+
+# Test and benchmark executables
+testing/testStevensTerminal
+benchmarking/benchmarkStevensTerminal
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Compiled binaries
+*.exe
+*.out
+*.app
+
+# Libraries
+*.lib
+*.dylib
+*.so

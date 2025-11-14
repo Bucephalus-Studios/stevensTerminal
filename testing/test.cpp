@@ -815,3 +815,51 @@ int main(   int argc,
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
+// Additional tests for bug fixes and error handling improvements
+
+TEST(BugFixes, division_by_zero_in_bar_graph)
+{
+    // Test that horizontalStackedBarGraph doesn't crash with zero distribution
+    std::vector<std::string> labels = {"A", "B"};
+    std::vector<std::tuple<std::string, std::string>> colors = {std::make_tuple("red", "default"), std::make_tuple("blue", "default")};
+    std::vector<float> distribution = {0.0f, 0.0f}; // Zero sum
+
+    // Should not crash or cause undefined behavior
+    stevensTerminal::horizontalStackedBarGraph(labels, colors, distribution, 100, true, true);
+    SUCCEED(); // If we get here without crashing, test passes
+}
+
+TEST(BugFixes, mismatched_vector_sizes_in_bar_graph)
+{
+    // Test validation of mismatched input vector sizes
+    std::vector<std::string> labels = {"A", "B", "C"};
+    std::vector<std::tuple<std::string, std::string>> colors = {std::make_tuple("red", "default"), std::make_tuple("blue", "default")}; // Size mismatch
+    std::vector<float> distribution = {1.0f, 2.0f, 3.0f};
+
+    // Should handle gracefully without crashing
+    stevensTerminal::horizontalStackedBarGraph(labels, colors, distribution, 100, true, true);
+    SUCCEED();
+}
+
+TEST(BugFixes, negative_width_in_bar_graph)
+{
+    // Test validation of negative width
+    std::vector<std::string> labels = {"A"};
+    std::vector<std::tuple<std::string, std::string>> colors = {std::make_tuple("red", "default")};
+    std::vector<float> distribution = {1.0f};
+
+    // Should handle gracefully
+    stevensTerminal::horizontalStackedBarGraph(labels, colors, distribution, -10, true, true);
+    SUCCEED();
+}
+
+TEST(Utilities, resize_styled_string_preserves_styling)
+{
+    std::string styled = "{Hello}$[textColor=red]";
+    std::string resized = stevensTerminal::resizeStyledString(styled, 10, ' ');
+
+    // Should preserve styling tokens
+    ASSERT_NE(resized.find("$["), std::string::npos);
+    ASSERT_NE(resized.find("textColor"), std::string::npos);
+}
+

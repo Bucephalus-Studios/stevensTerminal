@@ -51,8 +51,23 @@ namespace stevensTerminal
 		prints a horizontalStackedBarGraph in the console
 	*/
 	{
-		std::cout << "horizontalStackedBarGraph" << std::endl;
-		if(textStyling); //This must be on for our game to produce colored graphs
+		// Input validation
+		if(labels.size() != colorCombos.size() || labels.size() != distribution.size())
+		{
+			std::cerr << "Error: horizontalStackedBarGraph requires labels, colorCombos, and distribution vectors to have equal sizes" << std::endl;
+			return;
+		}
+		if(width <= 0)
+		{
+			std::cerr << "Error: horizontalStackedBarGraph width must be positive" << std::endl;
+			return;
+		}
+		if(labels.empty())
+		{
+			return; // Nothing to graph
+		}
+
+		if(textStyling) //This must be on for our game to produce colored graphs
 		{
 			//Find the percentages of each of our labels
 			float sumOfDistributions = 0;
@@ -60,6 +75,13 @@ namespace stevensTerminal
 			{
 				sumOfDistributions += distribution[i];
 			}
+
+			// Guard against division by zero
+			if(sumOfDistributions == 0)
+			{
+				return; // Cannot create bar graph with zero total distribution
+			}
+
 			std::vector<float> distributionPercentages;
 			for(int i = 0; i < labels.size(); i++)
 			{
@@ -178,7 +200,6 @@ namespace stevensTerminal
 
 			std::cout << "\n";
 		}
-		std::cout << "function complete" << std::endl;
 	}
 	
 
@@ -472,7 +493,7 @@ namespace stevensTerminal
 				if(potentialTextToWrap != "")
 				{
 					textThatWrapsOver[k].push(potentialTextToWrap);
-					if(increaseOffset(menuItemOffset,k));
+					if(increaseOffset(menuItemOffset,k))
 					{
 						menuLength++;
 					}
@@ -570,7 +591,7 @@ namespace stevensTerminal
 							{
 								//cout << "text wrapped again";
 								textThatWrapsOver[j].push(potentialTextToWrap);
-								if(increaseOffset(menuItemOffset,j));
+								if(increaseOffset(menuItemOffset,j))
 								{
 									menuLength++;
 								}
@@ -606,11 +627,11 @@ namespace stevensTerminal
 							if(potentialTextToWrap != "")
 							{
 								textThatWrapsOver[j].push(potentialTextToWrap);
-								if(increaseOffset(menuItemOffset,j));
+								if(increaseOffset(menuItemOffset,j))
 								{
-									//I TOOK THE MENU LENGTH INCREASE OUT OF THIS ONE AND IT WORKS I DON'T KNOW WHY
-									//menuLength++;
-									void(0);
+									// Note: menuLength increment removed here - appears to cause issues with this specific case
+									// The increaseOffset call still updates the offset, but we don't increment menuLength
+									// This may need further investigation to understand why this case differs
 								}
 							}
 							else
@@ -646,7 +667,7 @@ namespace stevensTerminal
 								textThatWrapsOver[j].push(potentialTextToWrap);
 								//extraRowsForTextWrapAround++;
 								//menuLength++;
-								if(increaseOffset(menuItemOffset,j));
+								if(increaseOffset(menuItemOffset,j))
 								{
 									//cout << "menuItemOffset[" << j << "]: " << menuItemOffset[j] << endl;
 									menuLength++;
@@ -1515,7 +1536,20 @@ namespace stevensTerminal
 			std::vector<std::string> widthStrings = stevensStringLib::separate(format["column widths"], ',');
 			for(const auto& widthStr : widthStrings)
 			{
-				columnWidths.push_back(std::stoi(widthStr));
+				try
+				{
+					columnWidths.push_back(std::stoi(widthStr));
+				}
+				catch(const std::invalid_argument& e)
+				{
+					std::cerr << "Error: Invalid column width '" << widthStr << "' - must be a valid integer" << std::endl;
+					return ""; // Return empty string on error
+				}
+				catch(const std::out_of_range& e)
+				{
+					std::cerr << "Error: Column width '" << widthStr << "' is out of range" << std::endl;
+					return ""; // Return empty string on error
+				}
 			}
 		}
 		else if(!format.contains("column width") || format["column width"] == "use width of largest entry")

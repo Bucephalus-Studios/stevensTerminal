@@ -18,8 +18,19 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Disable benchmark testing")
 set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "Disable gtest tests")
 
-# Add Google Benchmark as subdirectory
-add_subdirectory(benchmark)
+# Fetch Google Benchmark using FetchContent (modern CMake approach)
+include(FetchContent)
+FetchContent_Declare(
+  googlebenchmark
+  GIT_REPOSITORY https://github.com/google/benchmark.git
+  GIT_TAG        v1.9.1
+  GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(googlebenchmark)
+
+# Find ncurses library (required by stevensTerminal)
+find_package(Curses REQUIRED)
+include_directories(${CURSES_INCLUDE_DIR})
 
 # Create benchmark executable
 add_executable(benchmarkStevensTerminal benchmark_terminal.cpp)
@@ -27,10 +38,11 @@ add_executable(benchmarkStevensTerminal benchmark_terminal.cpp)
 # Set C++23 for the benchmark executable
 target_compile_features(benchmarkStevensTerminal PUBLIC cxx_std_23)
 
-# Link Google Benchmark
-target_link_libraries(benchmarkStevensTerminal 
+# Link Google Benchmark and ncurses
+target_link_libraries(benchmarkStevensTerminal
     benchmark::benchmark
     benchmark::benchmark_main
+    ${CURSES_LIBRARIES}
     pthread
 )
 
