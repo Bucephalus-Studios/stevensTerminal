@@ -37,31 +37,31 @@ namespace stevensTerminal {
     std::string input() {
         std::string userInput; // the input from the player
         int whitespaceCount;
-        bool inputObtained = false; // bool declaring whether or not the correct input has been received
+        bool hasValidInput = false; // bool declaring whether or not the correct input has been received
         print("> ");
-        
-        while (inputObtained == false) {
+
+        while (hasValidInput == false) {
             whitespaceCount = 0;
             std::getline(std::cin, userInput); // use getline to take in user input
-            
+
             // Check to see if the string is just whitespace, if so, we prompt for input again
-            for (int i = 0; i < userInput.length(); i++) {
-                if (userInput[i] == ' ') {
+            for (int charIndex = 0; charIndex < userInput.length(); charIndex++) {
+                if (userInput[charIndex] == ' ') {
                     whitespaceCount++;
                 } else {
                     break;
                 }
             }
-            
+
             if (whitespaceCount == userInput.length()) {
-                inputObtained = false;
+                hasValidInput = false;
                 continue;
             }
 
             if (userInput == "") { // we also check to see if the string is empty. If so, we prompt again for input.
-                inputObtained = false;
+                hasValidInput = false;
             } else { // if the string is not empty and the string is not entirely whitespace, we accept the input
-                inputObtained = true;
+                hasValidInput = true;
             }
         }
         return userInput;
@@ -92,26 +92,26 @@ namespace stevensTerminal {
             // Handle error case for negative response range
             void(0);
         }
-        
+
         std::string userInput; // the input from the player
         int userInputAsNum; // casted form of the user input
-        bool inputObtained = false; // bool declaring whether or not the correct input has been received
-        
-        while (inputObtained == false) {
+        bool hasValidInput = false; // bool declaring whether or not the correct input has been received
+
+        while (hasValidInput == false) {
             std::cout << "> ";
             std::cin >> userInput;
-            
+
             if (strlib::isNumber(userInput)) {
-                inputObtained = true;
+                hasValidInput = true;
                 userInputAsNum = stoi(userInput);
-                
+
                 if (responseRange >= 0) { // we request that our integer response be within a certain range
                     if (!((userInputAsNum >= 0) && (userInputAsNum <= responseRange))) {
-                        inputObtained = false;
+                        hasValidInput = false;
                     }
                 }
             } else {
-                inputObtained = false;
+                hasValidInput = false;
             }
             clearInput();
         }

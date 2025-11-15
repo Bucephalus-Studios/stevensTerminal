@@ -20,7 +20,7 @@ class s_TerminalDisplayMode
 
 		//Member variables
 		std::pair<int,int> minSize; //The inclusive lower bounding for the X,Y dimensions of the terminal in characters for this display mode
-		std::pair<int,int> maxSize; //The inclusive upper bounding for the X,Y dimensions of the terminal in characters for this displat mode
+		std::pair<int,int> maxSize; //The inclusive upper bounding for the X,Y dimensions of the terminal in characters for this display mode
 		int verticalMenuWidth; //The width of a single vertical menu when this display mode is in use.
 
 
