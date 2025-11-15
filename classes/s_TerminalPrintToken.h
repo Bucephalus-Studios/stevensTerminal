@@ -15,7 +15,7 @@ class s_TerminalPrintToken
         std::string content; //The string content of the token.
         std::string rawToken; //All of the token from the original string
         std::string textColor; //The color of the text in the token
-        std::string bgColor; //The backgroud ncolor of the text in the token
+        std::string bgColor; //The background color of the text in the token
         bool bold; //True if the text in the token is bold. False if otherwise.
         bool blink; //True if the text in the token should flash. False if otherwise.
 

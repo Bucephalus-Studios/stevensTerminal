@@ -120,12 +120,12 @@ namespace stevensTerminal {
         contentString.resize(desiredLength, fillChar);
         std::string resizedStr = contentString;
         // We now place the style tokens back into this resized string
-        for(int i = 0; i < tokens.size(); i++) {
+        for(int tokenIndex = 0; tokenIndex < tokens.size(); tokenIndex++) {
             // For each style token, check to see if the index which it starts relative to the content and all other tokens
             // is still in bounds of the string's length
-            if(tokens.at(i).existsAtIndex+1 < resizedStr.length()) {
+            if(tokens.at(tokenIndex).existsAtIndex+1 < resizedStr.length()) {
                 // If so, then we add the style token back at its original location
-                stevensTerminal::insertStyleToken(resizedStr, tokens.at(i));
+                stevensTerminal::insertStyleToken(resizedStr, tokens.at(tokenIndex));
             } else {
                 // Otherwise, all other style tokens will no longer be in bounds either, as they come after the current one
                 // in order, so we break and finish
@@ -171,9 +171,9 @@ namespace stevensTerminal {
             // Gradually build up a string containing the full border that we will print once to the terminal
             std::string output = "";
             while(output.length() < displayWidth) {
-                for(int i = 0; i < borderPattern.length(); i++) {
+                for(int patternIndex = 0; patternIndex < borderPattern.length(); patternIndex++) {
                     if(output.length() < displayWidth) {
-                        output += borderPattern[i];
+                        output += borderPattern[patternIndex];
                     }
                 }
             }
@@ -186,21 +186,21 @@ namespace stevensTerminal {
             // Until the horizontal length of the screen is filled, we repeatedly print the pattern
             while(outputLength < displayWidth) {
                 // Print each character of the border pattern out individually
-                for(int i = 0; i < borderPattern.length(); i++) {
+                for(int patternIndex = 0; patternIndex < borderPattern.length(); patternIndex++) {
                     if(outputLength < displayWidth) {
                         // Get the text color to print
-                        if((colorVector.size()-1) >= i) {
-                            colorToPrint = colorVector[i];
+                        if((colorVector.size()-1) >= patternIndex) {
+                            colorToPrint = colorVector[patternIndex];
                         } else {
                             colorToPrint = "default";
                         }
                         // Get the text background color to print
-                        if((bgColorVector.size()-1) >= i) {
-                            bgColorToPrint = bgColorVector[i];
+                        if((bgColorVector.size()-1) >= patternIndex) {
+                            bgColorToPrint = bgColorVector[patternIndex];
                         } else {
                             bgColorToPrint = "default";
                         }
-                        print(std::to_string(borderPattern[i]), {{"textColor",colorToPrint}, {"bgColor",bgColorToPrint}});
+                        print(std::to_string(borderPattern[patternIndex]), {{"textColor",colorToPrint}, {"bgColor",bgColorToPrint}});
                         outputLength++;
                     }
                 }
