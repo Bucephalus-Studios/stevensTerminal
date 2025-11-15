@@ -34,17 +34,19 @@
     #include <windows.h>
 #endif
 
-// Stevens library dependencies
-#include "libraries/stevensStringLib.h"
+// Bundled library dependencies
+// NOTE: These are vendored copies with include guards to prevent multiple definition errors.
+// If you're using these libraries standalone elsewhere in your project, include them BEFORE
+// including stevensTerminal.hpp to ensure you get your preferred version.
+#include "bundled/stevensStringLib.h"
+#include "bundled/stevensMathLib.h"
+#include "bundled/stevensMapLib.hpp"
+#include "bundled/stevensVectorLib.hpp"
+#include "bundled/stevensFileLib.hpp"
+
+// Convenient namespace aliases for internal use
 namespace strlib = stevensStringLib;
-
-#include "libraries/stevensMathLib.h"
-
-#include "libraries/stevensMapLib.hpp"
 namespace maplib = stevensMapLib;
-
-#include "libraries/stevensVectorLib.hpp"
-#include "libraries/stevensFileLib.hpp"
 
 // Stevens Terminal component classes
 #include "classes/s_TerminalDisplayMode.h"

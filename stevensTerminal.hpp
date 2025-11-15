@@ -1103,7 +1103,7 @@ namespace stevensTerminal
 		if(format.contains("columns"))
 		{
 			//Check to see how many columns the user wants to output their vector elements into
-			if( stevensStringLib::isNumber(format.at("columns")) )
+			if( strlib::isNumber(format.at("columns")) )
 			{
 				columns = std::stoi(format.at("columns"));
 			}
@@ -1111,7 +1111,7 @@ namespace stevensTerminal
 		if(format.contains("rows"))
 		{
 			//Check to see how many rows the user wants to output their vector elements into
-			if(stevensStringLib::isNumber(format.at("rows")))
+			if(strlib::isNumber(format.at("rows")))
 			{
 				rows = std::stoi(format.at("rows"));
 			}
@@ -1353,7 +1353,7 @@ namespace stevensTerminal
 					if(columnWidths.contains(columnIndex))
 					{
 						//If we specified an integer column size for this column, use it
-						if( stevensStringLib::isInteger( columnWidths.at(columnIndex)) )
+						if( strlib::isInteger( columnWidths.at(columnIndex)) )
 						{
 							columnWidth = std::stoi( columnWidths.at(columnIndex) );
 						}
@@ -1387,7 +1387,7 @@ namespace stevensTerminal
 		// 	stringToPrint = stevensTerminal::addStyleToken(stringToPrint,wholeStringStyle);
 		// 	//Apply styling to individual indices of the vector
 		// 	//Check to see the specific styling directives given for each index
-		// 	std::vector<std::string> separatedVectorOfStrings = stevensStringLib::separate(stringToPrint, "\n", false);
+		// 	std::vector<std::string> separatedVectorOfStrings = strlib::separate(stringToPrint, "\n", false);
 		// 	for(int i = 0; i < separatedVectorOfStrings.size(); i++)
 		// 	{
 		// 		std::unordered_map<std::string,std::string> indexStyle = stevensMapLib::getPairsWhereKeysStartWith(style,"@" + std::std::to_string(i));
@@ -1399,7 +1399,7 @@ namespace stevensTerminal
 		// 																			indexStyle	);
 		// 		}
 		// 	}
-		// 	stringToPrint = stevensStringLib::join(separatedVectorOfStrings, "\n", false);
+		// 	stringToPrint = strlib::join(separatedVectorOfStrings, "\n", false);
 		// }
 		// std::cout << "rows: " << rows << ", columns: " << columns << std::endl;
 		// getch();
@@ -1566,7 +1566,7 @@ namespace stevensTerminal
 		if(format.contains("column widths"))
 		{
 			// Parse comma-separated column widths like "24,12,12,10,10"
-			std::vector<std::string> widthStrings = stevensStringLib::separate(format["column widths"], ',');
+			std::vector<std::string> widthStrings = strlib::separate(format["column widths"], ',');
 			for(const auto& widthStr : widthStrings)
 			{
 				try
@@ -1678,7 +1678,7 @@ namespace stevensTerminal
 					cell = stevensTerminal::resizeStyledString(cell, columnWidths[col]);
 					printString += cell + format["column spacing string"];
 				}
-				printString += "\n"; //+ stevensStringLib::multiply(" ", yMove);
+				printString += "\n"; //+ strlib::multiply(" ", yMove);
 			}
 		}
 
@@ -1724,7 +1724,7 @@ namespace stevensTerminal
 			//TODO - Make a vertical print function to use for these
 			for(int i = 0; i < height; i++)
 			{
-				strToPrint = stevensStringLib::circularIndex(borderPatterns["left"], i);
+				strToPrint = strlib::circularIndex(borderPatterns["left"], i);
 				curses_wprint(	win,
 								i,
 								0,
@@ -1737,7 +1737,7 @@ namespace stevensTerminal
 		{
 			for(int i = 0; i < height; i++)
 			{
-				strToPrint = stevensStringLib::circularIndex(borderPatterns["right"], i);
+				strToPrint = strlib::circularIndex(borderPatterns["right"], i);
 				curses_wprint( 	win,
 								i,
 								width-1,
@@ -1763,7 +1763,7 @@ namespace stevensTerminal
 			//divided by the border pattern length. To get the string that we'll print.
 			else
 			{
-				std::string strToPrint = stevensStringLib::multiply(borderPatterns["top"], (width/borderPatterns["top"].length()) );
+				std::string strToPrint = strlib::multiply(borderPatterns["top"], (width/borderPatterns["top"].length()) );
 				//If the resulting border pattern string is not equal to the width, add/subtract
 				//individual characters from the border pattern until we have a string equal to the window width
 				int i = 0;
@@ -1775,7 +1775,7 @@ namespace stevensTerminal
 					}
 					else if(strToPrint.length() < width)
 					{
-						strToPrint.append(std::string(stevensStringLib::circularIndex(borderPatterns["top"], i),1));
+						strToPrint.append(std::string(strlib::circularIndex(borderPatterns["top"], i),1));
 						i++;
 					}
 				}
@@ -1805,7 +1805,7 @@ namespace stevensTerminal
 			//divided by the border pattern length. To get the string that we'll print.
 			else
 			{
-				std::string strToPrint = stevensStringLib::multiply(borderPatterns["bottom"], (width/borderPatterns["bottom"].length()) );
+				std::string strToPrint = strlib::multiply(borderPatterns["bottom"], (width/borderPatterns["bottom"].length()) );
 				//If the resulting border pattern string is not equal to the width, add/subtract
 				//individual characters from the border pattern until we have a string equal to the window width
 				int i = 0;
@@ -1817,7 +1817,7 @@ namespace stevensTerminal
 					}
 					else if(strToPrint.length() < width)
 					{
-						strToPrint.append(std::string(stevensStringLib::circularIndex(borderPatterns["bottom"], i),1));
+						strToPrint.append(std::string(strlib::circularIndex(borderPatterns["bottom"], i),1));
 						i++;
 					}
 				}
@@ -1968,7 +1968,7 @@ namespace stevensTerminal
 		//A lot of textfiles contain a last newline to indicate the end of the file. We can choose to remove that here.
 		if(format.contains("ignore last newline"))
 		{
-			if(stevensStringLib::stringToBool(format["ignore last newline"]))
+			if(strlib::stringToBool(format["ignore last newline"]))
 			{
 				//Find the last newline in the file content and remove it
 				int positionOfLastNewLine = fileContent.rfind('\n');
@@ -1984,7 +1984,7 @@ namespace stevensTerminal
 		int yMove, xMove = 0; 
 		if(format.contains("avoid borders"))
 		{
-			if(stevensStringLib::stringToBool(format["avoid borders"]))
+			if(strlib::stringToBool(format["avoid borders"]))
 			{
 				//Start printing the text within the borders
 				yMove = 1;
