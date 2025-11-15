@@ -1,8 +1,12 @@
 /**
  * Simple commandline argument parsing class.
- * 
+ *
  * Credit: https://stackoverflow.com/a/868894
 */
+
+#ifndef STEVENS_TERMINAL_INPUTPARSER_H
+#define STEVENS_TERMINAL_INPUTPARSER_H
+
 class InputParser
 {
     public:
@@ -28,3 +32,5 @@ class InputParser
     private:
         std::vector <std::string> tokens;
 };
+
+#endif // STEVENS_TERMINAL_INPUTPARSER_H

@@ -2,6 +2,10 @@
  * A class used by the stevensTerminalLibrary to hold information about tokenized strings
  * being printed using the print methods;
  */
+
+#ifndef STEVENS_TERMINAL_PRINTTOKEN_H
+#define STEVENS_TERMINAL_PRINTTOKEN_H
+
 class s_TerminalPrintToken
 {
     public:
@@ -117,3 +121,5 @@ class s_TerminalPrintToken
 
 
 };
+
+#endif // STEVENS_TERMINAL_PRINTTOKEN_H
