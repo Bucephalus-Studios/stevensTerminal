@@ -4,11 +4,13 @@
  * @brief Contains functions for manipulation and obtaining data for strings containing stevensTerminal style tokens.
  * @version 0.1
  * @date 2024-03-19
- * 
+ *
  * @copyright Copyright (c) 2024
- * 
+ *
  */
 
+#ifndef STEVENS_TERMINAL_PRINTTOKENHELPER_HPP
+#define STEVENS_TERMINAL_PRINTTOKENHELPER_HPP
 
 namespace s_TerminalPrintTokenHelper
 {
@@ -389,3 +391,5 @@ namespace s_TerminalPrintTokenHelper
 
 
 }
+
+#endif // STEVENS_TERMINAL_PRINTTOKENHELPER_HPP

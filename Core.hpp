@@ -34,17 +34,19 @@
     #include <windows.h>
 #endif
 
-// Stevens library dependencies
-#include "libraries/stevensStringLib.h"
+// Library dependencies (git submodules)
+// NOTE: These are included via git submodules in the dependencies/ directory.
+// To update to latest versions: git submodule update --remote
+// For users cloning: git clone --recursive OR git submodule update --init --recursive
+#include "dependencies/stevensStringLib/stevensStringLib.h"
+#include "dependencies/stevensMathLib/stevensMathLib.h"
+#include "dependencies/stevensMapLib/stevensMapLib.hpp"
+#include "dependencies/stevensVectorLib/stevensVectorLib.hpp"
+#include "dependencies/stevensFileLib/stevensFileLib.hpp"
+
+// Convenient namespace aliases for internal use
 namespace strlib = stevensStringLib;
-
-#include "libraries/stevensMathLib.h"
-
-#include "libraries/stevensMapLib.hpp"
 namespace maplib = stevensMapLib;
-
-#include "libraries/stevensVectorLib.hpp"
-#include "libraries/stevensFileLib.hpp"
 
 // Stevens Terminal component classes
 #include "classes/s_TerminalDisplayMode.h"

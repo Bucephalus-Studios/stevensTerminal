@@ -4,11 +4,13 @@
  * @brief Some functions used to help style s_TerminalPrintTokens.
  * @version 0.1
  * @date 2024-03-20
- * 
+ *
  * @copyright Copyright (c) 2024
- * 
+ *
  */
 
+#ifndef STEVENS_TERMINAL_PRINTTOKENSTYLING_HPP
+#define STEVENS_TERMINAL_PRINTTOKENSTYLING_HPP
 
 namespace s_TerminalPrintTokenStyling
 {
@@ -91,3 +93,5 @@ namespace s_TerminalPrintTokenStyling
 
 
 }
+
+#endif // STEVENS_TERMINAL_PRINTTOKENSTYLING_HPP

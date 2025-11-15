@@ -27,7 +27,7 @@ namespace stevensTerminal {
      */
     std::string addStyleToken(std::string str, std::unordered_map<std::string,std::string> styleMap) {
         // Read the contents of the style map into a string list of keys and values associated by '=' and delimited by ','
-        std::string styleString = stevensStringLib::stringifyMap(styleMap, "=", ",");
+        std::string styleString = strlib::stringifyMap(styleMap, "=", ",");
         str = "{" + str + "}$[" + styleString + "]";
         return str;
     }

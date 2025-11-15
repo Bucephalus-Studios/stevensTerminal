@@ -1,0 +1,15 @@
+[submodule "dependencies/stevensStringLib"]
+	path = dependencies/stevensStringLib
+	url = https://github.com/Bucephalus-Studios/stevensStringLib.git
+[submodule "dependencies/stevensMathLib"]
+	path = dependencies/stevensMathLib
+	url = https://github.com/Bucephalus-Studios/stevensMathLib.git
+[submodule "dependencies/stevensVectorLib"]
+	path = dependencies/stevensVectorLib
+	url = https://github.com/Bucephalus-Studios/stevensVectorLib.git
+[submodule "dependencies/stevensMapLib"]
+	path = dependencies/stevensMapLib
+	url = https://github.com/Bucephalus-Studios/stevensMapLib.git
+[submodule "dependencies/stevensFileLib"]
+	path = dependencies/stevensFileLib
+	url = https://github.com/Bucephalus-Studios/stevensFileLib.git

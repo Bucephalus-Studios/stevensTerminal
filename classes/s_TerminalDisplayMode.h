@@ -3,11 +3,13 @@
  *
  * Defines the sTerminalDisplayMode object; an object used to contain data concerning
  * the display modes of the stevensTerminal object.
- * 
- * Display modes can be defined by users to customize how exactly they want to control the 
+ *
+ * Display modes can be defined by users to customize how exactly they want to control the
  * formatting of text when the user changes their terminal's size.
  */
 
+#ifndef STEVENS_TERMINAL_DISPLAYMODE_H
+#define STEVENS_TERMINAL_DISPLAYMODE_H
 
 class s_TerminalDisplayMode;
 
@@ -43,5 +45,7 @@ class s_TerminalDisplayMode
 		
 
 	private:
-		
+
 };
+
+#endif // STEVENS_TERMINAL_DISPLAYMODE_H
