@@ -34,15 +34,15 @@
     #include <windows.h>
 #endif
 
-// Bundled library dependencies
-// NOTE: These are vendored copies with include guards to prevent multiple definition errors.
-// If you're using these libraries standalone elsewhere in your project, include them BEFORE
-// including stevensTerminal.hpp to ensure you get your preferred version.
-#include "bundled/stevensStringLib.h"
-#include "bundled/stevensMathLib.h"
-#include "bundled/stevensMapLib.hpp"
-#include "bundled/stevensVectorLib.hpp"
-#include "bundled/stevensFileLib.hpp"
+// Library dependencies (git submodules)
+// NOTE: These are included via git submodules in the dependencies/ directory.
+// To update to latest versions: git submodule update --remote
+// For users cloning: git clone --recursive OR git submodule update --init --recursive
+#include "dependencies/stevensStringLib/stevensStringLib.h"
+#include "dependencies/stevensMathLib/stevensMathLib.h"
+#include "dependencies/stevensMapLib/stevensMapLib.hpp"
+#include "dependencies/stevensVectorLib/stevensVectorLib.hpp"
+#include "dependencies/stevensFileLib/stevensFileLib.hpp"
 
 // Convenient namespace aliases for internal use
 namespace strlib = stevensStringLib;

@@ -2,124 +2,237 @@
 
 ## Overview
 
-stevensTerminal bundles several utility libraries in the `bundled/` directory to provide a batteries-included experience. All bundled dependencies use include guards to prevent multiple definition errors.
+stevensTerminal uses **git submodules** to manage its library dependencies. This provides automatic version tracking, easy updates, and ensures everyone gets the exact same library versions.
 
-## Bundled Libraries
+## Dependencies
 
-The following libraries are included:
+The following libraries are included as submodules in the `dependencies/` directory:
 
-- **stevensStringLib** - String manipulation utilities
-- **stevensMathLib** - Math and random number operations
-- **stevensVectorLib** - Vector/array utilities
-- **stevensMapLib** - Map/dictionary utilities
-- **stevensFileLib** - File I/O helpers
+| Library | Repository | Description |
+|---------|-----------|-------------|
+| **stevensStringLib** | [github.com/Bucephalus-Studios/stevensStringLib](https://github.com/Bucephalus-Studios/stevensStringLib) | String manipulation utilities |
+| **stevensMathLib** | [github.com/Bucephalus-Studios/stevensMathLib](https://github.com/Bucephalus-Studios/stevensMathLib) | Math and random number operations |
+| **stevensVectorLib** | [github.com/Bucephalus-Studios/stevensVectorLib](https://github.com/Bucephalus-Studios/stevensVectorLib) | Vector/array utilities |
+| **stevensMapLib** | [github.com/Bucephalus-Studios/stevensMapLib](https://github.com/Bucephalus-Studios/stevensMapLib) | Map/dictionary utilities |
+| **stevensFileLib** | [github.com/Bucephalus-Studios/stevensFileLib](https://github.com/Bucephalus-Studios/stevensFileLib) | File I/O helpers |
 
-## How Bundling Works
+---
 
-### Include Guards Protection
+## For Users: Cloning stevensTerminal
 
-Each bundled library has include guards that prevent it from being included multiple times in the same compilation unit. For example:
+### Option 1: Clone with Submodules (Recommended)
+
+```bash
+git clone --recursive https://github.com/Bucephalus-Studios/stevensTerminal.git
+```
+
+The `--recursive` flag automatically initializes and clones all submodules.
+
+### Option 2: Clone Then Initialize Submodules
+
+If you forgot `--recursive`:
+
+```bash
+git clone https://github.com/Bucephalus-Studios/stevensTerminal.git
+cd stevensTerminal
+git submodule update --init --recursive
+```
+
+### Verifying Submodules
+
+Check that dependencies are loaded:
+
+```bash
+ls dependencies/
+# Should show: stevensFileLib  stevensMapLib  stevensMathLib  stevensStringLib  stevensVectorLib
+```
+
+---
+
+## For Contributors: Working with Submodules
+
+### Updating to Latest Dependency Versions
+
+To update all dependencies to their latest versions:
+
+```bash
+git submodule update --remote
+git add dependencies/
+git commit -m "Update dependencies to latest versions"
+git push
+```
+
+To update a specific library:
+
+```bash
+git submodule update --remote dependencies/stevensStringLib
+git add dependencies/stevensStringLib
+git commit -m "Update stevensStringLib to latest version"
+git push
+```
+
+### Checking Submodule Status
+
+```bash
+git submodule status
+```
+
+This shows the current commit hash of each submodule.
+
+### Viewing Submodule Changes
+
+```bash
+# See which commit each submodule is at
+git diff --submodule
+
+# See changes within a specific submodule
+cd dependencies/stevensStringLib
+git log
+cd ../..
+```
+
+---
+
+## How It Works
+
+### Include Guard Protection
+
+Each library uses include guards to prevent multiple definition errors:
 
 ```cpp
-#ifndef STEVENS_BUNDLED_STRINGLIB_H
-#define STEVENS_BUNDLED_STRINGLIB_H
+#ifndef STEVENSSTRINGLIB_H
+#define STEVENSSTRINGLIB_H
 // ... library code ...
 #endif
 ```
 
-### Version Conflict Handling
+### Version Locking
 
-If you're using any of these libraries standalone in your project AND you include stevensTerminal, **the first version included wins**:
+Git submodules lock to specific commits. This means:
+
+- ✅ **Reproducible builds** - Everyone gets the exact same library versions
+- ✅ **No surprise breaking changes** - Updates are explicit and controlled
+- ✅ **Version tracking** - Git tracks which version of each library you're using
+
+### Core.hpp Includes
+
+stevensTerminal's Core.hpp includes dependencies like this:
 
 ```cpp
-// YOUR CODE
-#include "stevensStringLib.h"        // Your standalone v2.0
-#include "stevensTerminal.hpp"       // Bundles v1.5 internally
-
-// Result: Your v2.0 is used (stevensTerminal's bundled v1.5 is skipped due to include guards)
+#include "dependencies/stevensStringLib/stevensStringLib.h"
+#include "dependencies/stevensMathLib/stevensMathLib.h"
+#include "dependencies/stevensMapLib/stevensMapLib.hpp"
+#include "dependencies/stevensVectorLib/stevensVectorLib.hpp"
+#include "dependencies/stevensFileLib/stevensFileLib.hpp"
 ```
 
-### Best Practices
+---
 
-1. **If you don't use these libraries standalone**: Just `#include "stevensTerminal.hpp"` and you're good to go!
+## Compilation
 
-2. **If you use these libraries standalone**:
-   - Include them BEFORE stevensTerminal.hpp to use your preferred versions
-   - OR don't worry about it - the include guards will prevent conflicts (first included wins)
+### With Make or Direct g++
 
-3. **If you need specific versions**: Include the standalone libraries first with your required versions
-
-## Example Usage
-
-### Simple Case (No Standalone Libraries)
-```cpp
-#include "stevensTerminal.hpp"
-
-int main() {
-    stevensTerminal::print("Hello World!");
-    return 0;
-}
+```bash
+g++ -std=c++20 -I. -I dependencies/stevensStringLib \
+    -I dependencies/stevensMathLib \
+    -I dependencies/stevensVectorLib \
+    -I dependencies/stevensMapLib \
+    -I dependencies/stevensFileLib \
+    your_file.cpp -lncurses
 ```
 
-### With Standalone Libraries
-```cpp
-// Include your preferred versions first
-#include "my/path/to/stevensStringLib.h"  // Your v3.0
-#include "my/path/to/stevensMathLib.h"    // Your v2.1
+### With CMake
 
-// Now include stevensTerminal (it will skip its bundled versions)
-#include "stevensTerminal.hpp"
+CMake automatically handles submodule paths. Just:
 
-int main() {
-    // stevensTerminal internally uses YOUR versions (v3.0, v2.1)
-    // because they were included first
-    stevensTerminal::print("Hello!");
-
-    // You can also use them directly
-    std::string result = stevensStringLib::cap1stChar("hello");
-    return 0;
-}
+```bash
+cmake -B build
+cmake --build build
 ```
 
-## Why Not Namespace Isolation?
+---
 
-You might wonder why we don't isolate bundled dependencies in a `stevensTerminal::bundled::` namespace. This approach was attempted but causes compilation issues because:
+## Troubleshooting
 
-1. When you wrap `#include` in a namespace, it captures ALL includes (including standard library headers)
-2. This creates conflicts like `stevensTerminal::bundled::std::vector` vs `std::vector`
-3. The include guard approach is simpler, standard C++ practice, and works reliably
+### Error: "No such file or directory" for dependency headers
 
-## Technical Details
+**Cause:** Submodules weren't initialized
 
-### Include Order Matters
+**Solution:**
+```bash
+git submodule update --init --recursive
+```
 
-C++ processes includes top-to-bottom. The first time a library is included, its include guard is "opened" and the code is processed. Subsequent includes of the same library see the guard is already defined and skip the content.
+### Submodule shows "dirty" or modified
 
-### No Symbol Conflicts
+**Cause:** You or a tool made changes inside a submodule directory
 
-Since the "first included wins" rule applies at the **preprocessor** level (before compilation), there are no linker symbol conflicts. You get exactly one version of each library per compilation unit.
+**Solution:**
+```bash
+# Discard changes in submodule
+cd dependencies/stevensStringLib
+git checkout .
+cd ../..
+```
 
-### Recommendation for Library Maintainers
+### Want to use a different version of a library
 
-If you're building a library that depends on stevensTerminal's bundled libraries, you should:
+**Option 1:** Modify the submodule (not recommended for users):
+```bash
+cd dependencies/stevensStringLib
+git checkout v2.0.0  # or any commit/branch/tag
+cd ../..
+git add dependencies/stevensStringLib
+git commit -m "Pin stevensStringLib to v2.0.0"
+```
 
-1. Document which versions of the bundled libraries stevensTerminal uses
-2. Test compatibility with those versions
-3. Let users know they can override by including their preferred versions first
+**Option 2:** Fork stevensTerminal and modify the submodule references
 
-## Updating Bundled Libraries
+---
 
-To update a bundled library to a newer version:
+## Advantages of Git Submodules
 
-1. Copy the new library header to `bundled/`
-2. Ensure it has the correct include guards (see existing bundled headers for the pattern)
-3. Test compilation
-4. Update this documentation with the new version number
+✅ **Easy updates** - `git submodule update --remote` gets latest versions
+✅ **Version locking** - Exact dependency versions are tracked in git
+✅ **Single source of truth** - Points to the actual library repositories
+✅ **Low maintenance** - No manual file copying
+✅ **Transparent** - Users see exactly what versions are used
+
+---
+
+## For Maintainers: Adding/Removing Submodules
+
+### Adding a New Dependency
+
+```bash
+git submodule add https://github.com/Bucephalus-Studios/newLib.git dependencies/newLib
+git commit -m "Add newLib dependency as submodule"
+git push
+```
+
+Then update Core.hpp to include it.
+
+### Removing a Dependency
+
+```bash
+git submodule deinit dependencies/oldLib
+git rm dependencies/oldLib
+git commit -m "Remove oldLib dependency"
+git push
+```
+
+---
 
 ## Questions?
 
-If you encounter version conflicts or unexpected behavior:
+**Q: Can I use stevensTerminal without git?**
+A: Yes, but you'll need to manually download all dependency repositories and place them in the `dependencies/` directory.
 
-1. Check your include order (standalone libraries should come before stevensTerminal.hpp)
-2. Verify all headers have proper include guards
-3. Check for duplicate symbols at link time (rare, but possible if libraries are compiled separately)
+**Q: What if I want to modify a dependency library?**
+A: Fork the library repository, make your changes there, then update the submodule URL to point to your fork.
+
+**Q: Do submodules affect compile time?**
+A: No, they're just a way to organize source code. Compilation is the same as if you copied the files manually.
+
+**Q: Can I use different versions for different projects?**
+A: Yes! Each project can pin to different commits of the submodules. That's the beauty of git submodules.
