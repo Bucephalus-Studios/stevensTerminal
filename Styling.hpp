@@ -34,11 +34,11 @@ namespace stevensTerminal {
 
     /**
      * @brief Insert a style token into a string at the token's specified position
-     * 
+     *
      * @param str The string we are inserting a style token into by reference
-     * @param token The s_TerminalPrintToken object that we are inserting into str as an inline style directive
+     * @param token The PrintToken object that we are inserting into str as an inline style directive
      */
-    void insertStyleToken(std::string & str, const s_TerminalPrintToken & token) {
+    void insertStyleToken(std::string & str, const PrintToken & token) {
         // First check to see if the index that the token exists at is valid
         if( token.existsAtIndex >= str.length() ) {
             // If not, just return without doing anything
@@ -73,13 +73,13 @@ namespace stevensTerminal {
      */
     std::string removeAllStyleTokenization(std::string str) {
         // Find a token return its position in the string
-        size_t tokenPosition = s_TerminalPrintTokenHelper::findToken(str);
+        size_t tokenPosition = PrintTokenHelper::findToken(str);
         // If findToken return std::string::npos, then no token was found
         while( tokenPosition != std::string::npos ) {
             // Remove its braces and styling directives
-            str = s_TerminalPrintTokenHelper::untokenize(str, tokenPosition);
+            str = PrintTokenHelper::untokenize(str, tokenPosition);
             // Try to find the position of the next token
-            tokenPosition = s_TerminalPrintTokenHelper::findToken(str);
+            tokenPosition = PrintTokenHelper::findToken(str);
         }
         return str;
     }
@@ -106,7 +106,7 @@ namespace stevensTerminal {
      */
     std::string resizeStyledString(std::string str, const size_t desiredLength, const char fillChar = ' ') {
         // First, get all of the style tokens that the string contains
-        std::vector<s_TerminalPrintToken> tokens = s_TerminalPrintTokenHelper::getAllTokens(str);
+        std::vector<PrintToken> tokens = PrintTokenHelper::getAllTokens(str);
 
         // If there are no style tokens, just return a call of the std::string.resize() function
         if(tokens.empty()) {

@@ -6,7 +6,9 @@
 #ifndef STEVENS_TERMINAL_PRINTTOKEN_H
 #define STEVENS_TERMINAL_PRINTTOKEN_H
 
-class s_TerminalPrintToken
+namespace stevensTerminal {
+
+class PrintToken
 {
     public:
         /*** Member variables ***/
@@ -22,7 +24,7 @@ class s_TerminalPrintToken
         /*** Constructors ***/
 
         //Default
-        s_TerminalPrintToken()
+        PrintToken()
         {
             styled = false;
             existsAtIndex = -1;
@@ -36,7 +38,7 @@ class s_TerminalPrintToken
 
 
         //Parameters
-        s_TerminalPrintToken(   std::string contentParam,
+        PrintToken(   std::string contentParam,
                                 std::string rawTokenParam = "",
                                 int existsAtIndexParam = -1,
                                 std::string textColorParam = "default",
@@ -55,10 +57,10 @@ class s_TerminalPrintToken
             styled = styledParam;
         }
 
-        
+
         /*** Methods ***/
         /**
-         * @brief Gets a string indicating the styles that this particular s_TerminalPrintToken uses.
+         * @brief Gets a string indicating the styles that this particular PrintToken uses.
          *        This style string can be used within the inline style directive block of a tokenized
          *        string to style the text.
          */
@@ -96,7 +98,7 @@ class s_TerminalPrintToken
         /**
          * @brief Inherit the styles of the parent token if this token is a child token.
          */
-        void inheritStyle( const s_TerminalPrintToken & parentToken )
+        void inheritStyle( const PrintToken & parentToken )
         {
             if(textColor == "default")
             {
@@ -121,5 +123,7 @@ class s_TerminalPrintToken
 
 
 };
+
+} // namespace stevensTerminal
 
 #endif // STEVENS_TERMINAL_PRINTTOKEN_H

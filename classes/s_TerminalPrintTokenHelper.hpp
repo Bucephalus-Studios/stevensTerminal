@@ -12,17 +12,19 @@
 #ifndef STEVENS_TERMINAL_PRINTTOKENHELPER_HPP
 #define STEVENS_TERMINAL_PRINTTOKENHELPER_HPP
 
-namespace s_TerminalPrintTokenHelper
+namespace stevensTerminal
+{
+namespace PrintTokenHelper
 {
 
     /**
      * @brief Given a string containing stevensTerminal style tokens, returns the index position of the first token in the string.
      *        If no tokens are found, returns std::string::npos.
-     * 
+     *
      * @param str The string containing stevensTerminal style tokens.
      * @param startFindAt The index position in str to begin looking for the first token at and after.
-     * 
-     * @return size_t The position of the first token in the string, 
+     *
+     * @return size_t The position of the first token in the string,
      */
     size_t findToken(   const std::string & str,
                         const size_t startFindAt = 0    )
@@ -116,7 +118,7 @@ namespace s_TerminalPrintTokenHelper
 		if(	contentLeftBoundary == std::string::npos ||
 			contentRightBoundary == std::string::npos	)
 		{
-			std::string errorMessage = "stevensTerminal library error: In s_TerminalTokenHelper parseRawToken(std::string rawtoken)\n"
+			std::string errorMessage = "stevensTerminal library error: In PrintTokenHelper parseRawToken(std::string rawtoken)\n"
 										"Could not find left or right content boundary in rawToken: " + rawToken;
 			std::cerr << errorMessage;
 		}
@@ -147,7 +149,7 @@ namespace s_TerminalPrintTokenHelper
 		if(	styleLeftBoundary == std::string::npos ||
 			styleRightBoundary == std::string::npos )
 		{
-			std::string errorMessage = "stevensTerminal library error: In s_TerminalPrintToken parseRawToken(std::string rawtoken)\n"
+			std::string errorMessage = "stevensTerminal library error: In PrintTokenHelper parseRawToken(std::string rawtoken)\n"
 										"Could not find left or right style boundary in rawToken_styleString: " + rawToken_styleString;
 			std::cerr << errorMessage;
 		}
@@ -158,14 +160,14 @@ namespace s_TerminalPrintTokenHelper
 
     /**
 	 *	Given a string representing a token from a string intended to be printed with the stevensTerminal library,
-		*	parse the token and turn it into a s_TerminalPrintToken object to more easily work with its data.
+		*	parse the token and turn it into a PrintToken object to more easily work with its data.
 		*
 		* 	Parameter:
 		* 		std::string rawToken - A string representing a token from a string intended to be printed with the stevensTerminal library.
 		* 							   Example: "{The quick brown fox}$[textColor=red,bgColor=yellow,flash,bold]"
-		* 	
+		*
 		* 	Returns:
-		* 		s_TerminalPrintToken - An object that conveniently holds all of the data from the rawToken as member variables. 
+		* 		PrintToken - An object that conveniently holds all of the data from the rawToken as member variables.
 		* 							   Example:
 		* 								{
 		* 									content 	: "The quick brown fox",
@@ -175,27 +177,27 @@ namespace s_TerminalPrintTokenHelper
 		* 									bold		: true
 		* 								}
 		*/
-	s_TerminalPrintToken parseRawToken(std::string rawToken)
+	PrintToken parseRawToken(std::string rawToken)
 	{
 		//std::cout << rawToken << std::endl;
 
 		/*** Parse the content ***/
-		std::string content = s_TerminalPrintTokenHelper::getRawTokenContent( rawToken );
+		std::string content = PrintTokenHelper::getRawTokenContent( rawToken );
 		// std::cout << "Raw token content: " << content << std::endl;
 
 		if(content.empty())
 		{
 			//If we have empty token content, don't bother styling it -- just return it.
-			return s_TerminalPrintToken("");
+			return PrintToken("");
 		}
 
 		/*** Parse the style code ***/
-		std::string styleString = s_TerminalPrintTokenHelper::getRawTokenStyleString( rawToken );
-		//Read the style string 
-		std::unordered_map<std::string,std::string> styleMap = s_TerminalPrintTokenStyling::processPrintTokenStyle(styleString);
+		std::string styleString = PrintTokenHelper::getRawTokenStyleString( rawToken );
+		//Read the style string
+		std::unordered_map<std::string,std::string> styleMap = PrintTokenStyling::processPrintTokenStyle(styleString);
 
 		//Construct the empty token object
-		s_TerminalPrintToken token = s_TerminalPrintToken();
+		PrintToken token = PrintToken();
 		token.rawToken = rawToken;
 
 		//Set the variables of the token to the ones we found in the style map
@@ -213,13 +215,13 @@ namespace s_TerminalPrintTokenHelper
 
     /**
      * @brief Given a string with a stevensTerminal styling token within it and the position which it begins,
-     *        get a s_TerminalPrintToken object containing data about the token.
-     * 
+     *        get a PrintToken object containing data about the token.
+     *
      * @param str The string we are creating a token object from.
      * @param tokenPosition The position in string str that a token starts at.
-     * @return s_TerminalPrintToken object describing the token beginning at the given token position.
+     * @return PrintToken object describing the token beginning at the given token position.
      */
-    s_TerminalPrintToken getToken(  const std::string & str,
+    PrintToken getToken(  const std::string & str,
                                     const size_t tokenPosition  )
     {
         //Get the raw token
@@ -290,7 +292,7 @@ namespace s_TerminalPrintTokenHelper
 						//Get the string of the raw token
 						rawToken = str.substr(styled_startIndex, (i-styled_startIndex+1));
 						//Create the print token obejct
-						s_TerminalPrintToken token = s_TerminalPrintTokenHelper::parseRawToken(rawToken);
+						PrintToken token = PrintTokenHelper::parseRawToken(rawToken);
 						token.existsAtIndex = styled_startIndex;
 						token.rawToken = rawToken;
                         //Return the token object we just retrieved
@@ -308,31 +310,31 @@ namespace s_TerminalPrintTokenHelper
 
 
 	/**
-	 * @brief Given a string containing style tokens, return a vector containing s_TerminalPrintToken objects for each token present 
+	 * @brief Given a string containing style tokens, return a vector containing PrintToken objects for each token present
 	 * 		  in the given string.
-	 * 
-	 * @param str The string we are scanning to obtain s_TerminalPrintToken objects from.
-	 * 
-	 * @return A std::vector containing s_TerminalPrintToken objects for each style token in the string str.
+	 *
+	 * @param str The string we are scanning to obtain PrintToken objects from.
+	 *
+	 * @return A std::vector containing PrintToken objects for each style token in the string str.
 	 */
-	std::vector<s_TerminalPrintToken> getAllTokens(	const std::string & str )
+	std::vector<PrintToken> getAllTokens(	const std::string & str )
 	{
 		//Initialize a vector that will track all of the token's we've found in str
-		std::vector<s_TerminalPrintToken> tokens;
+		std::vector<PrintToken> tokens;
 		//Also initialize the index where we'll start looking for tokens within str
 		size_t searchStart = 0;
 
 		while(true)
 		{
 			//Search for a token
-			size_t foundTokenIndex = s_TerminalPrintTokenHelper::findToken(str, searchStart);
+			size_t foundTokenIndex = PrintTokenHelper::findToken(str, searchStart);
 			//If we don't find a token, break from the loop
 			if(foundTokenIndex == std::string::npos)
 			{
 				break;
 			}
 			//Otherwise, get the token at the found index
-			s_TerminalPrintToken token = s_TerminalPrintTokenHelper::getToken(str, foundTokenIndex);
+			PrintToken token = PrintTokenHelper::getToken(str, foundTokenIndex);
 			//Push it back into our vector
 			tokens.push_back(token);
 			//Increment our searchStart
@@ -345,19 +347,19 @@ namespace s_TerminalPrintTokenHelper
 
     /**
      * @brief Given a string and the starting position of a stevensTerminal style token within the string,
-     *        remove the braces and the styling directive text from the string, leaving only the content 
+     *        remove the braces and the styling directive text from the string, leaving only the content
      *        of the token in the original string.
-     * 
-     * Example: resultStr = s_TerminalTokenHelper("Hey Squidward, are you finished with those {errands}$[textColor=red]?", 45);
+     *
+     * Example: resultStr = PrintTokenHelper::untokenize("Hey Squidward, are you finished with those {errands}$[textColor=red]?", 45);
      * //resultStr == "Hey Squidward, are you finished with those errands?"
-     * 
+     *
      * @param str The string containing tokens that we intend to untokenize
      */
     std::string untokenize( std::string str,
                             const size_t tokenPosition    )
     {
         //Get the data for the token we want to untokenize
-        s_TerminalPrintToken token = s_TerminalPrintTokenHelper::getToken(str, tokenPosition);
+        PrintToken token = PrintTokenHelper::getToken(str, tokenPosition);
         //At the token position, replace the raw tokenized text with the content of the token
         str.replace(token.existsAtIndex, token.rawToken.length(), token.content);
         //Return the modified string
@@ -368,7 +370,7 @@ namespace s_TerminalPrintTokenHelper
 	/**
 	 * @brief Gven a string, a starting position of where we're like to take a string and turn it into
 	 * 		  a stevensTerminal style token, and the length of the token, return the tokenized string.
-	 * 
+	 *
 	 * @param str
 	 * @param tokenPosition
 	 * @param tokenLength
@@ -390,6 +392,7 @@ namespace s_TerminalPrintTokenHelper
 	}
 
 
-}
+} // namespace PrintTokenHelper
+} // namespace stevensTerminal
 
 #endif // STEVENS_TERMINAL_PRINTTOKENHELPER_HPP

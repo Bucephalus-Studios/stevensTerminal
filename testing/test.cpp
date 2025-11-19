@@ -11,26 +11,26 @@
 
 
 /***** TESTS *****/
-/*** s_TerminalPrintTokenHelper::findToken() ***/
+/*** stevensTerminal::PrintTokenHelper::findToken() ***/
 TEST(findToken, startIndexIsOutOfBounds)
 {
     //Arrange
     std::string str = "{Duck, duck, goose!}$[bgColor=bright-yellow]";
     size_t actualIndexOfToken = 0;
     //Act
-    size_t foundIndexOfToken = s_TerminalPrintTokenHelper::findToken(str, 9001);
+    size_t foundIndexOfToken = stevensTerminal::PrintTokenHelper::findToken(str, 9001);
     //Assert
     ASSERT_EQ(std::string::npos, foundIndexOfToken);
 }
 
 
-/*** s_TerminalPrintTokenHelper::parseToken() ***/
+/*** stevensTerminal::PrintTokenHelper::parseToken() ***/
 // TEST(parseToken, emptyString)
 // {
 //     //Arrange
 //     std::string str = "";
 //     //Act
-//     s_TerminalPrintToken token = s_TerminalPrintTokenHelper::parseRawToken(str);
+//     stevensTerminal::PrintToken token = stevensTerminal::PrintTokenHelper::parseRawToken(str);
 //     //Assert
 //
 //}
@@ -41,7 +41,7 @@ TEST(NestedTokenDepth, twoLevelsDeep)
 {
     // Test 2 levels: parent -> child
     std::string input = "{Outer {inner}$[textColor=red]}$[bgColor=blue]";
-    std::vector<s_TerminalPrintToken> tokens = s_TerminalPrintHelper::tokenizePrintString(input);
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintHelper::tokenizePrintString(input);
     
     EXPECT_GT(tokens.size(), 0) << "Should tokenize 2-level nested structure";
     
@@ -58,7 +58,7 @@ TEST(NestedTokenDepth, threeLevelsDeep)
 {
     // Test 3 levels: parent -> child -> grandchild
     std::string input = "{Level1 {Level2 {Level3}$[textColor=green]}$[textColor=red]}$[bgColor=blue]";
-    std::vector<s_TerminalPrintToken> tokens = s_TerminalPrintHelper::tokenizePrintString(input);
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintHelper::tokenizePrintString(input);
     
     EXPECT_GT(tokens.size(), 0) << "Should tokenize 3-level nested structure";
     
@@ -86,7 +86,7 @@ TEST(NestedTokenDepth, fiveLevelsDeep)
 {
     // Test 5 levels deep
     std::string input = "{L1 {L2 {L3 {L4 {L5}$[textColor=white]}$[textColor=yellow]}$[textColor=green]}$[textColor=red]}$[bgColor=blue]";
-    std::vector<s_TerminalPrintToken> tokens = s_TerminalPrintHelper::tokenizePrintString(input);
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintHelper::tokenizePrintString(input);
     
     EXPECT_GT(tokens.size(), 0) << "Should tokenize 5-level nested structure";
     
@@ -114,7 +114,7 @@ TEST(NestedTokenDepth, tenLevelsDeep)
 {
     // Test 10 levels deep - stress test
     std::string input = "{L1 {L2 {L3 {L4 {L5 {L6 {L7 {L8 {L9 {L10}$[textColor=white]}$[textColor=cyan]}$[textColor=magenta]}$[textColor=yellow]}$[textColor=green]}$[textColor=red]}$[textColor=blue]}$[textColor=black]}$[textColor=bright-white]}$[bgColor=blue]";
-    std::vector<s_TerminalPrintToken> tokens = s_TerminalPrintHelper::tokenizePrintString(input);
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintHelper::tokenizePrintString(input);
     
     EXPECT_GT(tokens.size(), 0) << "Should handle 10-level deep nesting without crashing";
     
@@ -143,7 +143,7 @@ TEST(NestedTokenDepth, twentyLevelsDeep_StressTest)
     // Test extremely deep nesting - 20 levels
     std::string input = "{L1 {L2 {L3 {L4 {L5 {L6 {L7 {L8 {L9 {L10 {L11 {L12 {L13 {L14 {L15 {L16 {L17 {L18 {L19 {L20}$[textColor=bright-red]}$[textColor=bright-green]}$[textColor=bright-blue]}$[textColor=bright-yellow]}$[textColor=bright-magenta]}$[textColor=bright-cyan]}$[textColor=bright-white]}$[textColor=red]}$[textColor=green]}$[textColor=blue]}$[textColor=yellow]}$[textColor=magenta]}$[textColor=cyan]}$[textColor=white]}$[textColor=black]}$[textColor=gray]}$[textColor=bright-gray]}$[textColor=dark-red]}$[textColor=dark-green]}$[bgColor=black,bold=true]";
     
-    std::vector<s_TerminalPrintToken> tokens = s_TerminalPrintHelper::tokenizePrintString(input);
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintHelper::tokenizePrintString(input);
     
     EXPECT_GT(tokens.size(), 0) << "Should handle 20-level deep nesting without crashing";
     
@@ -173,7 +173,7 @@ TEST(tokenizePrintString, simpleNestedTokens)
     std::string input = "{outer {inner}$[textColor=red] content}$[textColor=blue]";
     
     // Act
-    std::vector<s_TerminalPrintToken> tokens = s_TerminalPrintHelper::tokenizePrintString(input);
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintHelper::tokenizePrintString(input);
     
     // Assert - Should parse as nested tokens properly
     EXPECT_GT(tokens.size(), 0) << "Should find at least one token";
@@ -190,7 +190,7 @@ TEST(tokenizePrintString, muggedManScenario)
     std::string originalInput = input; // Keep original for later
     
     // Act
-    std::vector<s_TerminalPrintToken> tokens = s_TerminalPrintHelper::tokenizePrintString(input);
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintHelper::tokenizePrintString(input);
     
     // Assert
     EXPECT_GT(tokens.size(), 0) << "Should find at least one token";
@@ -207,7 +207,7 @@ TEST(tokenizePrintString, muggedManScenario)
     }
     
     // Test the full styling pipeline
-    std::string styledOutput = s_TerminalPrintHelper::styleTokens(input, tokens);
+    std::string styledOutput = stevensTerminal::PrintHelper::styleTokens(input, tokens);
     std::cout << "Final styled output: " << styledOutput << std::endl;
 }
 
@@ -217,7 +217,7 @@ TEST(tokenizePrintString, doubleNestedTokens)
     std::string input = "{outer {first inner}$[textColor=red] and {second inner}$[textColor=green] content}$[textColor=blue]";
     
     // Act
-    std::vector<s_TerminalPrintToken> tokens = s_TerminalPrintHelper::tokenizePrintString(input);
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintHelper::tokenizePrintString(input);
     
     // Assert
     EXPECT_GT(tokens.size(), 0) << "Should find tokens";
@@ -232,25 +232,25 @@ TEST(tokenizePrintString, doubleNestedTokens)
 /*** ***/
 
 
-/*** s_TerminalPrintTokenHelper::getToken() ***/
+/*** stevensTerminal::PrintTokenHelper::getToken() ***/
 // TEST(getToken, startIndexIsOutOfBounds)
 // {
 //     //Arrange
 //     std::string str = "{The most distasteful thing to a man is the path that leads him to himself.}$[textColor=black]";
 //     size_t tokenPosition = 9001;
 //     //Act
-//     s_TerminalPrintToken token = s_TerminalPrintTokenHelper::getToken(str, tokenPosition);
+//     stevensTerminal::PrintToken token = stevensTerminal::PrintTokenHelper::getToken(str, tokenPosition);
 //     //Assert
 //     ASSERT_EQ(token.existsAtIndex, 0);
 // }
 
-/*** s_TerminalPrintHelper::tokenizeString ***/
+/*** stevensTerminal::PrintHelper::tokenizeString ***/
 TEST(tokenizePrintString, emptyString)
 {
     //Arrange
     std::string str = "";
     //Act
-    std::vector<s_TerminalPrintToken> tokens = s_TerminalPrintHelper::tokenizePrintString(str);
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintHelper::tokenizePrintString(str);
     //Assert
     ASSERT_EQ( tokens.size(), 0 );
 }
@@ -260,7 +260,7 @@ TEST(tokenizePrintString, singleTokenWholeString)
     //Arrange
     std::string str = "{This whole string is tokenized!}$[textColor=pink,bgColor=bright-green]";
     //Act
-    std::vector<s_TerminalPrintToken> tokens = s_TerminalPrintHelper::tokenizePrintString(str);
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintHelper::tokenizePrintString(str);
     //Assert
     ASSERT_EQ( tokens.size(), 1 );
 }
@@ -270,7 +270,7 @@ TEST(tokenizePrintString, multipleTokens)
     //Arrange
     std::string str = "{This bit of string is tokenized!}$[textColor=pink,bgColor=bright-green] and {this is another token}$[textColor=red,bgColor=blue]";
     //Act
-    std::vector<s_TerminalPrintToken> tokens = s_TerminalPrintHelper::tokenizePrintString(str);
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintHelper::tokenizePrintString(str);
     //Assert
     ASSERT_EQ( tokens.size(), 2 );
 }
@@ -281,14 +281,14 @@ TEST(tokenizePrintString, nestedTokens)
     std::string str = "{The quick brown {fox}$[textColor=red] jumps over the lazy dog}$[textColor=green,bgColor=blue]";
     
     // Debug getAllTokens first
-    std::vector<s_TerminalPrintToken> allTokens = s_TerminalPrintTokenHelper::getAllTokens(str);
+    std::vector<stevensTerminal::PrintToken> allTokens = stevensTerminal::PrintTokenHelper::getAllTokens(str);
     std::cout << "getAllTokens found " << allTokens.size() << " tokens:" << std::endl;
     for(size_t i = 0; i < allTokens.size(); i++) {
         std::cout << "  Raw Token " << i << ": '" << allTokens[i].rawToken << "' (pos: " << allTokens[i].existsAtIndex << ")" << std::endl;
     }
     
     //Act
-    std::vector<s_TerminalPrintToken> tokens = s_TerminalPrintHelper::tokenizePrintString(str);
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintHelper::tokenizePrintString(str);
     
     // Debug output
     std::cout << "Input: " << str << std::endl;
@@ -317,7 +317,7 @@ TEST(tokenizePrintString, nestedTokensV2)
     //Arrange
     std::string str = "{Toggle text styling ({On}$[textColor=bright-green])}$[textColor=bright-yellow,bgColor=black]";
     //Act
-    std::vector<s_TerminalPrintToken> tokens = s_TerminalPrintHelper::tokenizePrintString(str);
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintHelper::tokenizePrintString(str);
     //Assert
     ASSERT_STREQ( tokens[0].content.c_str(), "Toggle text styling (" );
     ASSERT_STREQ( tokens[0].bgColor.c_str(), "black" );
@@ -353,7 +353,7 @@ TEST(tokenizePrintString, twoNestedTokens_noBetween)
     std::cout << "Input: " << str << std::endl;
     
     //Act
-    std::vector<s_TerminalPrintToken> tokens = s_TerminalPrintHelper::tokenizePrintString(str);
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintHelper::tokenizePrintString(str);
     
     // Debug output
     std::cout << "Found " << tokens.size() << " tokens:" << std::endl;
@@ -380,14 +380,14 @@ TEST(tokenizePrintString, twoNestedTokens_noBetween)
 }
 
 
-/*** s_TerminalPrintHelper::tokenizeBetweenTokens() ***/
+/*** stevensTerminal::PrintHelper::tokenizeBetweenTokens() ***/
 TEST(tokenizeBetweenTokens, emptyString)
 {
     //Arrange
     std::string str = "";
-    std::vector<s_TerminalPrintToken> tokensBefore;
+    std::vector<stevensTerminal::PrintToken> tokensBefore;
     //Act
-    std::vector<s_TerminalPrintToken> tokensAfter = s_TerminalPrintHelper::tokenizeBetweenTokens(str, tokensBefore);
+    std::vector<stevensTerminal::PrintToken> tokensAfter = stevensTerminal::PrintHelper::tokenizeBetweenTokens(str, tokensBefore);
     //Assert
     ASSERT_EQ( tokensAfter.size(), 0 );
 }
@@ -396,9 +396,9 @@ TEST(tokenizeBetweenTokens, noTokens)
 {
     //Arrange
     std::string str = "No tokens in here!";
-    std::vector<s_TerminalPrintToken> tokens;
+    std::vector<stevensTerminal::PrintToken> tokens;
     //Act
-    tokens = s_TerminalPrintHelper::tokenizeBetweenTokens(str, tokens);
+    tokens = stevensTerminal::PrintHelper::tokenizeBetweenTokens(str, tokens);
     //Assert
     ASSERT_EQ( tokens.size(), 1 );
     ASSERT_STREQ( tokens[0].content.c_str(), "No tokens in here!" );
@@ -408,9 +408,9 @@ TEST(tokenizeBetweenTokens, oneToken)
 {
     //Arrange
     std::string str = "First part of the string is not a token. {This is a token.}$[textColor=red]";
-    std::vector<s_TerminalPrintToken> styleTokens = s_TerminalPrintHelper::tokenizePrintString(str);
+    std::vector<stevensTerminal::PrintToken> styleTokens = stevensTerminal::PrintHelper::tokenizePrintString(str);
     //Act
-    std::vector<s_TerminalPrintToken> tokens = s_TerminalPrintHelper::tokenizeBetweenTokens(str, styleTokens);
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintHelper::tokenizeBetweenTokens(str, styleTokens);
 
     ASSERT_EQ( tokens.size(), 2 );
     ASSERT_STREQ( tokens[0].content.c_str(), "First part of the string is not a token. " );
@@ -421,9 +421,9 @@ TEST(tokenizeBetweenTokens, twoTokens)
 {
     //Arrange
     std::string str = "First part of the string is not a token. {This is a token}$[textColor=red] and {this is another token.}$[textColor=blue]";
-    std::vector<s_TerminalPrintToken> styleTokens = s_TerminalPrintHelper::tokenizePrintString(str);
+    std::vector<stevensTerminal::PrintToken> styleTokens = stevensTerminal::PrintHelper::tokenizePrintString(str);
     //Act
-    std::vector<s_TerminalPrintToken> tokens = s_TerminalPrintHelper::tokenizeBetweenTokens(str, styleTokens);
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintHelper::tokenizeBetweenTokens(str, styleTokens);
 
     std::cout << str << std::endl;
     for(int i = 0; i < tokens.size(); i++)
@@ -445,7 +445,7 @@ TEST(tokenizeBetweenTokens, oneNestedToken)
     //Arrange
     std::string str = "{This is a parent token {with a nested token}$[textColor=bright-green] dropped right in the middle.}$[textColor=red,bgColor=blue]";
     //Act
-    std::vector<s_TerminalPrintToken> tokens = s_TerminalPrintHelper::tokenizePrintString(str);
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintHelper::tokenizePrintString(str);
     //Assert
     ASSERT_EQ( tokens.size(), 3 );
     ASSERT_STREQ( tokens[0].content.c_str(), "This is a parent token " );
@@ -460,7 +460,7 @@ TEST(getAllTokens, noneInString)
     //Arrange
     std::string str = "No style tokens in here!";
     //Act
-    std::vector<s_TerminalPrintToken> tokens = s_TerminalPrintTokenHelper::getAllTokens(str);
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintTokenHelper::getAllTokens(str);
     //Assert
     ASSERT_EQ( tokens.size(), 0 );
 }
@@ -470,7 +470,7 @@ TEST(getAllTokens, wholeStringIsAToken)
     //Arrange
     std::string str = "{This whole string is tokenized!}$[textColor=pink,bgColor=bright-green]";
     //Act
-    std::vector<s_TerminalPrintToken> tokens = s_TerminalPrintTokenHelper::getAllTokens(str);
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintTokenHelper::getAllTokens(str);
     //Assert
     //TODO, make it so we check for token equality
     ASSERT_EQ( tokens.size(), 1);
@@ -548,13 +548,13 @@ TEST(printVector_str, autoColumnWidth)
 }
 
 
-/*** s_TerminalPrintHelper::ignoreTokenStyling() ***/
+/*** stevensTerminal::PrintHelper::ignoreTokenStyling() ***/
 TEST(ignoreTokenStyling, emptyStringWithNoTokens)
 {
     //Arrange
-    std::vector<s_TerminalPrintToken> tokens = {};
+    std::vector<stevensTerminal::PrintToken> tokens = {};
     //Act
-    std::string result = s_TerminalPrintHelper::ignoreTokenStyling("", tokens);
+    std::string result = stevensTerminal::PrintHelper::ignoreTokenStyling("", tokens);
     //Assert
     ASSERT_STREQ( result.c_str(), "" );
 }
@@ -562,9 +562,9 @@ TEST(ignoreTokenStyling, emptyStringWithNoTokens)
 TEST(ignoreTokenStyling, stringWithNoTokens)
 {
     //Arrange
-    std::vector<s_TerminalPrintToken> tokens = {};
+    std::vector<stevensTerminal::PrintToken> tokens = {};
     //Act
-    std::string result = s_TerminalPrintHelper::ignoreTokenStyling("This is a string with no tokens.", tokens);
+    std::string result = stevensTerminal::PrintHelper::ignoreTokenStyling("This is a string with no tokens.", tokens);
     //Assert
     ASSERT_STREQ( result.c_str(), "This is a string with no tokens.");
 }
@@ -573,9 +573,9 @@ TEST(ignoreTokenStyling, oneToken)
 {
     //Arrange
     std::string inputString = "This is a string with {a token.}$[textColor=red]";
-    std::vector<s_TerminalPrintToken> tokens = s_TerminalPrintHelper::tokenizePrintString(inputString);
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintHelper::tokenizePrintString(inputString);
     //Act
-    std::string result = s_TerminalPrintHelper::ignoreTokenStyling(inputString, tokens);
+    std::string result = stevensTerminal::PrintHelper::ignoreTokenStyling(inputString, tokens);
     //Assert
     ASSERT_STREQ( result.c_str(), "This is a string with a token.");
 }
@@ -902,7 +902,7 @@ TEST(StylingFunctions, insertStyleToken_basic)
 {
     // Test basic token insertion
     std::string str = "Hello World";
-    s_TerminalPrintToken token;
+    stevensTerminal::PrintToken token;
     token.content = "World";
     token.existsAtIndex = 6;
     token.textColor = "red";
@@ -921,7 +921,7 @@ TEST(StylingFunctions, insertStyleToken_out_of_bounds)
 {
     // Test with index out of bounds
     std::string str = "Short";
-    s_TerminalPrintToken token;
+    stevensTerminal::PrintToken token;
     token.content = "Test";
     token.existsAtIndex = 100; // Out of bounds
     token.textColor = "red";
@@ -987,7 +987,7 @@ TEST(DisplayMode, displayMode_boundaries)
 TEST(TokenHelper, findToken_at_start)
 {
     std::string str = "{Token at start}$[textColor=red] and more text";
-    size_t pos = s_TerminalPrintTokenHelper::findToken(str);
+    size_t pos = stevensTerminal::PrintTokenHelper::findToken(str);
 
     ASSERT_EQ(pos, 0);
 }
@@ -995,7 +995,7 @@ TEST(TokenHelper, findToken_at_start)
 TEST(TokenHelper, findToken_in_middle)
 {
     std::string str = "Text before {token in middle}$[textColor=blue] and after";
-    size_t pos = s_TerminalPrintTokenHelper::findToken(str);
+    size_t pos = stevensTerminal::PrintTokenHelper::findToken(str);
 
     ASSERT_EQ(pos, 12);
 }
@@ -1003,7 +1003,7 @@ TEST(TokenHelper, findToken_in_middle)
 TEST(TokenHelper, findToken_not_found)
 {
     std::string str = "No tokens in this string";
-    size_t pos = s_TerminalPrintTokenHelper::findToken(str);
+    size_t pos = stevensTerminal::PrintTokenHelper::findToken(str);
 
     ASSERT_EQ(pos, std::string::npos);
 }
@@ -1011,7 +1011,7 @@ TEST(TokenHelper, findToken_not_found)
 TEST(TokenHelper, getAllTokens_multiple_consecutive)
 {
     std::string str = "{First}$[textColor=red]{Second}$[textColor=blue]{Third}$[textColor=green]";
-    std::vector<s_TerminalPrintToken> tokens = s_TerminalPrintTokenHelper::getAllTokens(str);
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintTokenHelper::getAllTokens(str);
 
     ASSERT_EQ(tokens.size(), 3);
 }
@@ -1019,7 +1019,7 @@ TEST(TokenHelper, getAllTokens_multiple_consecutive)
 TEST(TokenHelper, getAllTokens_with_text_between)
 {
     std::string str = "{First}$[textColor=red] some text {Second}$[textColor=blue]";
-    std::vector<s_TerminalPrintToken> tokens = s_TerminalPrintTokenHelper::getAllTokens(str);
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintTokenHelper::getAllTokens(str);
 
     ASSERT_EQ(tokens.size(), 2);
 }
@@ -1055,13 +1055,13 @@ TEST(PrintVector, single_item)
 /***** TOKEN INHERITANCE TESTS *****/
 TEST(TokenInheritance, inherit_text_color)
 {
-    s_TerminalPrintToken parent;
+    stevensTerminal::PrintToken parent;
     parent.textColor = "red";
     parent.bgColor = "blue";
     parent.bold = true;
     parent.blink = false;
 
-    s_TerminalPrintToken child;
+    stevensTerminal::PrintToken child;
     child.textColor = "default";
     child.bgColor = "default";
     child.bold = false;
@@ -1076,13 +1076,13 @@ TEST(TokenInheritance, inherit_text_color)
 
 TEST(TokenInheritance, preserve_own_styles)
 {
-    s_TerminalPrintToken parent;
+    stevensTerminal::PrintToken parent;
     parent.textColor = "red";
     parent.bgColor = "blue";
     parent.bold = true;
     parent.blink = true;
 
-    s_TerminalPrintToken child;
+    stevensTerminal::PrintToken child;
     child.textColor = "green"; // Child has its own color
     child.bgColor = "yellow"; // Child has its own bg
     child.bold = false;
@@ -1098,7 +1098,7 @@ TEST(TokenInheritance, preserve_own_styles)
 /***** TOKEN STYLING TESTS *****/
 TEST(TokenStyling, getStyleString_all_defaults)
 {
-    s_TerminalPrintToken token;
+    stevensTerminal::PrintToken token;
     token.textColor = "default";
     token.bgColor = "default";
     token.bold = false;
@@ -1114,7 +1114,7 @@ TEST(TokenStyling, getStyleString_all_defaults)
 
 TEST(TokenStyling, getStyleString_all_set)
 {
-    s_TerminalPrintToken token;
+    stevensTerminal::PrintToken token;
     token.textColor = "bright-red";
     token.bgColor = "black";
     token.bold = true;

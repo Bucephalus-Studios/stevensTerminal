@@ -87,7 +87,7 @@ static void BM_SimpleTokenization(benchmark::State& state) {
     
     for (auto _ : state) {
         std::string inputCopy = input; // Copy since tokenization modifies input
-        auto tokens = s_TerminalPrintHelper::tokenizePrintString(inputCopy);
+        auto tokens = stevensTerminal::PrintHelper::tokenizePrintString(inputCopy);
         benchmark::DoNotOptimize(tokens);
     }
     
@@ -101,7 +101,7 @@ static void BM_MultipleTokens(benchmark::State& state) {
     
     for (auto _ : state) {
         std::string inputCopy = input;
-        auto tokens = s_TerminalPrintHelper::tokenizePrintString(inputCopy);
+        auto tokens = stevensTerminal::PrintHelper::tokenizePrintString(inputCopy);
         benchmark::DoNotOptimize(tokens);
     }
     
@@ -117,7 +117,7 @@ static void BM_NestedTokensShallow(benchmark::State& state) {
     
     for (auto _ : state) {
         std::string inputCopy = input;
-        auto tokens = s_TerminalPrintHelper::tokenizePrintString(inputCopy);
+        auto tokens = stevensTerminal::PrintHelper::tokenizePrintString(inputCopy);
         benchmark::DoNotOptimize(tokens);
     }
     
@@ -131,7 +131,7 @@ static void BM_NestedTokensDeep(benchmark::State& state) {
     
     for (auto _ : state) {
         std::string inputCopy = input;
-        auto tokens = s_TerminalPrintHelper::tokenizePrintString(inputCopy);
+        auto tokens = stevensTerminal::PrintHelper::tokenizePrintString(inputCopy);
         benchmark::DoNotOptimize(tokens);
     }
     
@@ -147,7 +147,7 @@ static void BM_PreprocessNestedTokens(benchmark::State& state) {
     
     for (auto _ : state) {
         std::string inputCopy = input;
-        auto result = s_TerminalPrintHelper::preprocessNestedTokens(inputCopy);
+        auto result = stevensTerminal::PrintHelper::preprocessNestedTokens(inputCopy);
         benchmark::DoNotOptimize(result);
     }
     
@@ -161,7 +161,7 @@ static void BM_PreprocessDeepNesting(benchmark::State& state) {
     
     for (auto _ : state) {
         std::string inputCopy = input;
-        auto result = s_TerminalPrintHelper::preprocessNestedTokens(inputCopy);
+        auto result = stevensTerminal::PrintHelper::preprocessNestedTokens(inputCopy);
         benchmark::DoNotOptimize(result);
     }
     
@@ -177,7 +177,7 @@ static void BM_StyleInheritance_Simple(benchmark::State& state) {
     std::string parentStyle = "bgColor=blue,bold=true";
     
     for (auto _ : state) {
-        auto result = s_TerminalPrintHelper::inheritParentStyle(nestedStyle, parentStyle);
+        auto result = stevensTerminal::PrintHelper::inheritParentStyle(nestedStyle, parentStyle);
         benchmark::DoNotOptimize(result);
     }
     
@@ -190,7 +190,7 @@ static void BM_StyleInheritance_Complex(benchmark::State& state) {
     std::string parentStyle = "bgColor=black,underline=true,blink=false,reverse=true,dim=true";
     
     for (auto _ : state) {
-        auto result = s_TerminalPrintHelper::inheritParentStyle(nestedStyle, parentStyle);
+        auto result = stevensTerminal::PrintHelper::inheritParentStyle(nestedStyle, parentStyle);
         benchmark::DoNotOptimize(result);
     }
     
@@ -210,7 +210,7 @@ static void BM_StyleInheritance_Scaling(benchmark::State& state) {
     std::string nestedStyle = "textColor=green";
     
     for (auto _ : state) {
-        auto result = s_TerminalPrintHelper::inheritParentStyle(nestedStyle, parentStyle);
+        auto result = stevensTerminal::PrintHelper::inheritParentStyle(nestedStyle, parentStyle);
         benchmark::DoNotOptimize(result);
     }
     
@@ -226,7 +226,7 @@ static void BM_PatternMatching_TokenEnd(benchmark::State& state) {
     size_t pos = 18; // Position of }
     
     for (auto _ : state) {
-        bool result = s_TerminalPrintHelper::matchesTokenEnd(input, pos);
+        bool result = stevensTerminal::PrintHelper::matchesTokenEnd(input, pos);
         benchmark::DoNotOptimize(result);
     }
 }
@@ -239,7 +239,7 @@ static void BM_MuggedManScenario(benchmark::State& state) {
     
     for (auto _ : state) {
         std::string inputCopy = input;
-        auto tokens = s_TerminalPrintHelper::tokenizePrintString(inputCopy);
+        auto tokens = stevensTerminal::PrintHelper::tokenizePrintString(inputCopy);
         benchmark::DoNotOptimize(tokens);
     }
     
@@ -252,7 +252,7 @@ static void BM_ComplexStyleInheritanceScenario(benchmark::State& state) {
     
     for (auto _ : state) {
         std::string inputCopy = input;
-        auto tokens = s_TerminalPrintHelper::tokenizePrintString(inputCopy);
+        auto tokens = stevensTerminal::PrintHelper::tokenizePrintString(inputCopy);
         benchmark::DoNotOptimize(tokens);
     }
     
@@ -267,7 +267,7 @@ static void BM_StressTest_VeryDeepNesting(benchmark::State& state) {
     
     for (auto _ : state) {
         std::string inputCopy = input;
-        auto tokens = s_TerminalPrintHelper::tokenizePrintString(inputCopy);
+        auto tokens = stevensTerminal::PrintHelper::tokenizePrintString(inputCopy);
         benchmark::DoNotOptimize(tokens);
     }
     
@@ -280,7 +280,7 @@ static void BM_StressTest_ManyTokens(benchmark::State& state) {
     
     for (auto _ : state) {
         std::string inputCopy = input;
-        auto tokens = s_TerminalPrintHelper::tokenizePrintString(inputCopy);
+        auto tokens = stevensTerminal::PrintHelper::tokenizePrintString(inputCopy);
         benchmark::DoNotOptimize(tokens);
     }
     
@@ -295,10 +295,10 @@ static void BM_MemoryUsage_TokenCreation(benchmark::State& state) {
     
     for (auto _ : state) {
         std::string inputCopy = input;
-        auto tokens = s_TerminalPrintHelper::tokenizePrintString(inputCopy);
+        auto tokens = stevensTerminal::PrintHelper::tokenizePrintString(inputCopy);
         
         // Force memory allocation tracking
-        std::vector<s_TerminalPrintToken> tokensCopy = tokens;
+        std::vector<stevensTerminal::PrintToken> tokensCopy = tokens;
         benchmark::DoNotOptimize(tokensCopy);
     }
     

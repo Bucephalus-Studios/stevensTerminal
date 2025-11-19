@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22.1)
 
-project(stevensTerminalBenchmarks CXX)
+project(benchmark CXX)
 
 # Set C++23 standard for stevensTerminal compatibility
 set(CMAKE_CXX_STANDARD 23)
@@ -28,33 +28,43 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(googlebenchmark)
 
-# Find ncurses library (required by stevensTerminal)
+# Find and link curses library (platform-specific)
 find_package(Curses REQUIRED)
 include_directories(${CURSES_INCLUDE_DIR})
 
 # Create benchmark executable
-add_executable(benchmarkStevensTerminal benchmark_terminal.cpp)
+add_executable(benchmark benchmark_terminal.cpp)
 
 # Set C++23 for the benchmark executable
-target_compile_features(benchmarkStevensTerminal PUBLIC cxx_std_23)
+target_compile_features(benchmark PUBLIC cxx_std_23)
 
-# Link Google Benchmark and ncurses
-target_link_libraries(benchmarkStevensTerminal
-    benchmark::benchmark
-    benchmark::benchmark_main
-    ${CURSES_LIBRARIES}
-    pthread
-)
+# Link Google Benchmark and curses (platform-specific)
+if(WIN32)
+	# On Windows, use PDCurses
+	target_link_libraries(benchmark
+		benchmark::benchmark
+		benchmark::benchmark_main
+		${CURSES_LIBRARIES}
+	)
+else()
+	# On Linux/Unix, use ncurses and pthread
+	target_link_libraries(benchmark
+		benchmark::benchmark
+		benchmark::benchmark_main
+		ncurses
+		pthread
+	)
+endif()
 
 # Include benchmark headers (automatically handled by target_link_libraries above)
 
 # Add compiler optimizations for Release builds
-target_compile_options(benchmarkStevensTerminal PRIVATE
+target_compile_options(benchmark PRIVATE
     $<$<CONFIG:Release>:-O3 -march=native -DNDEBUG>
     $<$<CONFIG:Debug>:-O0 -g>
 )
 
 # Print build type
-message(STATUS "stevensTerminal Benchmarks Build Type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "Benchmark Build Type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "CXX Flags: ${CMAKE_CXX_FLAGS}")
 message(STATUS "CXX Flags Release: ${CMAKE_CXX_FLAGS_RELEASE}")

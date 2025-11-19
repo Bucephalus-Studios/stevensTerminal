@@ -8,7 +8,9 @@
 
 #include <sstream>
 
-namespace s_TerminalPrintHelper
+namespace stevensTerminal
+{
+namespace PrintHelper
 {
     /*** Member variables ***/
 	//Map containing all of the textColors and their respective codes for coloring text in the terminal
@@ -53,7 +55,7 @@ namespace s_TerminalPrintHelper
 
 	// /*** Constructor ***/
 	// #ifndef curses
-	// s_TerminalPrintHelper()
+	// PrintHelper()
 	// {
 	// 	//Define all of the textColor and bgColor codes
 	// 	textColorCodes = {  {"red",     "31"},
@@ -79,7 +81,7 @@ namespace s_TerminalPrintHelper
 	// 						{"white",   "47"}  };
 	// }
 	// #else
-	// s_TerminalPrintHelper()
+	// PrintHelper()
 	// {
 	// 	//Define all of the textColor and bgColor codes
 	// 	textColorCodes = {  {"red",     "31"},
@@ -111,14 +113,14 @@ namespace s_TerminalPrintHelper
 
 	/*** Methods ***/
 	// PROTOTYPES //
-	std::vector<s_TerminalPrintToken> tokenizePrintString(	std::string & input	);
+	std::vector<PrintToken> tokenizePrintString(	std::string & input	);
 	std::string styleNonTokenText(	std::string str,
 									std::unordered_map<std::string,std::string> style,
-									std::vector<s_TerminalPrintToken> & tokens);
+									std::vector<PrintToken> & tokens);
 	std::string styleTokens( 	std::string str,
-								std::vector<s_TerminalPrintToken> & tokensToStyle	);
+								std::vector<PrintToken> & tokensToStyle	);
 	std::string ignoreTokenStyling(	std::string str,
-									std::vector<s_TerminalPrintToken> tokensToStyle	);
+									std::vector<PrintToken> tokensToStyle	);
 	void wrap(	std::string const &input,
 				int width,
 				std::ostream &os,
@@ -133,7 +135,7 @@ namespace s_TerminalPrintHelper
 	void curses_wwrap_withTokens(	WINDOW * win,
 									int yMove,
 									int xMove,
-									std::vector<s_TerminalPrintToken> tokens,
+									std::vector<PrintToken> tokens,
 									std::unordered_map<std::string,std::string> style,
 									std::unordered_map<std::string,std::string> format,
 									bool textStyling	);
@@ -270,11 +272,11 @@ namespace s_TerminalPrintHelper
 				std::unordered_map<std::string, std::string> format,
 				bool usingTextStyling,
 				std::pair<int,int> screenSize,
-				std::map<std::string, s_TerminalDisplayMode> displayModes, 
+				std::map<std::string, TerminalDisplayMode> displayModes, 
 				std::string currentDisplayMode  )
 	{
 		//First, we process our input to find all instances of tokenized text, we'll call them tokens from now on
-		std::vector<s_TerminalPrintToken> tokens = tokenizePrintString(input);
+		std::vector<PrintToken> tokens = tokenizePrintString(input);
 		std::string printString = "";
 
 		//Check to see if we're doing text styling
@@ -411,20 +413,20 @@ namespace s_TerminalPrintHelper
 	 * 
 	 * Parameters:
 	 * 	std::string str - The string we would like to create unstyled tokens from between the tokens that we already have
-	 * 	std::vector<s_TerminalPrintTokens> tokens  - The tokenized parts of the string str that we already have identified
+	 * 	std::vector<PrintTokens> tokens  - The tokenized parts of the string str that we already have identified
 	 * 
 	 * Returns:
-	 * 	std::vector<s_TerminalPrintToken> - Vector containing print token objects for every part of the print string, not just the specficially
+	 * 	std::vector<PrintToken> - Vector containing print token objects for every part of the print string, not just the specficially
 	 * 										styled tokens we already have (which are included in the output vector)
 	*/
-	std::vector<s_TerminalPrintToken> tokenizeBetweenTokens(	std::string & str,
-																std::vector<s_TerminalPrintToken> tokens	)
+	std::vector<PrintToken> tokenizeBetweenTokens(	std::string & str,
+																std::vector<PrintToken> tokens	)
 	{
 		//Start at the beginning of str
 		int startingIndex = 0;
 		std::string contentToTokenize = "";
 		//Initialize the vector to return
-		std::vector<s_TerminalPrintToken> tokensToReturn = {};
+		std::vector<PrintToken> tokensToReturn = {};
 
 		//For each token, tokenize everything up to where it occurs in str
 		for(int i = 0; i < tokens.size(); i++)
@@ -452,8 +454,8 @@ namespace s_TerminalPrintHelper
 			}
 
 			//Create a token for the content we just grabbed
-			std::string rawBetweenToken = s_TerminalPrintTokenHelper::tokenize(contentToTokenize, 0, contentToTokenize.length());
-			s_TerminalPrintToken betweenToken = s_TerminalPrintTokenHelper::parseRawToken(rawBetweenToken);
+			std::string rawBetweenToken = PrintTokenHelper::tokenize(contentToTokenize, 0, contentToTokenize.length());
+			PrintToken betweenToken = PrintTokenHelper::parseRawToken(rawBetweenToken);
 			betweenToken.existsAtIndex = startingIndex;
 			betweenToken.styled = false; //This token is not styled, it is just the content between the tokens
 
@@ -479,8 +481,8 @@ namespace s_TerminalPrintHelper
 		{
 			//Grab everything up until the end of the string
 			contentToTokenize = str.substr(startingIndex);
-			std::string rawBetweenToken = s_TerminalPrintTokenHelper::tokenize(contentToTokenize, 0, contentToTokenize.length());
-			s_TerminalPrintToken betweenToken = s_TerminalPrintTokenHelper::parseRawToken(rawBetweenToken);
+			std::string rawBetweenToken = PrintTokenHelper::tokenize(contentToTokenize, 0, contentToTokenize.length());
+			PrintToken betweenToken = PrintTokenHelper::parseRawToken(rawBetweenToken);
 			betweenToken.existsAtIndex = startingIndex;
 			betweenToken.styled = false; //This token is not styled, it is just the content after the last token
 
@@ -498,14 +500,14 @@ namespace s_TerminalPrintHelper
 	/**
 	 * Given a string that is being printed and may have formatting brackets,
 	 * tokenize all the the parts of the string that have formatting brackets
-	 * into s_TerminalPrintToken objects and store them in a vector that will
+	 * into PrintToken objects and store them in a vector that will
 	 * be returned.
 	 * 
 	 * Parameter:
 	 * 	std::string input - A string that possibly contains tokens to process.
 	 * 
 	 * Returns:
-	 * 	vector<s_TerminalPrintToken> - A vector containing tokens found in the input string.
+	 * 	vector<PrintToken> - A vector containing tokens found in the input string.
 	*/
 	
 	// Forward declarations
@@ -761,7 +763,7 @@ namespace s_TerminalPrintHelper
 		return result;
 	}
 
-	std::vector<s_TerminalPrintToken> tokenizePrintString(	std::string & input	)
+	std::vector<PrintToken> tokenizePrintString(	std::string & input	)
 	{
 		// First, preprocess any nested tokens
 		input = preprocessNestedTokens(input);
@@ -774,8 +776,8 @@ namespace s_TerminalPrintHelper
 		short styled_tokenFindStage = 0;
 		std::string rawToken = "";
 		std::vector<int> unmatchedOpenBracePositions;
-		std::vector<s_TerminalPrintToken> tokenVector = {};
-		std::vector<s_TerminalPrintToken> nestedTokenVector = {};
+		std::vector<PrintToken> tokenVector = {};
+		std::vector<PrintToken> nestedTokenVector = {};
 		int currentBraceDepth = 0; // Track brace depth for proper nested token parsing
 		//std::stack<int> parentTokenPositions = {};
 
@@ -875,7 +877,7 @@ namespace s_TerminalPrintHelper
 						}
 
 						rawToken = input.substr(tokenStartPosition, (i - tokenStartPosition + 1));
-						s_TerminalPrintToken token = s_TerminalPrintTokenHelper::parseRawToken(rawToken);
+						PrintToken token = PrintTokenHelper::parseRawToken(rawToken);
 						token.existsAtIndex = tokenStartPosition;
 
 						// Check if this token is potentially nested within a parent token
@@ -905,13 +907,13 @@ namespace s_TerminalPrintHelper
 									//Tokenize the string between the the tokenizeStartPosition and the start of the nested token
 									std::string beforeTokenContent = input.substr(beforeNestedTokenStart+1, (nestedTokenStart - beforeNestedTokenStart - 1));
 									beforeTokenContentLength = beforeTokenContent.length();
-									s_TerminalPrintToken tokenBefore;
+									PrintToken tokenBefore;
 
 									if(!beforeTokenContent.empty())
 									{
-										std::string rawTokenBefore = s_TerminalPrintTokenHelper::tokenize( beforeTokenContent, 0, beforeTokenContent.length(), token.getStyleString() );
+										std::string rawTokenBefore = PrintTokenHelper::tokenize( beforeTokenContent, 0, beforeTokenContent.length(), token.getStyleString() );
 										//Create a new token object for the tokenized content before the nested token
-										tokenBefore = s_TerminalPrintTokenHelper::parseRawToken(rawTokenBefore);
+										tokenBefore = PrintTokenHelper::parseRawToken(rawTokenBefore);
 										tokenBefore.existsAtIndex = beforeNestedTokenStart;
 										//Add it to the token before the nested token to the token vector
 										tokenVector.push_back(tokenBefore);
@@ -936,9 +938,9 @@ namespace s_TerminalPrintHelper
 								std::string afterTokenContent = input.substr(afterNestedTokenStart, token.content.length() - (beforeTokenContentLength + nestedTokenVector.back().rawToken.length()));
 								if(!afterTokenContent.empty())
 								{
-									std::string rawTokenAfter = s_TerminalPrintTokenHelper::tokenize( afterTokenContent, 0, std::string::npos, token.getStyleString() );
+									std::string rawTokenAfter = PrintTokenHelper::tokenize( afterTokenContent, 0, std::string::npos, token.getStyleString() );
 									//Create a new token object for the tokenized content after the nested token
-									s_TerminalPrintToken tokenAfter = s_TerminalPrintTokenHelper::parseRawToken(rawTokenAfter);
+									PrintToken tokenAfter = PrintTokenHelper::parseRawToken(rawTokenAfter);
 									tokenAfter.existsAtIndex = afterNestedTokenStart + lengthDifference - 1; // Adjust the existsAtIndex based on cumulative length difference
 									//Add it to the token after the nested token to the token vector
 									tokenVector.push_back(tokenAfter);
@@ -995,12 +997,12 @@ namespace s_TerminalPrintHelper
 
 
 	/**
-	 * Given a vector of s_TerminalPrintTokens, log them and all of their member variables to a file.
+	 * Given a vector of PrintTokens, log them and all of their member variables to a file.
 	 * Useful for debugging and understanding what is and isn't being tokenized.
 	 * 
 	 * Parameters:
 	*/
-	void logTokens(	std::vector<s_TerminalPrintToken> tokens)
+	void logTokens(	std::vector<PrintToken> tokens)
 	{
 		//Create a file.
 		std::ofstream tokenLog ("s_Terminal_tokenLog.txt", std::ios::out | std::ios::app);
@@ -1024,9 +1026,9 @@ namespace s_TerminalPrintHelper
 			//Closing brace
 			tokenLog << "}\n";
 		}
-		else 
+		else
 		{
-			std::cout << "s_Terminal:s_TerminalPrintHelper: logTokens: Unable to open or write to s_Terminal_tokenLog.txt!" << std::endl;
+			std::cout << "stevensTerminal::PrintHelper: logTokens: Unable to open or write to s_Terminal_tokenLog.txt!" << std::endl;
 		}
 	}
 
@@ -1038,7 +1040,7 @@ namespace s_TerminalPrintHelper
 	 * Parameters:
 	 * 	std::string str - The string to add ANSI style to all non-tokenized parts of.
 	 * 	std::unordered_map<std::string,std::string> style - The styling directives for all non-tokenized parts of str.
-	 * 	std::vector<s_TerminalPrintToken> tokens - All of the tokens that have been found to be a part of str. They are 
+	 * 	std::vector<PrintToken> tokens - All of the tokens that have been found to be a part of str. They are 
 	 * 											   ordered in this vector in the order they appear in str.
 	 * 
 	 * Returns:
@@ -1047,9 +1049,9 @@ namespace s_TerminalPrintHelper
 	*/
 	std::string styleNonTokenText(	std::string str,
 									std::unordered_map<std::string,std::string> style,
-									std::vector<s_TerminalPrintToken> & tokens)
+									std::vector<PrintToken> & tokens)
 	{
-		style = s_TerminalPrintTokenStyling::setMissingStylesToDefault(style);
+		style = PrintTokenStyling::setMissingStylesToDefault(style);
 
 		//If we have no tokens in our text, just style it right away
 		if(tokens.size() == 0)
@@ -1105,12 +1107,12 @@ namespace s_TerminalPrintHelper
 
 
 	/**
-	 * Given a string str and a vector of s_TerminalPrintTokens found in str, restyle the str based on the styling instructions indicated 
+	 * Given a string str and a vector of PrintTokens found in str, restyle the str based on the styling instructions indicated 
 	 * in the vector of tokens.
 	 * 
 	 * Parameters:
 	 * 	std::string str - The string we intend to restyle.
-	 * 	std::vector<s_TerminalPrintToken> tokensToStyle - A vector containing s_TerminalPrintToken objects, which describe the style
+	 * 	std::vector<PrintToken> tokensToStyle - A vector containing PrintToken objects, which describe the style
 	 * 													  tokens contained in the str parameter. Ordered in the order the tokens exist
 	 * 													  in the string.
 	 * 
@@ -1118,7 +1120,7 @@ namespace s_TerminalPrintHelper
 	 * 	std::string - A string styled appropriately with ANSI codes as directed from the tokensToStyle vector
 	 */
 	std::string styleTokens( 	std::string str,
-								std::vector<s_TerminalPrintToken> & tokensToStyle	)
+								std::vector<PrintToken> & tokensToStyle	)
 	{
 		if(tokensToStyle.size() == 0)
 		{
@@ -1160,18 +1162,18 @@ namespace s_TerminalPrintHelper
 
 
 	/**
-	 * Given a string, str, and std::vector<s_TerminalPrintToken>, find all the instances of the
+	 * Given a string, str, and std::vector<PrintToken>, find all the instances of the
 	 * raw tokens in str and erase them.
 	 * 
 	 * Parameters:
 	 * 	std::string str - The string we with to erase raw tokens from.
-	 *	std::vector<s_TerminalPrintToken> - A vector of tokens that the string str has included within in it in raw string form.
+	 *	std::vector<PrintToken> - A vector of tokens that the string str has included within in it in raw string form.
 		* 
 		* Returns:
 		* 	std::string - The input string str, but with all of the raw tokens removed.
 		*/
 	std::string ignoreTokenStyling(	std::string str,
-									std::vector<s_TerminalPrintToken> tokensToStyle	)
+									std::vector<PrintToken> tokensToStyle	)
 	{
 		    // Track the cumulative length difference caused by replacements
 			int cumulativeLengthDifference = 0;
@@ -1215,7 +1217,7 @@ namespace s_TerminalPrintHelper
 		}
 		else
 		{
-			cout << "Error from s_TerminalPrintHelper - less than 2 colors available for use detected! Closing program." << endl;
+			cout << "Error from stevensTerminal::PrintHelper - less than 2 colors available for use detected! Closing program." << endl;
 			//TODO: Work on this later, but we need to throw some kind of error if we can't support more than 2 colors in a terminal
 			exit(EXIT_FAILURE);
 		}
@@ -1397,7 +1399,7 @@ namespace s_TerminalPrintHelper
 			registerColorPairs({{0, COLOR_WHITE, COLOR_BLACK, {"default"}}});
 		} else {
 			// Error: Cannot support colors
-			std::cout << "Error from s_TerminalPrintHelper - less than 2 colors available for use detected! Closing program." << std::endl;
+			std::cout << "Error from stevensTerminal::PrintHelper - less than 2 colors available for use detected! Closing program." << std::endl;
 			exit(EXIT_FAILURE);
 		}
 
@@ -1498,15 +1500,15 @@ namespace s_TerminalPrintHelper
 
 
 	/**
-	 * Given an s_TerminalPrintToken, retrieve all of the data for attributes we need to turn on.
+	 * Given an PrintToken, retrieve all of the data for attributes we need to turn on.
 	 * 
 	 * Parameters:
-	 * 	s_TerminalPrintToken token - The token we are enabling the style attributes for.
+	 * 	PrintToken token - The token we are enabling the style attributes for.
 	 * 
 	 * Returns:
 	 * 	void
 	*/
-	unordered_map<std::string,int>	curses_styleToken(	s_TerminalPrintToken token	)
+	unordered_map<std::string,int>	curses_styleToken(	PrintToken token	)
 	{
 		unordered_map<std::string,int> curses_attribute_data = {};
 
@@ -1675,7 +1677,7 @@ namespace s_TerminalPrintHelper
 	 * 	int yMove - How far down to move within the curses window before we begin printing.
 	 * 	int xMove - How far right to move within the curses window before we begin printing.
 	 * 	std::string printString - The string we will be printing to the curses window.
-	 * 	std::vector<s_TerminalPrintToken> tokens - An ordered collection of s_TerminalPrintToken objects which will be printed to the curses window.
+	 * 	std::vector<PrintToken> tokens - An ordered collection of PrintToken objects which will be printed to the curses window.
 	 * 	unordered_map<std::string,std::string> style - Styling options for all unstyled tokens.
 	 * 	unordereD_map<std::string,std::string> format - Advanced formatting options for printing.
 	 * 													Valid key-value pairs are:
@@ -1688,7 +1690,7 @@ namespace s_TerminalPrintHelper
 	void curses_wprint_withTokens(	WINDOW * win,
 									int yMove,
 									int xMove,
-									std::vector<s_TerminalPrintToken> tokens,
+									std::vector<PrintToken> tokens,
 									unordered_map<std::string,std::string> style,
 									unordered_map<std::string,std::string> format,
 									bool textStyling	)
@@ -1796,7 +1798,7 @@ namespace s_TerminalPrintHelper
 						bool textStyling	)
 	{
 		//Tokenize what we're going to be printing, just to see if a user included any inline style tokens
-		std::vector<s_TerminalPrintToken> tokens = tokenizePrintString(input);
+		std::vector<PrintToken> tokens = tokenizePrintString(input);
 
 		//Check to see if we're doing text styling
 		if(textStyling)
@@ -1805,7 +1807,7 @@ namespace s_TerminalPrintHelper
 			tokens = tokenizeBetweenTokens(input, tokens);
 
 			//Check to see if the style map is complete before we print
-			style = s_TerminalPrintTokenStyling::setMissingStylesToDefault(style);
+			style = PrintTokenStyling::setMissingStylesToDefault(style);
 
 			//TODO
 			//Were there any style tokens in the input? If not, just print regularly with style
@@ -1972,7 +1974,7 @@ namespace s_TerminalPrintHelper
 	void curses_wwrap_withTokens(	WINDOW * win,
 									int yMove,
 									int xMove,
-									std::vector<s_TerminalPrintToken> tokens,
+									std::vector<PrintToken> tokens,
 									unordered_map<std::string,std::string> style,
 									unordered_map<std::string,std::string> format,
 									bool textStyling	)
@@ -2059,7 +2061,7 @@ namespace s_TerminalPrintHelper
 				curses_attribute_data = style_attribute_data;
 			}
 
-			s_TerminalPrintHelper::curses_wAttrOn(win, curses_attribute_data);
+			PrintHelper::curses_wAttrOn(win, curses_attribute_data);
 
 			//Print each line of the token
 			while(getline(in,line))
@@ -2247,5 +2249,6 @@ namespace s_TerminalPrintHelper
 
 
 	#endif
-}
+} // namespace PrintHelper
+} // namespace stevensTerminal
 #endif

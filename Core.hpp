@@ -38,11 +38,11 @@
 // NOTE: These are included via git submodules in the dependencies/ directory.
 // To update to latest versions: git submodule update --remote
 // For users cloning: git clone --recursive OR git submodule update --init --recursive
-#include "dependencies/stevensStringLib/stevensStringLib.h"
-#include "dependencies/stevensMathLib/stevensMathLib.h"
-#include "dependencies/stevensMapLib/stevensMapLib.hpp"
-#include "dependencies/stevensVectorLib/stevensVectorLib.hpp"
-#include "dependencies/stevensFileLib/stevensFileLib.hpp"
+#include "dependencies/stevensStringLib.h"
+#include "dependencies/stevensMathLib.h"
+#include "dependencies/stevensMapLib.hpp"
+#include "dependencies/stevensVectorLib.hpp"
+#include "dependencies/stevensFileLib.hpp"
 
 // Convenient namespace aliases for internal use
 namespace strlib = stevensStringLib;
@@ -54,7 +54,6 @@ namespace maplib = stevensMapLib;
 #include "classes/s_TerminalPrintTokenStyling.hpp"
 #include "classes/s_TerminalPrintTokenHelper.hpp"
 #include "classes/s_TerminalPrintHelper.h"
-namespace term_printhelper = s_TerminalPrintHelper;
 
 #include "classes/WindowManager.hpp"
 
@@ -85,10 +84,10 @@ namespace stevensTerminal
 {
 
     // Core library state variables
-    std::map<std::string, s_TerminalDisplayMode> displayModes = {
-        {"very small", s_TerminalDisplayMode({-1,-1},{79,23},18)},
-        {"small", s_TerminalDisplayMode({80,24},{119,39},18)},
-        {"regular", s_TerminalDisplayMode({120,40},{-1,-1},24)}
+    std::map<std::string, TerminalDisplayMode> displayModes = {
+        {"very small", TerminalDisplayMode({-1,-1},{79,23},18)},
+        {"small", TerminalDisplayMode({80,24},{119,39},18)},
+        {"regular", TerminalDisplayMode({120,40},{-1,-1},24)}
     };
     
     std::string currentDisplayMode = "regular";
@@ -134,9 +133,9 @@ namespace stevensTerminal
         if(has_colors()) {
             start_color();
             // Set up Curses color codes
-            s_TerminalPrintHelper::curses_setup_colorCodes();
+            PrintHelper::curses_setup_colorCodes();
             // Set up Curses colorpairs
-            s_TerminalPrintHelper::curses_setup_colorPairs();
+            PrintHelper::curses_setup_colorPairs();
             curses_colorCompatible = true;
             textStyling = true;
         } else {
@@ -184,16 +183,20 @@ namespace stevensTerminal
         curs_set(0);           // Hide cursor
 
         // Initialize window manager if requested
-        if (initWindowManager) {
-            if (!windowNames.empty()) {
+        if (initWindowManager)
+        {
+            if (!windowNames.empty())
+            {
                 windowManager().initialize(windowNames);
-            } else {
+            }
+            else
+            {
                 windowManager().initialize();  // Use default windows
             }
         }
 
         // Set display mode based on screen size
-        setDisplayMode(get_screen_size());
+        //setDisplayMode(get_screen_size());
         #endif
     }
 

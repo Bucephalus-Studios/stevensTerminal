@@ -1464,7 +1464,7 @@ namespace stevensTerminal
 		std::string printString = stevensTerminal::printVector_str(vec, format);
 
 		//For each line (using getline), print the line (with option for wrapping) to the window
-		s_TerminalPrintHelper::curses_wprint(	win,
+		PrintHelper::curses_wprint(	win,
 												yMove,
 												xMove,
 												printString,
@@ -1484,7 +1484,7 @@ namespace stevensTerminal
 						std::unordered_map<std::string,std::string> style,
 						std::unordered_map<std::string,std::string> format )
 	{
-		s_TerminalPrintHelper::curses_wprint(	win,
+		PrintHelper::curses_wprint(	win,
 												yMove,
 												xMove,
 												printString,
@@ -2205,7 +2205,7 @@ namespace stevensTerminal
 				std::unordered_map<std::string, std::string> style,
 				std::unordered_map<std::string, std::string> format	)
 	{
-		term_printhelper::print(	input,
+		PrintHelper::print(	input,
 									style,
 									format,
 									textStyling,

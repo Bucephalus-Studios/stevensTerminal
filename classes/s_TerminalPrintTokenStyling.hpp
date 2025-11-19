@@ -1,7 +1,7 @@
 /**
  * @file s_TerminalPrintTokenStyling.hpp
  * @author Jeff Stevens jeff@bucephalusstudios.com
- * @brief Some functions used to help style s_TerminalPrintTokens.
+ * @brief Some functions used to help style PrintTokens.
  * @version 0.1
  * @date 2024-03-20
  *
@@ -12,7 +12,9 @@
 #ifndef STEVENS_TERMINAL_PRINTTOKENSTYLING_HPP
 #define STEVENS_TERMINAL_PRINTTOKENSTYLING_HPP
 
-namespace s_TerminalPrintTokenStyling
+namespace stevensTerminal
+{
+namespace PrintTokenStyling
 {
     /**
 	 * Given an unordered map inteded to describe styling instructions for text that will be printed with the stevensTerminal print
@@ -25,10 +27,10 @@ namespace s_TerminalPrintTokenStyling
 	 *      {"flash", "false"},
 	 *      {"bold", "false"}
 	 *  }
-	 * 
+	 *
 	 * Parameter:
 	 *  unordered_map<std::string,std::string> - A map of styles inteded for use with the stevensTerminal print function.
-	 * 
+	 *
 	 * Returns:
 	 *  unordered_map<std::string,std::string> - The input style map with all of its keys defined if they aren't already.
 	*/
@@ -63,9 +65,9 @@ namespace s_TerminalPrintTokenStyling
 
 
     /**
-	 *	Given a style string from the parseRawToken function, interpret what styling is required and 
+	 *	Given a style string from the parseRawToken function, interpret what styling is required and
     *  insert those style instructions into an unordered_map<std::string,std::string> to return.
-    * 
+    *
     *	Parameter:
     *		std::string styleString - A string containing style properties, equal signs, values, and commas.
     *                                An example: "textColor=red,bgColor = blue,flash=true "
@@ -73,25 +75,26 @@ namespace s_TerminalPrintTokenStyling
     *
     * 	Returns:
     * 		map<std::string,std::string> - A map containing key value pairs corresponding to what was read
-    * 												 from the style string. For example, the returned map from the 
+    * 												 from the style string. For example, the returned map from the
     * 												 string above would be:
     * 												{
     * 													"textColor" : "red",
     * 													"bgColor"	: "blue",
     * 													"flash"		: "true"
     * 												}
-    * 		
+    *
     */
 	std::unordered_map<std::string,std::string> processPrintTokenStyle( std::string styleString)
 	{
 		std::unordered_map<std::string,std::string> styleMap = strlib::unorderedMapifyString(styleString,"=",",");
 
-		styleMap = s_TerminalPrintTokenStyling::setMissingStylesToDefault(styleMap);
+		styleMap = PrintTokenStyling::setMissingStylesToDefault(styleMap);
 
 		return styleMap;
 	}
 
 
-}
+} // namespace PrintTokenStyling
+} // namespace stevensTerminal
 
 #endif // STEVENS_TERMINAL_PRINTTOKENSTYLING_HPP
