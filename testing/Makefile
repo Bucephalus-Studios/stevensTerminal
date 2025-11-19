@@ -57,13 +57,23 @@ RM = /usr/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/jeff/cultgame/code/libraries/stevensTerminal/testing
+CMAKE_SOURCE_DIR = /home/jeff/cppLibs/stevensTerminal/testing
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/jeff/cultgame/code/libraries/stevensTerminal/testing
+CMAKE_BINARY_DIR = /home/jeff/cppLibs/stevensTerminal/testing
 
 #=============================================================================
 # Targets provided globally by CMake.
+
+# Special rule for the target test
+test:
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running tests..."
+	/usr/bin/ctest --force-new-ctest-process $(ARGS)
+.PHONY : test
+
+# Special rule for the target test
+test/fast: test
+.PHONY : test/fast
 
 # Special rule for the target edit_cache
 edit_cache:
@@ -132,9 +142,9 @@ install/strip/fast: preinstall/fast
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/jeff/cultgame/code/libraries/stevensTerminal/testing/CMakeFiles /home/jeff/cultgame/code/libraries/stevensTerminal/testing//CMakeFiles/progress.marks
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/jeff/cppLibs/stevensTerminal/testing/CMakeFiles /home/jeff/cppLibs/stevensTerminal/testing//CMakeFiles/progress.marks
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/jeff/cultgame/code/libraries/stevensTerminal/testing/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/jeff/cppLibs/stevensTerminal/testing/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
@@ -162,17 +172,17 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named testStevensTerminal
+# Target rules for targets named tests
 
 # Build rule for target.
-testStevensTerminal: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 testStevensTerminal
-.PHONY : testStevensTerminal
+tests: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests
+.PHONY : tests
 
 # fast build rule for target.
-testStevensTerminal/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/testStevensTerminal.dir/build.make CMakeFiles/testStevensTerminal.dir/build
-.PHONY : testStevensTerminal/fast
+tests/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/tests.dir/build.make CMakeFiles/tests.dir/build
+.PHONY : tests/fast
 
 #=============================================================================
 # Target rules for targets named gmock
@@ -184,7 +194,7 @@ gmock: cmake_check_build_system
 
 # fast build rule for target.
 gmock/fast:
-	$(MAKE) $(MAKESILENT) -f googletest-1.15.2/googlemock/CMakeFiles/gmock.dir/build.make googletest-1.15.2/googlemock/CMakeFiles/gmock.dir/build
+	$(MAKE) $(MAKESILENT) -f _deps/googletest-build/googlemock/CMakeFiles/gmock.dir/build.make _deps/googletest-build/googlemock/CMakeFiles/gmock.dir/build
 .PHONY : gmock/fast
 
 #=============================================================================
@@ -197,7 +207,7 @@ gmock_main: cmake_check_build_system
 
 # fast build rule for target.
 gmock_main/fast:
-	$(MAKE) $(MAKESILENT) -f googletest-1.15.2/googlemock/CMakeFiles/gmock_main.dir/build.make googletest-1.15.2/googlemock/CMakeFiles/gmock_main.dir/build
+	$(MAKE) $(MAKESILENT) -f _deps/googletest-build/googlemock/CMakeFiles/gmock_main.dir/build.make _deps/googletest-build/googlemock/CMakeFiles/gmock_main.dir/build
 .PHONY : gmock_main/fast
 
 #=============================================================================
@@ -210,7 +220,7 @@ gtest: cmake_check_build_system
 
 # fast build rule for target.
 gtest/fast:
-	$(MAKE) $(MAKESILENT) -f googletest-1.15.2/googletest/CMakeFiles/gtest.dir/build.make googletest-1.15.2/googletest/CMakeFiles/gtest.dir/build
+	$(MAKE) $(MAKESILENT) -f _deps/googletest-build/googletest/CMakeFiles/gtest.dir/build.make _deps/googletest-build/googletest/CMakeFiles/gtest.dir/build
 .PHONY : gtest/fast
 
 #=============================================================================
@@ -223,7 +233,7 @@ gtest_main: cmake_check_build_system
 
 # fast build rule for target.
 gtest_main/fast:
-	$(MAKE) $(MAKESILENT) -f googletest-1.15.2/googletest/CMakeFiles/gtest_main.dir/build.make googletest-1.15.2/googletest/CMakeFiles/gtest_main.dir/build
+	$(MAKE) $(MAKESILENT) -f _deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/build.make _deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/build
 .PHONY : gtest_main/fast
 
 test.o: test.cpp.o
@@ -231,7 +241,7 @@ test.o: test.cpp.o
 
 # target to build an object file
 test.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/testStevensTerminal.dir/build.make CMakeFiles/testStevensTerminal.dir/test.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/tests.dir/build.make CMakeFiles/tests.dir/test.cpp.o
 .PHONY : test.cpp.o
 
 test.i: test.cpp.i
@@ -239,7 +249,7 @@ test.i: test.cpp.i
 
 # target to preprocess a source file
 test.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/testStevensTerminal.dir/build.make CMakeFiles/testStevensTerminal.dir/test.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/tests.dir/build.make CMakeFiles/tests.dir/test.cpp.i
 .PHONY : test.cpp.i
 
 test.s: test.cpp.s
@@ -247,7 +257,7 @@ test.s: test.cpp.s
 
 # target to generate assembly for a file
 test.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/testStevensTerminal.dir/build.make CMakeFiles/testStevensTerminal.dir/test.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/tests.dir/build.make CMakeFiles/tests.dir/test.cpp.s
 .PHONY : test.cpp.s
 
 # Help Target
@@ -262,11 +272,12 @@ help:
 	@echo "... install/strip"
 	@echo "... list_install_components"
 	@echo "... rebuild_cache"
+	@echo "... test"
 	@echo "... gmock"
 	@echo "... gmock_main"
 	@echo "... gtest"
 	@echo "... gtest_main"
-	@echo "... testStevensTerminal"
+	@echo "... tests"
 	@echo "... test.o"
 	@echo "... test.i"
 	@echo "... test.s"
