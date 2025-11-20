@@ -587,6 +587,108 @@ TEST(printVector_str, customHorizontalSeparator_comma)
 }
 
 
+/*** stevensTerminal::countContentLines() ***/
+TEST(countContentLines, plainTextNoNewlines)
+{
+    //Arrange
+    std::string str = "This is a simple string without newlines";
+    //Act
+    unsigned long long int lines = stevensTerminal::countContentLines(str);
+    //Assert
+    ASSERT_EQ(lines, 0);
+}
+
+TEST(countContentLines, plainTextWithOneNewline)
+{
+    //Arrange
+    std::string str = "Line 1\nLine 2";
+    //Act
+    unsigned long long int lines = stevensTerminal::countContentLines(str);
+    //Assert
+    ASSERT_EQ(lines, 1);
+}
+
+TEST(countContentLines, plainTextWithMultipleNewlines)
+{
+    //Arrange
+    std::string str = "Line 1\nLine 2\nLine 3\nLine 4";
+    //Act
+    unsigned long long int lines = stevensTerminal::countContentLines(str);
+    //Assert
+    ASSERT_EQ(lines, 3);
+}
+
+TEST(countContentLines, styledTextNoNewlines)
+{
+    //Arrange
+    std::string str = "{Hello}$[textColor=red] {World}$[textColor=blue]";
+    //Act
+    unsigned long long int lines = stevensTerminal::countContentLines(str);
+    //Assert
+    ASSERT_EQ(lines, 0);
+}
+
+TEST(countContentLines, styledTextWithOneNewline)
+{
+    //Arrange
+    std::string str = "{Hello}$[textColor=red]\n{World}$[textColor=blue]";
+    //Act
+    unsigned long long int lines = stevensTerminal::countContentLines(str);
+    //Assert
+    ASSERT_EQ(lines, 1);
+}
+
+TEST(countContentLines, styledTextWithMultipleNewlines)
+{
+    //Arrange
+    std::string str = "{Line 1}$[textColor=red]\n{Line 2}$[textColor=green]\n{Line 3}$[textColor=blue]";
+    //Act
+    unsigned long long int lines = stevensTerminal::countContentLines(str);
+    //Assert
+    ASSERT_EQ(lines, 2);
+}
+
+TEST(countContentLines, nestedTokensWithNewlines)
+{
+    //Arrange
+    std::string str = "{Outer {inner}$[textColor=red] text}$[bgColor=blue]\n{Second line}$[textColor=green]";
+    //Act
+    unsigned long long int lines = stevensTerminal::countContentLines(str);
+    //Assert
+    ASSERT_EQ(lines, 1);
+}
+
+TEST(countContentLines, emptyString)
+{
+    //Arrange
+    std::string str = "";
+    //Act
+    unsigned long long int lines = stevensTerminal::countContentLines(str);
+    //Assert
+    ASSERT_EQ(lines, 0);
+}
+
+TEST(countContentLines, onlyTokensNoContent)
+{
+    //Arrange
+    std::string str = "{}$[textColor=red]{}$[textColor=blue]";
+    //Act
+    unsigned long long int lines = stevensTerminal::countContentLines(str);
+    //Assert
+    ASSERT_EQ(lines, 0);
+}
+
+TEST(countContentLines, multipleConsecutiveNewlines)
+{
+    //Arrange
+    std::string str = "{Text}$[textColor=red]\n\n\n{More text}$[textColor=blue]";
+    //Act
+    unsigned long long int lines = stevensTerminal::countContentLines(str);
+    //Assert
+    ASSERT_EQ(lines, 3);
+}
+
+
 /*** stevensTerminal::PrintHelper::ignoreTokenStyling() ***/
 TEST(ignoreTokenStyling, emptyStringWithNoTokens)
 {
