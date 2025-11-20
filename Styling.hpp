@@ -85,6 +85,27 @@ namespace stevensTerminal {
     }
 
     /**
+     * @brief Count the number of lines in a string, excluding style token markup
+     *
+     * Counts the number of newline characters in the string after removing all
+     * stevensTerminal style tokens. This gives the actual content line count without
+     * being affected by token delimiters ({, }$[, ]) or styling directives.
+     *
+     * Example:
+     *   input = "{Hello}$[textColor=red]\n{World}$[textColor=blue]";
+     *   countContentLines(input);  // Returns 1 (one newline character)
+     *
+     * @param str The string potentially containing stevensTerminal style tokens
+     * @return The number of newline characters in the string after removing style tokens
+     */
+    inline unsigned long long int countContentLines(const std::string & str) {
+        // Remove all style tokenization to get just the content
+        std::string content = removeAllStyleTokenization(str);
+        // Count newlines in the content
+        return std::count(content.begin(), content.end(), '\n');
+    }
+
+    /**
      * @brief Resize a styled string while preserving style tokens where possible
      * 
      * Given a string that may include style tokens, resize it in a very similar way to std::string.resize()
