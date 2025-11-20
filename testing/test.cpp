@@ -547,6 +547,45 @@ TEST(printVector_str, autoColumnWidth)
                                     "Infrastructure\tQuit          \t\n");
 }
 
+TEST(printVector_str, customHorizontalSeparator_spaces)
+{
+    //Arrange
+    std::vector<std::string> vec = {"Vin", "Kelsier", "Sazed", "Dockson", "Breeze", "Ham", "Spook", "Clubs"};
+    //Act
+    std::string result = stevensTerminal::printVector_str(  vec,
+                                                            {   {"columns",     "2"},
+                                                                {"rows",        "4"},
+                                                                {"horizontal separator", "  "}    }   );
+    //Assert
+    ASSERT_STREQ( result.c_str(), "Vin  Breeze  \nKelsier  Ham  \nSazed  Spook  \nDockson  Clubs  \n");
+}
+
+TEST(printVector_str, customHorizontalSeparator_pipe)
+{
+    //Arrange
+    std::vector<std::string> vec = {"A", "B", "C", "D"};
+    //Act
+    std::string result = stevensTerminal::printVector_str(  vec,
+                                                            {   {"columns",     "2"},
+                                                                {"rows",        "2"},
+                                                                {"horizontal separator", " | "}    }   );
+    //Assert
+    ASSERT_STREQ( result.c_str(), "A | C | \nB | D | \n");
+}
+
+TEST(printVector_str, customHorizontalSeparator_comma)
+{
+    //Arrange
+    std::vector<std::string> vec = {"Apple", "Banana", "Cherry"};
+    //Act
+    std::string result = stevensTerminal::printVector_str(  vec,
+                                                            {   {"columns",     "3"},
+                                                                {"rows",        "1"},
+                                                                {"horizontal separator", ", "}    }   );
+    //Assert
+    ASSERT_STREQ( result.c_str(), "Apple, Banana, Cherry, \n");
+}
+
 
 /*** stevensTerminal::PrintHelper::ignoreTokenStyling() ***/
 TEST(ignoreTokenStyling, emptyStringWithNoTokens)

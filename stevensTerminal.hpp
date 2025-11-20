@@ -868,7 +868,7 @@ namespace stevensTerminal
 
 	/*
 	* Outputs a vector of strings to terminal window with options for advanced formatting.
-	* 
+	*
 	* Parameters:
 	*		vector<T> vec - The vector of objects we wish to output to the terminal.
 	*		unordered_map<std::string,std::string> format - An unordered map containing various custom formatting options for printing the vector.
@@ -879,6 +879,7 @@ namespace stevensTerminal
 	*				"numbered" - Appends a number in front of every object printed representing the index of the object printed (starting at 1)
 	*			"prependString" - A string value to be prepended to the output before every object is printed.
 	*			"appendString" - A string value to be appended to the output after every object is printed.
+	*			"horizontal separator" - A string value to be used as the separator between columns. Defaults to "\t" (tab).
 	*	Returns:
 	*		Void, but outputs text to the terminal window:
 	*		Vector elements printed from 0 to the final index. So a function call like this: printVector([a,b,c,d,e,f,g,h,i,j,k,l],{{"rows","3"},{"columns","4"}}) looks like the following:
@@ -910,6 +911,8 @@ namespace stevensTerminal
 		std::string prependString = "";
 		std::string originalPrependString = "";
 		std::string appendString = "";
+		//A setting for the string we use to separate columns. \t by default.
+		std::string horizontalSeparator = "\t";
 		/*** Get all of the applicable information from the format map  ***/
 		if(format.contains("columns"))
 		{
@@ -943,6 +946,10 @@ namespace stevensTerminal
 		if(format.contains("appendString"))
 		{
 			appendString = format["appendString"];
+		}
+		if(format.contains("horizontal separator"))
+		{
+			horizontalSeparator = format["horizontal separator"];
 		}
 
 		//Begin printing the formatted vector. We do this storing all of the objects in a 2D vector.
@@ -1025,7 +1032,7 @@ namespace stevensTerminal
 				//cout << "printing a row!" << endl;
 				print(prependTextGrid[columnIndex][rowIndex]);
 				print(elementGrid[columnIndex][rowIndex]);
-				print(appendTextGrid[columnIndex][rowIndex] + "\t");
+				print(appendTextGrid[columnIndex][rowIndex] + horizontalSeparator);
 			}
 			std::cout << "\n"; //Once we finish a row we print a newline
 		}
