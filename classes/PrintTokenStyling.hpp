@@ -1,3 +1,4 @@
+#pragma once
 /**
  * @file s_TerminalPrintTokenStyling.hpp
  * @author Jeff Stevens jeff@bucephalusstudios.com
@@ -9,7 +10,6 @@
  *
  */
 
-#pragma once
 
 namespace stevensTerminal
 {
@@ -33,7 +33,7 @@ namespace PrintTokenStyling
 	 * Returns:
 	 *  unordered_map<std::string,std::string> - The input style map with all of its keys defined if they aren't already.
 	*/
-	std::unordered_map<std::string,std::string> setMissingStylesToDefault( std::unordered_map<std::string,std::string> styleMap )
+	inline std::unordered_map<std::string,std::string> setMissingStylesToDefault( std::unordered_map<std::string,std::string> styleMap )
 	{
 		//Text color
 		if (!styleMap.contains("textColor"))
@@ -59,11 +59,36 @@ namespace PrintTokenStyling
 			styleMap["bold"] = "false";
 		}
 
+		//Underline
+		if(!styleMap.contains("underline"))
+		{
+			styleMap["underline"] = "false";
+		}
+
+		//Reverse
+		if(!styleMap.contains("reverse"))
+		{
+			styleMap["reverse"] = "false";
+		}
+
+		//Dim
+		if(!styleMap.contains("dim"))
+		{
+			styleMap["dim"] = "false";
+		}
+
+		//Italic
+		if(!styleMap.contains("italic"))
+		{
+			styleMap["italic"] = "false";
+		}
+
 		return styleMap;
 	}
 
+
     /**
-	 *	Given a style string from the parseRawToken function, interpret what styling is required and
+	 *	Given a style std::string from the parseRawToken function, interpret what styling is required and
     *  insert those style instructions into an unordered_map<std::string,std::string> to return.
     *
     *	Parameter:
@@ -74,7 +99,7 @@ namespace PrintTokenStyling
     * 	Returns:
     * 		map<std::string,std::string> - A map containing key value pairs corresponding to what was read
     * 												 from the style string. For example, the returned map from the
-    * 												 string above would be:
+    * 												 std::string above would be:
     * 												{
     * 													"textColor" : "red",
     * 													"bgColor"	: "blue",
@@ -82,14 +107,17 @@ namespace PrintTokenStyling
     * 												}
     *
     */
-	std::unordered_map<std::string,std::string> processPrintTokenStyle( std::string styleString)
+	inline std::unordered_map<std::string,std::string> processPrintTokenStyle( std::string styleString)
 	{
-		std::unordered_map<std::string,std::string> styleMap = strlib::unorderedMapifyString(styleString,"=",",");
+		std::unordered_map<std::string,std::string> styleMap = stevensStringLib::unorderedMapifyString(styleString,"=",",");
 
-		styleMap = PrintTokenStyling::setMissingStylesToDefault(styleMap);
-
+		// NOTE: We intentionally do NOT fill in missing styles here. An attribute the author didn't
+		// specify must stay absent so it can inherit from a parent token, and so it isn't serialized
+		// back out as an explicit "default" (which would shadow that inheritance). Defaults are
+		// applied at print time (on the base style), not stamped onto every parsed token.
 		return styleMap;
 	}
+
 
 } // namespace PrintTokenStyling
 } // namespace stevensTerminal

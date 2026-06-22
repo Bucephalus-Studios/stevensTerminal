@@ -9,8 +9,7 @@
  * Originally created July 2019
  */
 
-#ifndef STEVENS_TERMINAL_INPUT_HPP
-#define STEVENS_TERMINAL_INPUT_HPP
+#pragma once
 
 namespace stevensTerminal {
 

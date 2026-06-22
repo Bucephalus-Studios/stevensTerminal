@@ -3,8 +3,7 @@
  * being printed using the print methods;
  */
 
-#ifndef STEVENS_TERMINAL_PRINTTOKEN_H
-#define STEVENS_TERMINAL_PRINTTOKEN_H
+#pragma once
 
 namespace stevensTerminal {
 
@@ -36,7 +35,6 @@ class PrintToken
             blink = false;
         }
 
-
         //Parameters
         PrintToken(   std::string contentParam,
                                 std::string rawTokenParam = "",
@@ -56,7 +54,6 @@ class PrintToken
             blink = blinkParam;
             styled = styledParam;
         }
-
 
         /*** Methods ***/
         /**
@@ -94,7 +91,6 @@ class PrintToken
             return styleString;
         }
 
-
         /**
          * @brief Inherit the styles of the parent token if this token is a child token.
          */
@@ -118,12 +114,8 @@ class PrintToken
             }
         }
 
-
     private:
-
 
 };
 
 } // namespace stevensTerminal
-
-#endif // STEVENS_TERMINAL_PRINTTOKEN_H

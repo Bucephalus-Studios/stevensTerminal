@@ -1,9 +1,9 @@
+#pragma once
 /**
  * Class containing useful functions for managing printing to the terminal and text
- * styling with the stevensTerminal library. 
+ * styling with the stevensTerminal library.
  */
 
-#pragma once
 
 #include <sstream>
 
@@ -13,7 +13,7 @@ namespace PrintHelper
 {
     /*** Member variables ***/
 	//Map containing all of the textColors and their respective codes for coloring text in the terminal
-	std::unordered_map<std::string,std::string> textColorCodes = {  {"red",     "31"},
+	inline std::unordered_map<std::string,std::string> textColorCodes = {  {"red",     "31"},
 																	{"orange",  "38:5:208"},
 																	{"yellow",  "33"},
 																	{"green",   "32"},
@@ -24,7 +24,7 @@ namespace PrintHelper
 																	{"grey",    "90"},
 																	{"white",   "97"}    };
 	//Map containing all of the bgColors and their respective codes for coloring backgrounds of text in the terminal
-	std::unordered_map<std::string,std::string> bgColorCodes = {    {"red",     "41"},
+	inline std::unordered_map<std::string,std::string> bgColorCodes = {    {"red",     "41"},
 																	{"orange",  "48:5:208"},
 																	{"yellow",  "43"},
 																	{"green",   "42"},
@@ -34,23 +34,7 @@ namespace PrintHelper
 																	{"black",   "40"},
 																	{"grey",    "100"},
 																	{"white",   "47"}  };
-	std::unordered_map<std::string,int> curses_colors; //Map containing curses foreground and background colors as keys and their assigned color pair as values
-	std::unordered_map<std::string,int> curses_colorCodes; //Map containing all of the curses color names and their integer values to use them in a color pair
-	const std::string curses_default_textColor = "bright-white"; //The default color to print text in curses
-	const std::string curses_default_backgroundColor = "black"; //The default text background color in curses
-
-	/**
-	 * @brief Data structure for defining color pairs in a data-driven way
-	 *
-	 * This structure allows us to define color pairs with their associated names
-	 * in a compact, maintainable format rather than hundreds of lines of repetitive code.
-	 */
-	struct ColorPairDefinition {
-		int pairNum;
-		int foreground;
-		int background;
-		std::vector<std::string> names;
-	};
+	// Color maps and setup functions have been moved to ColorHelper namespace
 
 	// /*** Constructor ***/
 	// #ifndef curses
@@ -109,39 +93,45 @@ namespace PrintHelper
 	// }
 	// #endif
 
+
 	/*** Methods ***/
 	// PROTOTYPES //
-	std::vector<PrintToken> tokenizePrintString(	std::string & input	);
-	std::string styleNonTokenText(	std::string str,
+	inline std::vector<PrintToken> tokenizePrintString(	std::string & input	);
+	inline std::string styleNonTokenText(	std::string str,
 									std::unordered_map<std::string,std::string> style,
 									std::vector<PrintToken> & tokens);
-	std::string styleTokens( 	std::string str,
+	inline std::string styleTokens( 	std::string str,
 								std::vector<PrintToken> & tokensToStyle	);
-	std::string ignoreTokenStyling(	std::string str,
+	inline std::string ignoreTokenStyling(	std::string str,
 									std::vector<PrintToken> tokensToStyle	);
-	void wrap(	std::string const &input,
+	inline void wrap(	std::string const &input,
 				int width,
 				std::ostream &os,
 				size_t indent,
 				bool newLines	);
-	void curses_wwrap(	WINDOW * win,
+	inline void curses_wwrap(	WINDOW * win,
 						int yMove,
 						int xMove,
 						std::string printString,
 						size_t indent = 0,
 						std::unordered_map<std::string,std::string> style = {});
-	void curses_wwrap_withTokens(	WINDOW * win,
+	inline void curses_wwrap_withTokens(	WINDOW * win,
 									int yMove,
 									int xMove,
 									std::vector<PrintToken> tokens,
 									std::unordered_map<std::string,std::string> style,
 									std::unordered_map<std::string,std::string> format,
 									bool textStyling	);
+	inline std::vector<std::string> computeWrapSegments(
+									std::string line,
+									int xMove,
+									int width,
+									int borderAdjustment = 0);
 	// END PROTOTYPES //
 	
 	
 	#if defined(__linux__) || defined (__APPLE__)
-	std::string styleText	(	std::string input,
+	inline std::string styleText	(	std::string input,
 								std::string textColor = "default",
 								std::string bgColor = "default", 
 								bool bold = false, 
@@ -225,6 +215,7 @@ namespace PrintHelper
 		return input;
 	}
 
+
 	/*
 	Handles any output in the terminal to make it look good and fit within a certain character range
 	
@@ -238,7 +229,7 @@ namespace PrintHelper
 								sentence above would just be printed as:
 								"The quick brown fox jumps over the lazy dog"
 
-		unordered_map<std::string, std::String> format -	A map containing all of the possible formatting options
+		std::unordered_map<std::string, std::String> format -	A map containing all of the possible formatting options
 															for the text being printed. The possible key-value pairs
 															are as follows:
 													"wrapped", "true"/"false"
@@ -264,12 +255,12 @@ namespace PrintHelper
 	Output:
 		Prints text to stdout with cout.
 	*/
-	void print(	std::string input,
+	inline void print(	std::string input,
 				std::unordered_map<std::string, std::string> style,
 				std::unordered_map<std::string, std::string> format,
 				bool usingTextStyling,
 				std::pair<int,int> screenSize,
-				std::map<std::string, TerminalDisplayMode> displayModes, 
+				std::map<std::string, DisplayMode> displayModes, 
 				std::string currentDisplayMode  )
 	{
 		//First, we process our input to find all instances of tokenized text, we'll call them tokens from now on
@@ -291,7 +282,7 @@ namespace PrintHelper
 		}
 
 		//How do we want the text formatted when printed to the screen? Wrapped or not?
-		if(strlib::stringToBool(format["wrap"]))
+		if(stevensStringLib::stringToBool(format["wrap"]))
 		{
 			if(displayModes.contains(currentDisplayMode))
 			{
@@ -299,7 +290,7 @@ namespace PrintHelper
 						displayModes[currentDisplayMode].minSize.first,
 						std::cout,
 						0,
-						strlib::stringToBool(format["preserve newlines on wrap"])	);
+						stevensStringLib::stringToBool(format["preserve newlines on wrap"])	);
 			}
 			else
 			{
@@ -307,7 +298,7 @@ namespace PrintHelper
 						screenSize.first-1,
 						std::cout,
 						0,
-						strlib::stringToBool(format["preserve newlines on wrap"])	);
+						stevensStringLib::stringToBool(format["preserve newlines on wrap"])	);
 			}
 		}
 		else
@@ -316,6 +307,7 @@ namespace PrintHelper
 		}
 	}
 	#endif
+
 
 	//Taken from: https://stackoverflow.com/questions/61570201/is-there-a-way-to-prevent-words-from-getting-cut-in-c-output
 	/*
@@ -331,7 +323,7 @@ namespace PrintHelper
 	** Output:
 	**		The wrapped text to the given output stream
 	*/
-	void wrap(	std::string const &input,
+	inline void wrap(	std::string const &input,
 				int width,
 				std::ostream &os,
 				size_t indent,
@@ -339,12 +331,12 @@ namespace PrintHelper
 	{
 		std::istringstream in(input);
 		os << std::string(indent, ' ');
-		size_t current = indent;
+		// size_t current = indent; // (unused)
 		std::string line;
 		std::string word;
 		std::string output = "";
 		int lineCutOffIndex = 0;
-		int numberOfLines = strlib::countLines(input);
+		int numberOfLines = stevensStringLib::countLines(input);
 		int currLineNum = 0;
 
 		while(getline(in,line))
@@ -394,6 +386,7 @@ namespace PrintHelper
 		os << output;
 	}
 
+
 	/**
 	 * Given a string str and a vector containing the tokens appearing in str in order, return a vector 
 	 * of tokens containing the sections of unstyled text and the tokens of the string in order.
@@ -414,7 +407,7 @@ namespace PrintHelper
 	 * 	std::vector<PrintToken> - Vector containing print token objects for every part of the print string, not just the specficially
 	 * 										styled tokens we already have (which are included in the output vector)
 	*/
-	std::vector<PrintToken> tokenizeBetweenTokens(	std::string & str,
+	inline std::vector<PrintToken> tokenizeBetweenTokens(	std::string & str,
 																std::vector<PrintToken> tokens	)
 	{
 		//Start at the beginning of str
@@ -424,7 +417,7 @@ namespace PrintHelper
 		std::vector<PrintToken> tokensToReturn = {};
 
 		//For each token, tokenize everything up to where it occurs in str
-		for(int i = 0; i < tokens.size(); i++)
+		for(size_t i = 0; i < tokens.size(); i++)
 		{
 			//Before we try to tokenize everything up until the token we're looking at, let's see if there's actually any content up until the token
 			if(startingIndex == tokens[i].existsAtIndex)
@@ -459,7 +452,7 @@ namespace PrintHelper
 
 			// Increment the existsAtIndex of all tokens that come after the current token in the vector
 			size_t lengthDifference = betweenToken.rawToken.length() - contentToTokenize.length();
-			for (int j = i; j < tokens.size(); j++) {
+			for (size_t j = i; j < tokens.size(); j++) {
 				tokens[j].existsAtIndex += lengthDifference;
 			}
 
@@ -491,6 +484,7 @@ namespace PrintHelper
 		return tokensToReturn;
 	}
 
+
 	/**
 	 * Given a string that is being printed and may have formatting brackets,
 	 * tokenize all the the parts of the string that have formatting brackets
@@ -501,12 +495,12 @@ namespace PrintHelper
 	 * 	std::string input - A string that possibly contains tokens to process.
 	 * 
 	 * Returns:
-	 * 	vector<PrintToken> - A vector containing tokens found in the input string.
+	 * 	std::vector<PrintToken> - A vector containing tokens found in the input string.
 	*/
 	
 	// Forward declarations
-	std::string processNestedContent(const std::string& content, const std::string& parentStyle);
-	std::string inheritParentStyle(const std::string& nestedStyle, const std::string& parentStyle);
+	inline std::string processNestedContent(const std::string& content, const std::string& parentStyle);
+	inline std::string inheritParentStyle(const std::string& nestedStyle, const std::string& parentStyle);
 	
 	// OPTIMIZED: Fast inline pattern matching without substr()
 	inline bool matchesTokenEnd(const std::string& input, size_t pos) {
@@ -517,7 +511,7 @@ namespace PrintHelper
 	}
 	
 	// OPTIMIZED: Single-pass brace matching with optimized pattern detection
-	size_t findMatchingTokenEnd(const std::string& input, size_t openBrace) {
+	inline size_t findMatchingTokenEnd(const std::string& input, size_t openBrace) {
 		int braceCount = 1;
 		size_t pos = openBrace + 1;
 		const size_t inputLen = input.length();
@@ -552,7 +546,7 @@ namespace PrintHelper
 	};
 	
 	// OPTIMIZED: Single-pass token info extraction
-	TokenInfo extractTokenInfo(const std::string& input, size_t openBrace) {
+	inline TokenInfo extractTokenInfo(const std::string& input, size_t openBrace) {
 		TokenInfo info = {0, 0, 0, 0, false};
 		int braceCount = 1;
 		size_t pos = openBrace + 1;
@@ -590,7 +584,7 @@ namespace PrintHelper
 	}
 	
 	// OPTIMIZED: Fast preprocessing with reduced string operations
-	std::string preprocessNestedTokens(std::string input) {
+	inline std::string preprocessNestedTokens(std::string input) {
 		// Quick early exit if no tokens present
 		if (input.find("}$[") == std::string::npos) {
 			return input;
@@ -601,9 +595,8 @@ namespace PrintHelper
 		result.reserve(input.length() * 2); // Heuristic: nested tokens typically expand
 		
 		size_t pos = 0;
-		const size_t inputLen = input.length();
-		
-		while (pos < inputLen) {
+
+		while (pos < input.length()) {
 			size_t openBrace = input.find('{', pos);
 			if (openBrace == std::string::npos) break;
 			
@@ -635,7 +628,7 @@ namespace PrintHelper
 	}
 	
 	// OPTIMIZED: High-performance recursive nested content processor
-	void processNestedContent(const std::string& content, const std::string& parentStyle, std::string& result) {
+	inline void processNestedContent(const std::string& content, const std::string& parentStyle, std::string& result) {
 		const size_t contentLen = content.length();
 		size_t pos = 0;
 		
@@ -690,7 +683,7 @@ namespace PrintHelper
 	}
 	
 	// OPTIMIZED: Wrapper function for backward compatibility
-	std::string processNestedContent(const std::string& content, const std::string& parentStyle) {
+	inline std::string processNestedContent(const std::string& content, const std::string& parentStyle) {
 		std::string result;
 		result.reserve(content.length() * 2); // Heuristic for nested expansion
 		processNestedContent(content, parentStyle, result);
@@ -698,7 +691,7 @@ namespace PrintHelper
 	}
 	
 	// OPTIMIZED: Fast style parsing without stringstream overhead
-	void parseStyleString(const std::string& style, std::unordered_map<std::string, std::string>& styleMap) {
+	inline void parseStyleString(const std::string& style, std::unordered_map<std::string, std::string>& styleMap) {
 		if (style.empty()) return;
 		
 		size_t pos = 0;
@@ -721,7 +714,7 @@ namespace PrintHelper
 	}
 	
 	// OPTIMIZED: Fast style inheritance with reused maps
-	std::string inheritParentStyle(const std::string& nestedStyle, const std::string& parentStyle) {
+	inline std::string inheritParentStyle(const std::string& nestedStyle, const std::string& parentStyle) {
 		// Use static thread-local maps to avoid repeated allocations
 		static thread_local std::unordered_map<std::string, std::string> parentMap;
 		static thread_local std::unordered_map<std::string, std::string> nestedMap;
@@ -757,7 +750,7 @@ namespace PrintHelper
 		return result;
 	}
 
-	std::vector<PrintToken> tokenizePrintString(	std::string & input	)
+	inline std::vector<PrintToken> tokenizePrintString(	std::string & input	)
 	{
 		// First, preprocess any nested tokens
 		input = preprocessNestedTokens(input);
@@ -776,7 +769,7 @@ namespace PrintHelper
 		//std::stack<int> parentTokenPositions = {};
 
 		//Iterate over each character in the string
-		for(int i = 0; i < input.length(); i++)
+		for(size_t i = 0; i < input.length(); i++)
 		{
 			switch(styled_tokenFindStage)
 			{
@@ -892,7 +885,7 @@ namespace PrintHelper
 								size_t  lengthDifference = 0; // Tracks the total length difference introduced by modifications
 
 								//We split the parent token into tokens before and after each nested token, applying the style of the parent token
-								for( int n = 0; n < nestedTokenVector.size(); n++)
+								for( size_t n = 0; n < nestedTokenVector.size(); n++)
 								{
 									/*** Create token before nested token ***/
 									//Get the nested token location
@@ -989,13 +982,14 @@ namespace PrintHelper
 		return tokenVector;
 	}
 
+
 	/**
 	 * Given a vector of PrintTokens, log them and all of their member variables to a file.
 	 * Useful for debugging and understanding what is and isn't being tokenized.
 	 * 
 	 * Parameters:
 	*/
-	void logTokens(	std::vector<PrintToken> tokens)
+	inline void logTokens(	std::vector<PrintToken> tokens)
 	{
 		//Create a file.
 		std::ofstream tokenLog ("s_Terminal_tokenLog.txt", std::ios::out | std::ios::app);
@@ -1004,7 +998,7 @@ namespace PrintHelper
 			//Opening brace
 			tokenLog << "{";
 			//Now we write to the token log for each token we have and all of its variables
-			for(int i = 0; i < tokens.size(); i++)
+			for(size_t i = 0; i < tokens.size(); i++)
 			{	
 				tokenLog << "\n\t{\n";
 				tokenLog << "\t\tstyled : " 		<< tokens[i].styled << "\n";
@@ -1025,6 +1019,7 @@ namespace PrintHelper
 		}
 	}
 
+
 	/**
 	 * Given a string str, a map containing style directives, and a vector of style tokens contained in str,
 	 * apply ANSI styling to all non-tokenized parts of str.
@@ -1039,7 +1034,7 @@ namespace PrintHelper
 	 * 	std::string - An edited
 	 * 	
 	*/
-	std::string styleNonTokenText(	std::string str,
+	inline std::string styleNonTokenText(	std::string str,
 									std::unordered_map<std::string,std::string> style,
 									std::vector<PrintToken> & tokens)
 	{
@@ -1051,8 +1046,8 @@ namespace PrintHelper
 			return styleText(	str,
 								style["textColor"],
 								style["bgColor"],
-								strlib::stringToBool(style["bold"]),
-								strlib::stringToBool(style["flash"]));
+								stevensStringLib::stringToBool(style["bold"]),
+								stevensStringLib::stringToBool(style["flash"]));
 		}
 		else
 		{
@@ -1062,7 +1057,7 @@ namespace PrintHelper
 			int styleStartIndex = 0; //The index we are beginning styling at
 
 			//For every token we have, style all the non-token text right up to before it
-			for(int i = 0; i < tokens.size(); i++)
+			for(size_t i = 0; i < tokens.size(); i++)
 			{
 				//Get all the text right up to before the token
 				nonTokenTextContent = str.substr(styleStartIndex, (tokens[i].existsAtIndex-styleStartIndex));
@@ -1071,8 +1066,8 @@ namespace PrintHelper
 				styledContent = styleText(	nonTokenTextContent,
 											style["textColor"],
 											style["bgColor"],
-											strlib::stringToBool(style["bold"]),
-											strlib::stringToBool(style["flash"])	);
+											stevensStringLib::stringToBool(style["bold"]),
+											stevensStringLib::stringToBool(style["flash"])	);
 
 				//Erase the non-token text content from the original string
 				str.erase(styleStartIndex, nonTokenTextContent.length());			
@@ -1084,7 +1079,7 @@ namespace PrintHelper
 				startingIndexAdjustment = styledContent.length() - nonTokenTextContent.length();
 				
 				//For each remaining token, adjust the indices at which the tokens exist based upon the size change of str
-				for(int k = i; k < tokens.size(); k++)
+				for(size_t k = i; k < tokens.size(); k++)
 				{
 					tokens[k].existsAtIndex += startingIndexAdjustment;
 				}
@@ -1096,6 +1091,7 @@ namespace PrintHelper
 
 		return str;
 	}
+
 
 	/**
 	 * Given a string str and a vector of PrintTokens found in str, restyle the str based on the styling instructions indicated 
@@ -1110,7 +1106,7 @@ namespace PrintHelper
 	 * Returns:
 	 * 	std::string - A string styled appropriately with ANSI codes as directed from the tokensToStyle vector
 	 */
-	std::string styleTokens( 	std::string str,
+	inline std::string styleTokens( 	std::string str,
 								std::vector<PrintToken> & tokensToStyle	)
 	{
 		if(tokensToStyle.size() == 0)
@@ -1123,7 +1119,7 @@ namespace PrintHelper
 			int startingIndexAdjustment = 0;
 
 			//For each token in the tokensToStyle vector
-			for(int i = 0; i < tokensToStyle.size(); i++)
+			for(size_t i = 0; i < tokensToStyle.size(); i++)
 			{
 				//Style the content from the token
 				styledContent = styleText(	tokensToStyle[i].content,
@@ -1141,7 +1137,7 @@ namespace PrintHelper
 				//For each remaining token, adjust the indices at which the tokens exist based upon the size change of str
 				startingIndexAdjustment = styledContent.length() - tokensToStyle[i].rawToken.length();
 				//startingIndexAdjustment = tokensToStyle[i].rawToken.length() - styledContent.length();
-				for(int k = i; k < tokensToStyle.size(); k++)
+				for(size_t k = i; k < tokensToStyle.size(); k++)
 				{
 					tokensToStyle[k].existsAtIndex += startingIndexAdjustment;
 				}
@@ -1150,6 +1146,7 @@ namespace PrintHelper
 		
 		return str;
 	}
+
 
 	/**
 	 * Given a string, str, and std::vector<PrintToken>, find all the instances of the
@@ -1162,14 +1159,14 @@ namespace PrintHelper
 		* Returns:
 		* 	std::string - The input string str, but with all of the raw tokens removed.
 		*/
-	std::string ignoreTokenStyling(	std::string str,
+	inline std::string ignoreTokenStyling(	std::string str,
 									std::vector<PrintToken> tokensToStyle	)
 	{
 		    // Track the cumulative length difference caused by replacements
 			int cumulativeLengthDifference = 0;
 
 			// For each token in the tokensToStyle vector
-			for (int i = 0; i < tokensToStyle.size(); i++) {
+			for (size_t i = 0; i < tokensToStyle.size(); i++) {
 				// Adjust the existsAtIndex of the current token based on the cumulative length difference
 				tokensToStyle[i].existsAtIndex += cumulativeLengthDifference;
 		
@@ -1189,302 +1186,8 @@ namespace PrintHelper
 			return str;
 	}
 
-	#ifdef curses
-	/**
-	 * @brief Detects how many curses colors the terminal can display, and appropriately populates a map (curses_colorCodes)
-	 * where each color is mapped to its integer value.
-	 * 
-	 * @return void
-	 */
-	void curses_setup_colorCodes()
-	{
-		//First 2 colors
-		if(COLORS >= 2)
-		{
-			curses_colorCodes["black"] = COLOR_BLACK;
-			curses_colorCodes["white"] = COLOR_WHITE;
-		}
-		else
-		{
-			cout << "Error from stevensTerminal::PrintHelper - less than 2 colors available for use detected! Closing program." << endl;
-			//TODO: Work on this later, but we need to throw some kind of error if we can't support more than 2 colors in a terminal
-			exit(EXIT_FAILURE);
-		}
-		//8 colors
-		if(COLORS >= 8)
-		{
-			curses_colorCodes["red"] 		= COLOR_RED;
-			curses_colorCodes["green"] 		= COLOR_GREEN;
-			curses_colorCodes["yellow"]		= COLOR_YELLOW;
-			curses_colorCodes["blue"]		= COLOR_BLUE;
-			curses_colorCodes["magenta"]	= COLOR_MAGENTA;
-			curses_colorCodes["cyan"]		= COLOR_CYAN;
-		}
-		//16 colors
-		if(COLORS >= 16)
-		{
-			curses_colorCodes["bright-black"]	= 8;	curses_colorCodes["grey"] = 8;
-			curses_colorCodes["bright-red"]		= 9;
-			curses_colorCodes["bright-green"]	= 10;
-			curses_colorCodes["bright-yellow"] 	= 11;
-			curses_colorCodes["bright-blue"]	= 12;	curses_colorCodes["aqua"] = 12;
-			curses_colorCodes["bright-magenta"] = 13;	curses_colorCodes["pink"] = 13;
-			curses_colorCodes["bright-cyan"]	= 14;
-			curses_colorCodes["bright-white"]	= 15;
-		}
-	}
 
-	/**
-	 * @brief Helper function to register a batch of color pair definitions
-	 *
-	 * @param definitions Vector of ColorPairDefinition structs to register
-	 */
-	inline void registerColorPairs(const std::vector<ColorPairDefinition>& definitions) {
-		for (const auto& def : definitions) {
-			init_pair(def.pairNum, def.foreground, def.background);
-			for (const auto& name : def.names) {
-				curses_colors[name] = def.pairNum;
-			}
-		}
-	}
 
-	/**
-	 * @brief Helper to generate color pair definitions for a given background across all foregrounds
-	 *
-	 * @param startPairNum Starting pair number
-	 * @param bgColor Background color code
-	 * @param bgName Background color name (e.g., "black", "red", "bright-blue")
-	 * @param fgColors Vector of foreground color codes
-	 * @param fgNames Vector of foreground color names (parallel to fgColors)
-	 * @param extraAliases Map of pair offsets to additional alias names
-	 * @return Vector of ColorPairDefinition structs
-	 */
-	inline std::vector<ColorPairDefinition> generateBackgroundPairs(
-		int startPairNum,
-		int bgColor,
-		const std::string& bgName,
-		const std::vector<int>& fgColors,
-		const std::vector<std::string>& fgNames,
-		const std::unordered_map<int, std::vector<std::string>>& extraAliases = {}
-	) {
-		std::vector<ColorPairDefinition> defs;
-		for (size_t fgIndex = 0; fgIndex < fgColors.size(); ++fgIndex) {
-			std::vector<std::string> names = {fgNames[fgIndex] + "_on_" + bgName};
-
-			// Add any extra aliases for this pair
-			int pairOffset = static_cast<int>(fgIndex);
-			auto aliasIt = extraAliases.find(pairOffset);
-			if (aliasIt != extraAliases.end()) {
-				names.insert(names.end(), aliasIt->second.begin(), aliasIt->second.end());
-			}
-
-			defs.push_back({
-				startPairNum + static_cast<int>(fgIndex),
-				fgColors[fgIndex],
-				bgColor,
-				names
-			});
-		}
-		return defs;
-	}
-
-	/**
-	 * @brief Helper to generate all 16 foreground combinations (8 standard + 8 bright) for a bright background
-	 *
-	 * Handles the complex aliasing where bright backgrounds have alternate names (grey, aqua, pink)
-	 * and bright foregrounds also have these aliases.
-	 *
-	 * @param startPairNum Starting pair number
-	 * @param bgColor Background color code (8-15)
-	 * @param bgName Background color name (e.g., "bright-black")
-	 * @param bgAlias Optional alias for background (e.g., "grey")
-	 * @return Vector of ColorPairDefinition structs for all 16 foregrounds
-	 */
-	inline std::vector<ColorPairDefinition> generateBrightBackgroundPairs(
-		int startPairNum,
-		int bgColor,
-		const std::string& bgName,
-		const std::string& bgAlias = ""
-	) {
-		std::vector<ColorPairDefinition> defs;
-
-		// Standard 8 foregrounds
-		const std::vector<int> std8FG = {COLOR_BLACK, COLOR_RED, COLOR_GREEN, COLOR_YELLOW,
-		                                  COLOR_BLUE, COLOR_MAGENTA, COLOR_CYAN, COLOR_WHITE};
-		const std::vector<std::string> std8Names = {"black", "red", "green", "yellow",
-		                                             "blue", "magenta", "cyan", "white"};
-
-		for (size_t i = 0; i < 8; ++i) {
-			std::vector<std::string> names = {std8Names[i] + "_on_" + bgName};
-			if (!bgAlias.empty()) {
-				names.push_back(std8Names[i] + "_on_" + bgAlias);
-			}
-			defs.push_back({startPairNum + static_cast<int>(i), std8FG[i], bgColor, names});
-		}
-
-		// Bright 8 foregrounds (8-15) with their aliases
-		const std::vector<int> bright8FG = {8, 9, 10, 11, 12, 13, 14, 15};
-		const std::vector<std::string> bright8Names = {
-			"bright-black", "bright-red", "bright-green", "bright-yellow",
-			"bright-blue", "bright-magenta", "bright-cyan", "bright-white"
-		};
-		const std::vector<std::string> bright8Aliases = {"grey", "", "", "", "aqua", "pink", "", ""};
-
-		for (size_t i = 0; i < 8; ++i) {
-			std::vector<std::string> names = {bright8Names[i] + "_on_" + bgName};
-			if (!bgAlias.empty()) {
-				names.push_back(bright8Names[i] + "_on_" + bgAlias);
-			}
-
-			// Add foreground alias variants if applicable
-			if (!bright8Aliases[i].empty()) {
-				names.push_back(bright8Aliases[i] + "_on_" + bgName);
-				if (!bgAlias.empty()) {
-					names.push_back(bright8Aliases[i] + "_on_" + bgAlias);
-				}
-			}
-
-			// Special case: when both FG and BG are the same aliased color
-			if (bright8FG[i] == bgColor && !bright8Aliases[i].empty() && !bgAlias.empty()) {
-				names.push_back(bright8Aliases[i] + "_on_" + bright8Names[i]);
-				if (bright8Aliases[i] == bgAlias) {
-					names.push_back(bgAlias + "_on_" + bgAlias);
-				}
-			}
-
-			defs.push_back({startPairNum + 8 + static_cast<int>(i), bright8FG[i], bgColor, names});
-		}
-
-		return defs;
-	}
-
-	/**
-	 * Sets up color pairs for every combination of the default colors in the curses library:
-	 * COLOR_BLACK, COLOR_RED, COLOR_GREEN, COLOR_YELLOW,
-	 * COLOR_BLUE, COLOR_MAGENTA, COLOR_CYAN, COLOR_WHITE
-	 *
-	 * Also the extended bright colors:
-	 * 8  - Bright black  (GREY)
-	 * 9  - Bright red
-	 * 10 - Bright green
-	 * 11 - Bright yellow
-	 * 12 - Bright blue   (AQUA)
-	 * 13 - Bright magenta (PINK)
-	 * 14 - Bright cyan
-	 * 15 - Bright white
-	 *
-	 * Additionally, populates the curses_colors map.
-	 *
-	 * This function uses a data-driven approach to reduce code repetition
-	 * from 320+ lines to ~100 lines while maintaining identical functionality.
-	 */
-	void curses_setup_colorPairs()
-	{
-		// Syntax is: init_pair(keyInCOLOR_PAIR, foregroundColor, backgroundColor)
-
-		// If we support just one color pair, then we just do white on black (default)
-		if ((COLORS >= 2) && (COLOR_PAIRS >= 1)) {
-			registerColorPairs({{0, COLOR_WHITE, COLOR_BLACK, {"default"}}});
-		} else {
-			// Error: Cannot support colors
-			std::cout << "Error from stevensTerminal::PrintHelper - less than 2 colors available for use detected! Closing program." << std::endl;
-			exit(EXIT_FAILURE);
-		}
-
-		// If we support two color pairs, we also do black on black
-		if (COLOR_PAIRS >= 2) {
-			registerColorPairs({{1, COLOR_BLACK, COLOR_BLACK, {"black_on_black"}}});
-		}
-
-		// Define standard 8 colors for reuse
-		const std::vector<int> standard8Colors = {
-			COLOR_BLACK, COLOR_RED, COLOR_GREEN, COLOR_YELLOW,
-			COLOR_BLUE, COLOR_MAGENTA, COLOR_CYAN, COLOR_WHITE
-		};
-		const std::vector<std::string> standard8Names = {
-			"black", "red", "green", "yellow",
-			"blue", "magenta", "cyan", "white"
-		};
-
-		// If we support 8 color pairs, do the rest of black backgrounds (already did black_on_black)
-		if ((COLORS >= 8) && (COLOR_PAIRS >= 8)) {
-			// Black background: red through white (pairs 2-8)
-			registerColorPairs(generateBackgroundPairs(2, COLOR_BLACK, "black",
-				{COLOR_RED, COLOR_GREEN, COLOR_YELLOW, COLOR_BLUE, COLOR_MAGENTA, COLOR_CYAN, COLOR_WHITE},
-				{"red", "green", "yellow", "blue", "magenta", "cyan", "white"}));
-		}
-
-		// If we support up to 16 color pairs, do red backgrounds
-		if ((COLORS >= 8) && (COLOR_PAIRS >= 16)) {
-			registerColorPairs(generateBackgroundPairs(9, COLOR_RED, "red", standard8Colors, standard8Names));
-		}
-
-		// If we support up to 64 color pairs, do the rest of the standard 8 color backgrounds
-		if ((COLORS >= 8) && (COLOR_PAIRS >= 64)) {
-			// Green, yellow, blue, magenta, cyan, white backgrounds (pairs 17-64)
-			const std::vector<std::pair<int, std::string>> backgrounds = {
-				{COLOR_GREEN, "green"}, {COLOR_YELLOW, "yellow"}, {COLOR_BLUE, "blue"},
-				{COLOR_MAGENTA, "magenta"}, {COLOR_CYAN, "cyan"}, {COLOR_WHITE, "white"}
-			};
-
-			int pairNum = 17;
-			for (const auto& [bgColor, bgName] : backgrounds) {
-				registerColorPairs(generateBackgroundPairs(pairNum, bgColor, bgName,
-					standard8Colors, standard8Names));
-				pairNum += 8;
-			}
-		}
-		// If we support up to 16 colors and 128 color pairs, add pairs for colors 8-15 as foregrounds on the 0-7 backgrounds
-		if ((COLORS >= 16) && (COLOR_PAIRS >= 128)) {
-			// Define extended 8 bright colors (8-15)
-			const std::vector<int> bright8Colors = {8, 9, 10, 11, 12, 13, 14, 15};
-			const std::vector<std::string> bright8Names = {
-				"bright-black", "bright-red", "bright-green", "bright-yellow",
-				"bright-blue", "bright-magenta", "bright-cyan", "bright-white"
-			};
-
-			// Aliases for certain bright colors
-			const std::unordered_map<int, std::vector<std::string>> brightColorAliases = {
-				{0, {"grey"}},           // bright-black = grey
-				{4, {"aqua"}},           // bright-blue = aqua
-				{5, {"pink"}}            // bright-magenta = pink
-			};
-
-			// Background names for the standard 8 backgrounds
-			const std::vector<std::pair<int, std::string>> std8Backgrounds = {
-				{COLOR_BLACK, "black"}, {COLOR_RED, "red"}, {COLOR_GREEN, "green"},
-				{COLOR_YELLOW, "yellow"}, {COLOR_BLUE, "blue"}, {COLOR_MAGENTA, "magenta"},
-				{COLOR_CYAN, "cyan"}, {COLOR_WHITE, "white"}
-			};
-
-			int pairNum = 65;
-			for (const auto& [bgColor, bgName] : std8Backgrounds) {
-				registerColorPairs(generateBackgroundPairs(pairNum, bgColor, bgName,
-					bright8Colors, bright8Names, brightColorAliases));
-				pairNum += 8;
-			}
-		}
-		// Create a color pair for each one of the 8 additional brightened colors as background (pairs 129-256)
-		if ((COLORS >= 16) && (COLOR_PAIRS >= 256)) {
-			// Define bright backgrounds with their aliases
-			const std::vector<std::tuple<int, std::string, std::string>> brightBackgrounds = {
-				{8, "bright-black", "grey"},
-				{9, "bright-red", ""},
-				{10, "bright-green", ""},
-				{11, "bright-yellow", ""},
-				{12, "bright-blue", "aqua"},
-				{13, "bright-magenta", "pink"},
-				{14, "bright-cyan", ""},
-				{15, "bright-white", ""}
-			};
-
-			int pairNum = 129;
-			for (const auto& [bgColor, bgName, bgAlias] : brightBackgrounds) {
-				registerColorPairs(generateBrightBackgroundPairs(pairNum, bgColor, bgName, bgAlias));
-				pairNum += 16; // Each bright background gets 16 foregrounds
-			}
-		}
-	}
 
 	/**
 	 * Given an PrintToken, retrieve all of the data for attributes we need to turn on.
@@ -1495,21 +1198,40 @@ namespace PrintHelper
 	 * Returns:
 	 * 	void
 	*/
-	unordered_map<std::string,int>	curses_styleToken(	PrintToken token	)
+	inline std::unordered_map<std::string,int>	curses_styleToken(	PrintToken token	)
 	{
-		unordered_map<std::string,int> curses_attribute_data = {};
+		std::unordered_map<std::string,int> curses_attribute_data = {};
 
 		/*** COLOR ***/
-		if(token.textColor == "default")
+		// An unspecified (empty) or explicitly-"default" attribute renders as the terminal default.
+		// Defaults are applied here, at print time, rather than being stamped onto tokens at parse
+		// time (which would prevent inheritance — see PrintToken::inheritStyle).
+		if(token.textColor == "default" || token.textColor.empty())
 		{
-			token.textColor = curses_default_textColor;
+			token.textColor = Colors::curses_default_textColor;
 		}
-		if(token.bgColor == "default")
+		if(token.bgColor == "default" || token.bgColor.empty())
 		{
-			token.bgColor = curses_default_backgroundColor;
+			token.bgColor = Colors::curses_default_backgroundColor;
 		}
 		std::string color_key = token.textColor + "_on_" + token.bgColor;
-		curses_attribute_data["colorPair"] = COLOR_PAIR(curses_colors[color_key]);
+
+		// Check if color pair exists, throw error if not
+		if(!Colors::curses_colorPairs.contains(color_key))
+		{
+			std::string error_msg = "ERROR: stevensTerminal - Color pair '" + color_key +
+			                       "' does not exist! Available COLORS=" +
+			                       std::to_string(COLORS) + ", COLOR_PAIRS=" +
+			                       std::to_string(COLOR_PAIRS) + ". " +
+			                       "This combination may require more color pair support.";
+			std::cerr << error_msg << std::endl;
+			// Fallback to default color pair
+			curses_attribute_data["colorPair"] = COLOR_PAIR(0);
+		}
+		else
+		{
+			curses_attribute_data["colorPair"] = COLOR_PAIR(Colors::curses_colorPairs[color_key]);
+		}
 
 		/*** BLINK ***/
 		if( token.blink )
@@ -1531,15 +1253,56 @@ namespace PrintHelper
 			curses_attribute_data["bold"] = 0;
 		}
 
+		/*** UNDERLINE ***/
+		if( token.underline )
+		{
+			curses_attribute_data["underline"] = A_UNDERLINE;
+		}
+		else
+		{
+			curses_attribute_data["underline"] = 0;
+		}
+
+		/*** REVERSE ***/
+		if( token.reverse )
+		{
+			curses_attribute_data["reverse"] = A_REVERSE;
+		}
+		else
+		{
+			curses_attribute_data["reverse"] = 0;
+		}
+
+		/*** DIM ***/
+		if( token.dim )
+		{
+			curses_attribute_data["dim"] = A_DIM;
+		}
+		else
+		{
+			curses_attribute_data["dim"] = 0;
+		}
+
+		/*** ITALIC ***/
+		if( token.italic )
+		{
+			curses_attribute_data["italic"] = A_ITALIC;
+		}
+		else
+		{
+			curses_attribute_data["italic"] = 0;
+		}
+
 		return curses_attribute_data;
 	}
+
 
 	/**
 	 * Given a map describing the styles to be applied to non-tokenized text, create a map of attribute
 	 * names and their associated values which should be turned on in curses to style the text.
 	 * 
 	 * Parameter:
-	 * 	unordered_map<std::string,std::string> style -	An unordered_map object containing keys of specific style options for text
+	 * 	std::unordered_map<std::string,std::string> style -	An unordered_map object containing keys of specific style options for text
 	 * 													with associated values which describe how to express the style option.
 	 * 													{
 	 * 														{"textColor"	: the color of the text in the foreground},
@@ -1551,22 +1314,22 @@ namespace PrintHelper
 	 * Returns:
 	 * 	void
 	*/
-	unordered_map<std::string,int> curses_styleAttributes(	unordered_map<std::string,std::string> style	)
+	inline std::unordered_map<std::string,int> curses_styleAttributes(	std::unordered_map<std::string,std::string> style	)
 	{
-		unordered_map<std::string,int> curses_attribute_data = {};
+		std::unordered_map<std::string,int> curses_attribute_data = {};
 
 		/*** COLOR ***/
 		if(style["textColor"] == "default")
 		{
-			style["textColor"] = curses_default_textColor;
+			style["textColor"] = Colors::curses_default_textColor;
 		}
 		if(style["bgColor"] == "default")
 		{
-			style["bgColor"] = curses_default_backgroundColor;
+			style["bgColor"] = Colors::curses_default_backgroundColor;
 		}
 		std::string color_key = style["textColor"] + "_on_" + style["bgColor"];
 
-		curses_attribute_data["colorPair"] = COLOR_PAIR(curses_colors[color_key]);
+		curses_attribute_data["colorPair"] = COLOR_PAIR(Colors::curses_colorPairs[color_key]);
 
 		//printw("%s", color_key.c_str());
 		/*** BlINK ***/
@@ -1589,22 +1352,63 @@ namespace PrintHelper
 			curses_attribute_data["bold"] = 0;
 		}
 
+		/*** UNDERLINE ***/
+		if(style["underline"] == "true")
+		{
+			curses_attribute_data["underline"] = A_UNDERLINE;
+		}
+		else
+		{
+			curses_attribute_data["underline"] = 0;
+		}
+
+		/*** REVERSE ***/
+		if(style["reverse"] == "true")
+		{
+			curses_attribute_data["reverse"] = A_REVERSE;
+		}
+		else
+		{
+			curses_attribute_data["reverse"] = 0;
+		}
+
+		/*** DIM ***/
+		if(style["dim"] == "true")
+		{
+			curses_attribute_data["dim"] = A_DIM;
+		}
+		else
+		{
+			curses_attribute_data["dim"] = 0;
+		}
+
+		/*** ITALIC ***/
+		if(style["italic"] == "true")
+		{
+			curses_attribute_data["italic"] = A_ITALIC;
+		}
+		else
+		{
+			curses_attribute_data["italic"] = 0;
+		}
+
 		return curses_attribute_data;
 	}
+
 
 	/**
 	 * For a curses window, turns on the attributes that are defined in the passed-in map.
 	 * 
 	 * Parameters:
 	 * 	WINDOW * win - The window which we are turning on curses attributes for.
-	 * 	unordered_map<std::string, int> curses_attribute_data - A map containing all of the attribute names (keys) and the attribute values (values)
+	 * 	std::unordered_map<std::string, int> curses_attribute_data - A map containing all of the attribute names (keys) and the attribute values (values)
 	 * 															to turn on for the curses window.
 	 * 
 	 * Returns:
 	 * 	void;
 	*/
-	void curses_wAttrOn(	WINDOW * win,
-							unordered_map<std::string, int> curses_attribute_data	)
+	inline void curses_wAttrOn(	WINDOW * win,
+							std::unordered_map<std::string, int> curses_attribute_data	)
 	{
 		for (auto const& [attrName, attrVal] : curses_attribute_data)
 		{
@@ -1612,19 +1416,20 @@ namespace PrintHelper
 		}
 	}
 
+
 	/**
 	 * Turns off curses attributes for a window that are defined in a passed-map.. 
 	 * 
 	 * Parameters:
 	 * 	WINDOW * win - The wind which we are turning off curses attributes for.
-	 * 	unordered_map<std::string, int> curses_attribute_data - A map containing all of the attribute names (keys) and the attribute values (values)
+	 * 	std::unordered_map<std::string, int> curses_attribute_data - A map containing all of the attribute names (keys) and the attribute values (values)
 	 * 															to turn off for the curses window.
 	 * 
 	 * 	Returns:
 	 * 		void;
 	*/
-	void curses_wAttrOff(	WINDOW * win,
-							unordered_map<std::string, int> curses_attribute_data	)
+	inline void curses_wAttrOff(	WINDOW * win,
+							std::unordered_map<std::string, int> curses_attribute_data	)
 	{
 		for (auto const& [attrName, attrVal] : curses_attribute_data)
 		{
@@ -1632,23 +1437,25 @@ namespace PrintHelper
 		}
 	}
 
+
 	/**
 	 * For curses stdscr, turns on the attributes that are defiend in the passed-in map.
 	 * 
 	 * Parameters:
-	 * 	unordered_map<std::string, int> curses_attribute_data - A map containing all of the attribute names (keys) and the attribute values (values)
+	 * 	std::unordered_map<std::string, int> curses_attribute_data - A map containing all of the attribute names (keys) and the attribute values (values)
 	 * 															to turn on for curses stdscr.
 	 * 
 	 * Returns:
 	 * 	void;
 	*/
-	void curses_attrOn(		unordered_map<std::string, int> curses_attribute_data	)
+	inline void curses_attrOn(		std::unordered_map<std::string, int> curses_attribute_data	)
 	{
 		for (auto const& [attrName, attrVal] : curses_attribute_data)
 		{
 			attron(attrVal);
 		}
 	}
+
 
 	//TODO: Needs to be tested for multiple tokens, Needs to print individual lines at a time to account for fitting inside of borders
 	/**
@@ -1660,7 +1467,7 @@ namespace PrintHelper
 	 * 	int xMove - How far right to move within the curses window before we begin printing.
 	 * 	std::string printString - The string we will be printing to the curses window.
 	 * 	std::vector<PrintToken> tokens - An ordered collection of PrintToken objects which will be printed to the curses window.
-	 * 	unordered_map<std::string,std::string> style - Styling options for all unstyled tokens.
+	 * 	std::unordered_map<std::string,std::string> style - Styling options for all unstyled tokens.
 	 * 	unordereD_map<std::string,std::string> format - Advanced formatting options for printing.
 	 * 													Valid key-value pairs are:
 	 * 													{"avoid borders","true"/"false"}
@@ -1669,18 +1476,18 @@ namespace PrintHelper
 	 * Returns:
 	 * 	void
 	*/
-	void curses_wprint_withTokens(	WINDOW * win,
+	inline void curses_wprint_withTokens(	WINDOW * win,
 									int yMove,
 									int xMove,
 									std::vector<PrintToken> tokens,
-									unordered_map<std::string,std::string> style,
-									unordered_map<std::string,std::string> format,
+									std::unordered_map<std::string,std::string> style,
+									std::unordered_map<std::string,std::string> format,
 									bool textStyling	)
 	{
 		//Holds data for which attributes to use before printing text
-		unordered_map<std::string, int> curses_attribute_data = {};
+		std::unordered_map<std::string, int> curses_attribute_data = {};
 		//Process the style map's attributes
-		unordered_map<std::string, int> style_attribute_data = curses_styleAttributes(style);
+		std::unordered_map<std::string, int> style_attribute_data = curses_styleAttributes(style);
 
 		/*** Formatting ***/
 		//Very important - get the window size
@@ -1742,15 +1549,16 @@ namespace PrintHelper
 			//Turn on the attributes specified in our styles
 			curses_wAttrOn(win, curses_attribute_data);
 
-			//Print each line
-
 			//Print!
 			mvwprintw(win, yMove, xMove, "%s", tokens[i].content.c_str());
-			
+			// Advance position so the next token continues from where this one ended
+			getyx(win, yMove, xMove);
+
 			//Turn off all attributes
 			curses_wAttrOff(win, curses_attribute_data);
 		}
 	}
+
 
 	/**
 	 * Prints a string to a curses window with advanced formatting options.
@@ -1760,8 +1568,8 @@ namespace PrintHelper
 	 * 	int yMove - How far down to move within the curses window before we begin printing.
 	 * 	int xMove - How far right to move within the curses window before we begin printing.
 	 * 	std::string input - The string of text we want to print to the curses window.
-	 * 	unordered_map<std::string,std::string> style - The styling options that we will apply to the text that we print to the curses window.
-	 * 	unordered_map<std::string,std::string> format - Any advanced formatting options we wish to apply while printing to the curses window.
+	 * 	std::unordered_map<std::string,std::string> style - The styling options that we will apply to the text that we print to the curses window.
+	 * 	std::unordered_map<std::string,std::string> format - Any advanced formatting options we wish to apply while printing to the curses window.
 	 * 													Valid key-value pairs are:
 	 * 													{
 	 * 													}
@@ -1770,12 +1578,12 @@ namespace PrintHelper
 	 * Returns:
 	 * 	void
 	*/
-	void curses_wprint( WINDOW * win,
+	inline void curses_wprint( WINDOW * win,
 						int yMove,
 						int xMove,
 						std::string input,
-						unordered_map<std::string,std::string> style,
-						unordered_map<std::string,std::string> format,
+						std::unordered_map<std::string,std::string> style,
+						std::unordered_map<std::string,std::string> format,
 						bool textStyling	)
 	{
 		//Tokenize what we're going to be printing, just to see if a user included any inline style tokens
@@ -1847,31 +1655,81 @@ namespace PrintHelper
 		return;
 	}
 
+
+	/**
+	 * Pure helper: splits a single text line (no embedded newlines) into the visual
+	 * segments it would occupy when printed in a curses window.
+	 *
+	 * Parameters:
+	 *   line             - text to split (no newlines)
+	 *   xMove            - starting x column
+	 *   width            - window width from getmaxyx()
+	 *   borderAdjustment - pass 1 when the window has a right border to avoid
+	 *
+	 * Returns a vector of strings; each element is the text for one visual row.
+	 * Every segment fits entirely within columns [xMove, width - borderAdjustment).
+	 * When a space is available it is used as the break point; otherwise the line
+	 * is force-broken at the available width.
+	 *
+	 * This function has no ncurses dependencies and can be called from unit tests.
+	*/
+	inline std::vector<std::string> computeWrapSegments(
+							std::string line,
+							int xMove,
+							int width,
+							int borderAdjustment)
+	{
+		std::vector<std::string> segments;
+		int textWidth = (width - borderAdjustment) - xMove;
+
+		if (textWidth <= 0) return segments;
+
+		while (true) {
+			if ((int)line.length() <= textWidth) {
+				segments.push_back(line);
+				break;
+			}
+			// Find the last space within textWidth characters
+			size_t cutPos = line.rfind(' ', (size_t)(textWidth - 1));
+			if (cutPos == std::string::npos) {
+				// No space: force-break
+				segments.push_back(line.substr(0, textWidth));
+				line = line.substr(textWidth);
+			} else {
+				segments.push_back(line.substr(0, cutPos));
+				line = line.substr(cutPos + 1);
+			}
+		}
+
+		return segments;
+	}
+
+
 	/**
 	 * Prints and styles a string into a curses window, making sure to wrap the text around the curses window so nothing is cut off.
-	 * 
+	 *
 	 * Parameters:
 	 *  WINDOW * win - The curses window we are printing to
 	 * 	int yMove - The number of character columns down to begin printing at
 	 * 	int xMove - The number of character columns to the right to begin printing at
 	 * 	std::string printString - The string we wish to print to the curses window
 	 * 	size_t indent - The amount of spaces to print right after a newline
-	 * 	unordered_map<std::string,std::string> style - The style to apply to the text that we print	
-	 * 
+	 * 	std::unordered_map<std::string,std::string> style - The style to apply to the text that we print
+	 *
 	 * Returns:
 	*/
-	void curses_wwrap(	WINDOW * win,
+	inline void curses_wwrap(	WINDOW * win,
 						int yMove,
 						int xMove,
 						std::string printString,
 						size_t indent,
-						unordered_map<std::string,std::string> style )
+						std::unordered_map<std::string,std::string> style )
 	{
 		std::istringstream in(printString);
 		std::string line;
 		std::string output;
 		int lineCutOffIndex = 0;
-		int numberOfLines = strlib::countLines(printString);
+		int numberOfLines = stevensStringLib::countLines(printString);
 		int currLineNum = 0;
 		int width;
 		int height;
@@ -1889,23 +1747,25 @@ namespace PrintHelper
 		while(getline(in,line))
 		{
 			lineCutOffIndex = 0;
+			// Characters available for text on this line, accounting for where we start (xMove)
+			int textWidth = width - xMove - (int)indent;
 
 			while(true)
 			{
 				//Check to see if we need to wrap this line around
-				if(indent + line.length() > width)
+				if(textWidth > 0 && (int)line.length() > textWidth)
 				{
 					//Find the last space in the string that fits on the line
-					lineCutOffIndex = line.rfind(" ", (indent + width));
+					lineCutOffIndex = line.rfind(" ", (size_t)(textWidth - 1));
 					//If we can't find a space in the string and the string is too long, we just cut the line and wrap to the next line
 					if(lineCutOffIndex == std::string::npos)
 					{
 						//Add as much of the line as we can to the output and then add a newline
-						output = std::string(indent, ' ') + line.substr(0, (width-indent));
+						output = std::string(indent, ' ') + line.substr(0, textWidth);
 						mvwprintw(win,yMove,xMove,"%s", output.c_str());
 						yMove++;
 						//Continue looping until the rest of the line is added to the output
-						line = line.substr(width-indent+1);
+						line = line.substr(textWidth);
 					}
 					//If we find a space...
 					else
@@ -1941,6 +1801,7 @@ namespace PrintHelper
 		}
 	}
 
+
 	/**
 	 * Given a vector of tokens, style and print each of them to a curses window.
 	 * 
@@ -1950,18 +1811,18 @@ namespace PrintHelper
 	 * Returns:
 	 * 	void
 	*/
-	void curses_wwrap_withTokens(	WINDOW * win,
+	inline void curses_wwrap_withTokens(	WINDOW * win,
 									int yMove,
 									int xMove,
 									std::vector<PrintToken> tokens,
-									unordered_map<std::string,std::string> style,
-									unordered_map<std::string,std::string> format,
+									std::unordered_map<std::string,std::string> style,
+									std::unordered_map<std::string,std::string> format,
 									bool textStyling	)
 	{
 		//Holds data for which attributes to use before printing text
-		unordered_map<std::string, int> curses_attribute_data = {};
+		std::unordered_map<std::string, int> curses_attribute_data = {};
 		//Process the style map's attributes and store them in a map that can be understood by curses
-		unordered_map<std::string, int> style_attribute_data = curses_styleAttributes(style);
+		std::unordered_map<std::string, int> style_attribute_data = curses_styleAttributes(style);
 		/*** Formatting ***/
 		//Set the level of indenting each time text wraps around
 		int indent = 0;
@@ -2057,7 +1918,7 @@ namespace PrintHelper
 					//printw("%s:%d / %s:%ld / %s:%d", "cursor x", xMove, "line length", line.length(), "width with adjustment", (width-borderAdjustment));
 					//getch();
 					//Check to see if we need to wrap this line around TODO: Get the current X position in the window and add it here. Make sure to account for window borders.
-					if(((xMove-borderAdjustment) + line.length()) > (width - borderAdjustment))
+					if(((xMove-borderAdjustment) + (int)line.length()) >= (width - borderAdjustment))
 					{
 						// printw("%s", line.c_str());
 						if(format.contains("debug"))
@@ -2070,60 +1931,50 @@ namespace PrintHelper
 						std::string bitOfLineThatCanFit = line.substr(0, maxLength);
 						//Find the last space in the string that fits on the line
 						lineCutOffIndex = bitOfLineThatCanFit.rfind(" ", (indent + width));
-						if (lineCutOffIndex == std::string::npos) 
+						if (lineCutOffIndex == std::string::npos)
 						{
-							// Handle case where no space is found
-							if (line.length() > (width - indent)) 
-							{
-								//output = std::string(indent, ' ') + line.substr(0, (width - indent));
-								size_t outputLength = (width - xMove);
-								if(outputLength > line.length()) outputLength = line.length();
-								output = line.substr(0, outputLength);
+							// No space within available width: force-break at maxLength.
+							// If maxLength is 0 (cursor already at right boundary) we just
+							// advance to the next line without printing anything.
+							if (maxLength > 0) {
+								output = line.substr(0, maxLength);
 								mvwprintw(win, yMove, xMove, "%s", output.c_str());
-								yMove++;
-								charsPrintedToLine = 0;
-								size_t remainingStart = (width - xMove);
-								if(remainingStart >= line.length()) {
-									line.clear();
-								} else {
-									line = line.substr(remainingStart); // Safely truncate the line
-								}
-								// //Check to see if we want to retain the xMove for the next
-								// if(retainXMoveOnNewline)
-								// {
-								// 	xMove = xMoveOrigin;
-								// }
-							} 
-							else 
-							{
-								// If the line is shorter than the width, print it as is
-								output = line;
-								mvwprintw(win, yMove, xMove, "%s", output.c_str());
-								line.clear(); // Clear the line to exit the loop
+								line = (maxLength < line.length()) ? line.substr(maxLength) : "";
 							}
-						}
-						else 
-						{
-							// Handle case where a space is found
-							//output = std::string(indent, ' ') + line.substr(0, lineCutOffIndex);
-							if(lineCutOffIndex <= line.length()) {
-								output = line.substr(0, lineCutOffIndex);
+							yMove++;
+							charsPrintedToLine = 0;
+							if (retainXMoveOnNewline) {
+								xMove = xMoveOrigin;
+							} else if (avoidBorders) {
+								xMove = 1;
 							} else {
-								output = line; // Use whole line if cutoff is beyond bounds
+								xMove = 0;
 							}
+							wmove(win, yMove, xMove);
+						}
+						else
+						{
+							// Space found: break at the last space within available width
+							output = line.substr(0, lineCutOffIndex);
 							mvwprintw(win, yMove, xMove, "%s", output.c_str());
 							yMove++;
 							charsPrintedToLine = 0;
 							if (lineCutOffIndex + 1 < line.length()) {
-								line = line.substr(lineCutOffIndex + 1); // Safely truncate the line
+								line = line.substr(lineCutOffIndex + 1);
 							} else {
-								line.clear(); // Clear the line to exit the loop
+								line.clear();
 							}
-							if(retainXMoveOnNewline)
-							{
+							if (retainXMoveOnNewline) {
 								xMove = xMoveOrigin;
-								wmove(win, yMove, xMove);
+							} 
+							else if (avoidBorders) 
+							{
+								xMove = 1;
 							}
+							else {
+								xMove = 0;
+							}
+							wmove(win, yMove, xMove);
 						}
 						// lineCutOffIndex = bitOfLineThatCanFit.rfind(" ", (indent + width));
 						// //If we can't find a space in the string and the string is too long, we just cut the line and wrap to the next line
@@ -2226,6 +2077,5 @@ namespace PrintHelper
 		// getch();
 	}
 
-	#endif
 } // namespace PrintHelper
 } // namespace stevensTerminal

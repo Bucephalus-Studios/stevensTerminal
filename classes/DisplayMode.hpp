@@ -1,3 +1,4 @@
+#pragma once
 /**
  * TerminalDisplayMode.h
  *
@@ -8,11 +9,11 @@
  * formatting of text when the user changes their terminal's size.
  */
 
-#pragma once
 
-namespace stevensTerminal {
+namespace stevensTerminal
+{
 
-class TerminalDisplayMode
+class DisplayMode
 {
 	public:
 
@@ -21,16 +22,18 @@ class TerminalDisplayMode
 		std::pair<int,int> maxSize; // The inclusive upper bounding for the X,Y dimensions of the terminal in characters for this display mode
 		int verticalMenuWidth; // The width of a single vertical menu when this display mode is in use.
 
+
 		//Default constructor
-		TerminalDisplayMode()
+		DisplayMode()
 		{
 			minSize = {0,0};
 			maxSize = {80,24};
 			verticalMenuWidth = 18;
 		}
 
+
 		//Parametric constructor
-		TerminalDisplayMode(	std::pair<int,int> minSizeParam,
+		DisplayMode(	std::pair<int,int> minSizeParam,
 								std::pair<int,int> maxSizeParam,
 								int verticalMenuWidthParam	)
 		{
@@ -39,8 +42,10 @@ class TerminalDisplayMode
 			verticalMenuWidth = verticalMenuWidthParam;
 		}
 
+
 	private:
 
 };
 
 } // namespace stevensTerminal
+

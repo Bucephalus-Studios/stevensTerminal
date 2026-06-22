@@ -8,8 +8,7 @@
  * Part of the stevensTerminal library.
  */
 
-#ifndef STEVENS_TERMINAL_WINDOW_MANAGER_HPP
-#define STEVENS_TERMINAL_WINDOW_MANAGER_HPP
+#pragma once
 
 #include <unordered_map>
 #include <string>
@@ -165,5 +164,3 @@ namespace stevensTerminal {
     };
 
 } // namespace stevensTerminal
-
-#endif // STEVENS_TERMINAL_WINDOW_MANAGER_HPP
