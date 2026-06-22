@@ -16,7 +16,7 @@
 #include "classes/PrintToken.hpp"
 #include "classes/PrintTokenHelper.hpp"
 #include "classes/WindowManager.hpp"
-#include "dependencies/stevensMapLib.hpp"
+#include <stevensMapLib.hpp>
 #include "subnamespaces/Colors.hpp"
 #include "subnamespaces/Input.hpp"
 #include "subnamespaces/ParticleFX/ParticleWindowRegistry.hpp"

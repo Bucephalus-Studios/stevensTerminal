@@ -38,11 +38,11 @@
 // NOTE: These are included via git submodules in the dependencies/ directory.
 // To update to latest versions: git submodule update --remote
 // For users cloning: git clone --recursive OR git submodule update --init --recursive
-#include "dependencies/stevensStringLib.h"
-#include "dependencies/stevensMathLib.h"
-#include "dependencies/stevensMapLib.hpp"
-#include "dependencies/stevensVectorLib.hpp"
-#include "dependencies/stevensFileLib.hpp"
+#include <stevensStringLib.h>
+#include <stevensMathLib.h>
+#include <stevensMapLib.hpp>
+#include <stevensVectorLib.hpp>
+#include <stevensFileLib.hpp>
 
 // Convenient namespace aliases for internal use
 namespace strlib = stevensStringLib;
