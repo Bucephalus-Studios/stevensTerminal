@@ -2,14 +2,23 @@
 /**
  * @file Input.hpp
  * @brief Input handling and validation functions for stevensTerminal
- * 
+ *
  * This header provides functions for user input, input validation,
  * and input stream management.
- * 
+ *
  * Part of the Stevens Terminal Library
  * Originally created July 2019
  */
 
+#include <string>
+#include <unordered_map>
+#include <cstddef>
+
+#if defined(__linux__)
+    #include <ncurses.h>
+#elif defined(_WIN32) || defined(__MSDOS__)
+    #include <curses.h>
+#endif
 
 namespace stevensTerminal
 {

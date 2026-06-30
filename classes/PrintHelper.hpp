@@ -1864,6 +1864,11 @@ namespace PrintHelper
 			}
 		}
 
+		// Text alignment within the available line width.
+		// "left" (default) prints from xMove; "center" offsets each segment so it is
+		// horizontally centred; "right" is reserved for future use.
+		std::string textAlign = format.contains("textAlign") ? format.at("textAlign") : "left";
+
 		//Get the total amount of lines of content in all of the tokens that we're printing
 		int totalLines = 0;
 		int currLineNum = 0;
@@ -1938,7 +1943,11 @@ namespace PrintHelper
 							// advance to the next line without printing anything.
 							if (maxLength > 0) {
 								output = line.substr(0, maxLength);
-								mvwprintw(win, yMove, xMove, "%s", output.c_str());
+								{
+									int availableWidth = (int)maxLength;
+									int printX = xMove + (textAlign == "center" ? std::max(0, (availableWidth - (int)output.length()) / 2) : 0);
+									mvwprintw(win, yMove, printX, "%s", output.c_str());
+								}
 								line = (maxLength < line.length()) ? line.substr(maxLength) : "";
 							}
 							yMove++;
@@ -1956,7 +1965,11 @@ namespace PrintHelper
 						{
 							// Space found: break at the last space within available width
 							output = line.substr(0, lineCutOffIndex);
-							mvwprintw(win, yMove, xMove, "%s", output.c_str());
+							{
+								int availableWidth = (int)((width - borderAdjustment) - xMove);
+								int printX = xMove + (textAlign == "center" ? std::max(0, (availableWidth - (int)output.length()) / 2) : 0);
+								mvwprintw(win, yMove, printX, "%s", output.c_str());
+							}
 							yMove++;
 							charsPrintedToLine = 0;
 							if (lineCutOffIndex + 1 < line.length()) {
@@ -2029,7 +2042,11 @@ namespace PrintHelper
 						// std::cout << "Printed a full line!" << std::endl;
 						// getch();
 						output = line;
-						mvwprintw(win, yMove, xMove, "%s", output.c_str());
+						{
+							int availableWidth = (int)((width - borderAdjustment) - xMove);
+							int printX = xMove + (textAlign == "center" ? std::max(0, (availableWidth - (int)output.length()) / 2) : 0);
+							mvwprintw(win, yMove, printX, "%s", output.c_str());
+						}
 						break;
 					}
 				}

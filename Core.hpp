@@ -122,7 +122,6 @@ namespace stevensTerminal
     }
     #endif
 
-    #ifdef curses
     /**
      * @brief Initialize ncurses color support if available
      *
@@ -143,7 +142,6 @@ namespace stevensTerminal
             textStyling = false;
         }
     }
-    #endif
 
     /**
      * @brief Initialize the stevensTerminal library
@@ -169,7 +167,6 @@ namespace stevensTerminal
      */
     inline void initialize(bool initWindowManager = false,
                           const std::vector<std::string>& windowNames = {}) {
-        #ifdef curses
         // Initialize ncurses
         initscr();
 
@@ -197,7 +194,6 @@ namespace stevensTerminal
 
         // Set display mode based on screen size
         //setDisplayMode(get_screen_size());
-        #endif
     }
 
     /**
@@ -216,9 +212,7 @@ namespace stevensTerminal
      * stevensTerminal::shutdown();
      */
     inline void shutdown() {
-        #ifdef curses
         windowManager().shutdown();  // This handles both window cleanup and endwin()
-        #endif
     }
 
     /**

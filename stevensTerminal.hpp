@@ -7,10 +7,8 @@
 
 // Include ncurses based on platform
 #if defined(__linux__)
-	#define curses
 	#include <ncurses.h>
 #elif defined(_WIN32)
-	#define curses
 	#include <curses.h>   // PDCurses/PDCursesMod: main header is curses.h, not pdcurses.h
 #endif
 
@@ -21,6 +19,7 @@
 #include "subnamespaces/Input.hpp"
 #include "subnamespaces/ParticleFX/ParticleFX.hpp"
 #include "subnamespaces/Bar.hpp"
+#include "subnamespaces/Spinner.hpp"
 
 namespace stevensTerminal
 {
@@ -680,13 +679,12 @@ namespace stevensTerminal
 		return stringToPrint;
 	}
 
-	#ifdef curses
 	/**
 	 * Prints a vector to a window and location using the n/pd curses library.
-	 * 
+	 *
 	 * Parameters:
 	 * 	vector<T> vec - The vector we'd like to print a window of our curses app.
-	 * 	unordered_map<std::string,std::string> style - 
+	 * 	unordered_map<std::string,std::string> style -
 	 * 	unordered_map<std::string,std::string> format - The specfic formatting instructions that we're supplying to printVector_str.
 	 * 													Valid key-value pairs:
 	 * 													"printOverBorders" - "true"/"false" - Contains all of the text we print to be within
@@ -694,7 +692,7 @@ namespace stevensTerminal
 	 * 	WINDOW * win - The n/pd curses library window object that we're printing to.
 	 * 	int yMove - The y coordinate in the window we're moving towards to start printing the vector
 	 * 	int xMove - The x coordinate in the window we're moving towards to start printing the vector
-	 * 
+	 *
 	*/
 	template<typename T>
 	void curses_mvw_printVector(	std::vector<T> vec,
@@ -726,7 +724,6 @@ namespace stevensTerminal
 						std::string printString,
 						std::unordered_map<std::string,std::string> style,
 						std::unordered_map<std::string,std::string> format );
-	#endif
 
 	/**
 	 * @brief Clears a line in a curses window
@@ -772,10 +769,9 @@ namespace stevensTerminal
 										std::unordered_map<std::string, std::string> format = {	{"column width", "use width of largest entry"},
 																								{"column spacing std::string", "\t"}	}	);
 
-	#ifdef curses
 	/**
 	 * Given a curses window, print border patterns to it from a map of given border patterns.
-	 * 
+	 *
 	 * Parameters:
 	 * 	WINDOW * win - The window we are printing a border to
 	 * 	unordered_map<std::string,std::string> borderPatterns - The location and patterns which to repeat on the borders of the window.
@@ -788,7 +784,7 @@ namespace stevensTerminal
 	 * 															"top-right corner" - Pattern to print on the top right corner of the window
 	 * 															"bottom-left corner" - Pattern to print on the bottom left corner of the window
 	 * 															"bottom-right corner" - Pattern to print on the bottom right corner of the window
-	 * 
+	 *
 	 * Returns:
 	 * 	void, but prints fancy borders to a window
 	 */
@@ -799,7 +795,7 @@ namespace stevensTerminal
 
 	/**
 	 * @brief Erases a single horizontal line of text on a curses window at a given Y coordinate.
-	 * 
+	 *
 	 * @param win The window where we are erasing a horizontal line of text
 	 * @param y The coordinate of the window where we are erasing a horizontal line.
 	 * @param settingsMap A map of settings we can use to further specialize this function call. Possible keys are:
@@ -808,12 +804,10 @@ namespace stevensTerminal
 	void curses_wEraseHLine(	WINDOW * & win,
 							 	int y,
 								std::unordered_map<std::string,std::string> settingsMap );
-	#endif
 
 	void printFile(	std::string textFilePath,
 					bool wrap = true	);
 
-	#ifdef curses
 	/**
 	 *	Given a curses window and a path for file, print the content of the file to the curses window.
 		*
@@ -823,7 +817,7 @@ namespace stevensTerminal
 		*		unordered_map<std::string,std::string> style -  Style options for printing the file
 															The following key value pairs are valid:
 															{
-																
+
 															}
 		*		unordered_map<std::string,std::string> format - Formatting options for printing the file to the window.
 															The following key value pairs are valid:
@@ -834,7 +828,7 @@ namespace stevensTerminal
 																	Avoid printing over the 1 character thick borders on the left
 																	and right sides of the window if true
 															}
-		* 
+		*
 		* 	Returns:
 		* 		void, but prints to the console using curses
 		*/
@@ -845,7 +839,6 @@ namespace stevensTerminal
 								{"wrap","true"},
 								{"avoid borders","true"}
 							}	);
-	#endif
 
 	// inputWithinResponseRange() is now in Input.hpp
 

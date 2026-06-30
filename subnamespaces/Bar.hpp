@@ -8,7 +8,11 @@
 #include <algorithm>
 #include "Colors.hpp"
 
-#ifdef curses
+#if defined(__linux__)
+    #include <ncurses.h>
+#elif defined(_WIN32) || defined(__MSDOS__)
+    #include <curses.h>
+#endif
 
 namespace stevensTerminal
 {
@@ -141,5 +145,3 @@ namespace stevensTerminal
     }
 
 } // namespace stevensTerminal
-
-#endif // curses

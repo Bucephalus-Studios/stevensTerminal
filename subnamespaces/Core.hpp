@@ -118,7 +118,6 @@ namespace stevensTerminal
     void showCursor();
 
 
-    #ifdef curses
     /**
      * @brief Initialize ncurses color support if available
      *
@@ -126,7 +125,6 @@ namespace stevensTerminal
      * color functionality. Must be called after initscr().
      */
     void curses_prepare_color();
-    #endif
 
 
     /**

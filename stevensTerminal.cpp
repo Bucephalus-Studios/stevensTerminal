@@ -63,7 +63,6 @@ void hideCursor() { curs_set(0); }
 
 void showCursor() { curs_set(1); }
 
-#ifdef curses
 void curses_prepare_color()
 {
     if(has_colors())
@@ -82,11 +81,9 @@ void curses_prepare_color()
         textStyling = false;
     }
 }
-#endif
 
 void initialize(bool initWindowManager,
                 const std::vector<std::string>& windowNames) {
-    #ifdef curses
     // Initialize ncurses
     initscr();
 
@@ -114,13 +111,10 @@ void initialize(bool initWindowManager,
 
     // Set display mode based on screen size
     //setDisplayMode(get_screen_size());
-    #endif
 }
 
 void shutdown() {
-    #ifdef curses
     windowManager().shutdown();  // This handles both window cleanup and endwin()
-    #endif
 }
 
 bool displayMode_GTEminSize(std::pair<int,int> minSize, std::pair<int,int> screenSize) {
