@@ -17,7 +17,7 @@
 #if defined(__linux__)
     #include<ncurses.h>
 #elif defined(_WIN32)
-    #include<pdcurses.h>
+    #include<curses.h>   // PDCurses/PDCursesMod: main header is curses.h, not pdcurses.h
 #endif
 
 namespace stevensTerminal {

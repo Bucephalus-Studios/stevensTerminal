@@ -47,6 +47,7 @@
 #include <vector>
 #include <tuple>
 #include <cmath>
+#include <numbers>
 #include <random>
 #include <chrono>
 #include <thread>
@@ -385,7 +386,7 @@ public:
      * or addSpawnPointsFromText().
      */
     void spawn(const Particle& prototype) {
-        std::uniform_real_distribution<float> angleDist(0.0f, 2.0f * M_PI);
+        std::uniform_real_distribution<float> angleDist(0.0f, 2.0f * std::numbers::pi_v<float>);
         std::uniform_real_distribution<float> speedDist(minSpeed, maxSpeed);
 
         for (const Vec2& origin : spawnPoints) {
@@ -414,7 +415,7 @@ public:
      */
     void spawnBurst(Vec2 origin, int count, const Particle& prototype,
                     float minSpeed = 5.0f, float maxSpeed = 15.0f) {
-        std::uniform_real_distribution<float> angleDist(0.0f, 2.0f * M_PI);
+        std::uniform_real_distribution<float> angleDist(0.0f, 2.0f * std::numbers::pi_v<float>);
         std::uniform_real_distribution<float> speedDist(minSpeed, maxSpeed);
 
         for (int i = 0; i < count; ++i) {
@@ -438,7 +439,7 @@ public:
      * @param spread Angle spread (how wide the spray is)
      */
     void spawnFountain(Vec2 origin, int count, const Particle& prototype,
-                       float angle = -M_PI/2, float spread = M_PI/6,
+                       float angle = -std::numbers::pi_v<float>/2, float spread = std::numbers::pi_v<float>/6,
                        float minSpeed = 8.0f, float maxSpeed = 15.0f) {
         std::uniform_real_distribution<float> angleDist(angle - spread/2, angle + spread/2);
         std::uniform_real_distribution<float> speedDist(minSpeed, maxSpeed);

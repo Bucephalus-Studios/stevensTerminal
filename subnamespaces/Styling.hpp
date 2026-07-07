@@ -96,28 +96,10 @@ namespace stevensTerminal
     std::string resizeStyledString(std::string str, const size_t desiredLength, const char fillChar = ' ');
 
 
-    /**
-     * @brief Print a horizontal border pattern across the terminal width
-     *
-     * Given a pattern of characters in a std::string object, repeat them horizontally to cover the width of the terminal
-     * by printing them with the main print function.
-     *
-     * @param borderPattern A pattern of characters in a std::string object to repeat across the horizontal width
-     * @param color Optional name of the color to print the pattern in
-     * @param bgColor Optional name of the background color to print the pattern in
-     * @param colorVector Optional vector parameter that allows you to decide the color for each index of the border pattern.
-     *                    For example, the border pattern "~-" could be colored an alternating yellow and green with a multicolor
-     *                    parameter of ["yellow","green"]. A defined multicolor parameter always overrides any passed-in color parameter.
-     * @param bgColorVector Optional vector parameter that allows you to decide the background color for each index of the border pattern.
-     *                      Functions similarly to the colorVector parameter.
-     */
-    void printHorizontalBorder(std::string borderPattern,
-                               std::string color = "default",
-                               std::string bgColor = "default",
-                               std::vector<std::string> colorVector = {},
-                               std::vector<std::string> bgColorVector = {});
+    // NOTE: printHorizontalBorder() was removed — unreachable dead code. See
+    // stevensTerminal.cpp.
 
-    
+
     // /**
     //  * @brief Get the color std::string for a numeric value (bonus/penalty display)
     //  *

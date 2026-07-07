@@ -205,10 +205,6 @@ TEST(tokenizePrintString, muggedManScenario)
         std::cout << "  - Content: '" << tokens[i].content << "'" << std::endl;
         std::cout << "  - TextColor: " << tokens[i].textColor << std::endl;
     }
-    
-    // Test the full styling pipeline
-    std::string styledOutput = stevensTerminal::PrintHelper::styleTokens(input, tokens);
-    std::cout << "Final styled output: " << styledOutput << std::endl;
 }
 
 TEST(tokenizePrintString, doubleNestedTokens)

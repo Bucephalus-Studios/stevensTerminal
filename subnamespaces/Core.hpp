@@ -2,15 +2,23 @@
 /**
  * @file Core.hpp
  * @brief Core foundations for stevensTerminal library
- * 
+ *
  * This header provides the essential includes, platform detection,
- * namespace setup, global state, and fundamental functions for the 
+ * namespace setup, global state, and fundamental functions for the
  * stevensTerminal library.
- * 
+ *
  * Part of the Stevens Terminal Library
  * Originally created July 2019
  */
 
+#if defined(_WIN32) || defined(__MSDOS__)
+    // Must be set before <windows.h> is included below (it's the first thing
+    // in this translation unit to pull it in): windows.h otherwise #defines
+    // min/max macros that break every std::min/std::max call in this library
+    // and its dependencies (stevensStringLib, PrintHelper, etc.).
+    #define NOMINMAX
+    #define WIN32_LEAN_AND_MEAN
+#endif
 
 // Standard library includes
 #include <vector>
@@ -29,8 +37,14 @@
     #include <sys/ioctl.h>
     #include <unistd.h>
 #elif defined(_WIN32) || defined(__MSDOS__)
-    #include <pdcurses.h>
+    // PDCursesMod's public header is named curses.h (matching ncurses), not pdcurses.h
+    #include <curses.h>
     #include <windows.h>
+    // wingdi.h (pulled in by windows.h) #defines ERROR as a plain integer macro,
+    // which collides with any enum/enum-class value literally named ERROR
+    // (e.g. stevensSound's ErrorLevel::ERROR) anywhere later in this translation
+    // unit. WIN32_LEAN_AND_MEAN does not exclude wingdi.h, so undef it here.
+    #undef ERROR
 #endif
 
 // Library dependencies - bundled copies kept in sync with main libraries
@@ -52,9 +66,12 @@
 // Platform-specific character definitions
 #if defined(_WIN32) || defined(__MSDOS__)
     #define ST_SPADE   "\x06"
-    #define ST_CLUB    "\x05" 
+    #define ST_CLUB    "\x05"
     #define ST_HEART   "\x03"
     #define ST_DIAMOND "\x04"
+    #define ST_APPROXEQUAL "\xF7" // CP437 Almost Equal To (exact match)
+    #define ST_ASYMPEQUAL  "\xF7" // CP437 has no distinct asymptotically-equal glyph; reuses Almost Equal To
+    #define ST_DELTA       "\xEB" // CP437 lowercase delta; no uppercase Delta glyph exists in CP437
 #else
     #define ST_SPADE   "\xE2\x99\xA0"
     #define ST_CLUB    "\xE2\x99\xA3"
@@ -198,18 +215,8 @@ namespace stevensTerminal
     void setDisplayMode(std::pair<int,int> screenSize);
 
 
-    // Forward declaration of main print function
-    void print(std::string input,
-               std::unordered_map<std::string, std::string> style = {
-                   {"textColor", "default"},
-                   {"bgColor", "default"},
-                   {"blink", "false"},
-                   {"bold", "false"}
-               },
-               std::unordered_map<std::string, std::string> format = {
-                   {"wrap", "true"},
-                   {"preserve newlines on wrap", "false"}
-               });
+    // NOTE: print() (plain std::cout ANSI-styling-era print function) was
+    // removed — unreachable dead code. Use curses_wprint() instead.
 
 } // namespace stevensTerminal
 

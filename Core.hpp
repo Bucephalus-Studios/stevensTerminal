@@ -30,7 +30,7 @@
     #include <sys/ioctl.h>
     #include <unistd.h>
 #elif defined(_WIN32) || defined(__MSDOS__)
-    #include <pdcurses.h>
+    #include <curses.h>   // PDCurses/PDCursesMod: main header is curses.h, not pdcurses.h
     #include <windows.h>
 #endif
 

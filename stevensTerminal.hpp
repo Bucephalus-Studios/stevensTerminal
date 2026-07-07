@@ -82,205 +82,14 @@ namespace stevensTerminal
 									bool percentageLabels	);
 	
 
-	void table(	std::vector< std::tuple<std::string,std::string,std::string> > xLabels,
-				std::vector< std::tuple<std::string,std::string,std::string> > yLabels, std::vector< std::vector<float> > tableContent, std::string tableType);
+	// NOTE: table(), localizedWrap(), increaseOffset(), verticalMenus(), and
+	// promptMultipleResponses() were removed — unreachable dead code from
+	// before curses_wprint()/WINDOW* existed. See stevensTerminal.cpp.
 
-	std::string localizedWrap(	std::string input,
-								int availableSpace,
-								bool menuLabel = false);
+	// NOTE: printVector() (plain std::cout ANSI-styling-era vector printer) was
+	// removed — unreachable dead code; cultgame uses curses_mvw_printVector()
+	// instead. See stevensTerminal.cpp for the string-returning variant kept below.
 
-	bool increaseOffset(std::vector<int> & menuItemOffset,
-						int j);
-
-	int verticalMenus(	std::vector< std::vector<std::string> > menus,
-						std::vector<std::string> menuLabels,
-						std::string borderPattern,
-						bool showResponseNums,
-						int maxMenuLength,
-						int availableSpaceForColumns,
-						bool showNone);
-
-	void promptMultipleResponses(	std::vector<std::string> responses,
-									int columns, int rows,
-									int startingResponseNum,
-									bool showResponseNums	);
-
-	/*
-	* Outputs a vector of strings to terminal window with options for advanced formatting.
-	*
-	* Parameters:
-	*		vector<T> vec - The vector of objects we wish to output to the terminal.
-	*		unordered_map<std::string,std::string> format - An unordered map containing various custom formatting options for printing the vector.
-	*														Below are the possible keys that can be defined to format your vectors when printed:
-	*			"columns" : (int as std::string) The number of columns to organize the printed objects in.
-	*			"rows" - (int as std::string) The number of rows to organize the printed object in.
-	*			"listType" - Adds special formatting when printing the vector. Possible values are:
-	*				"numbered" - Appends a number in front of every object printed representing the index of the object printed (starting at 1)
-	*			"prependString" - A std::string value to be prepended to the output before every object is printed.
-	*			"appendString" - A std::string value to be appended to the output after every object is printed.
-	*			"horizontal separator" - A string value to be used as the separator between columns. Defaults to "\t" (tab).
-	*	Returns:
-	*		Void, but outputs text to the terminal window:
-	*		Vector elements printed from 0 to the final index. So a function call like this: printVector([a,b,c,d,e,f,g,h,i,j,k,l],{{"rows","3"},{"columns","4"}}) looks like the following:
-	*		1 - a     4 - d     7 - g     10 - j
-	*		2 - b     5 - e     8 - h     11 - k
-	*		3 - c     6 - f     9 - i     12 - l
-	*/
-	template<typename T>
-	void printVector(	std::vector<T> vec,
-						std::unordered_map<std::string,std::string> format = {}	)
-	{
-		//flesh this out
-		std::string stringToPrint = ""; //This will be the final std::string we print after we decide where all of the responses will be ordered
-
-		//If no formatting is applied, then we just print all of the objects out on their own lines
-		if(format.empty())
-		{
-			for(size_t elementIndex = 0; elementIndex < vec.size(); elementIndex++)
-			{
-				print(vec[elementIndex]);
-			}
-			return;
-		}
-
-		//We know that the user wants some specific type of formatting applied, we begin to set that up here.
-		int columns = -1;
-		int rows = -1;
-		std::string listType = "";
-		std::string prependString = "";
-		std::string originalPrependString = "";
-		std::string appendString = "";
-		//A setting for the string we use to separate columns. \t by default.
-		std::string horizontalSeparator = "\t";
-		/*** Get all of the applicable information from the format map  ***/
-		if(format.contains("columns"))
-		{
-			//Check to see how many columns the user wants to output their vector elements into
-			if(stevensStringLib::isNumber(format["columns"]))
-			{
-				columns = stoi(format["columns"]);
-			}
-		}
-		if(format.contains("rows"))
-		{
-			//Check to see how many rows the user wants to output their vector elements into
-			if(stevensStringLib::isNumber(format["rows"]))
-			{
-				rows = stoi(format["columns"]);
-			}
-		}
-		if(format.contains("listType"))
-		{
-			//Check to see what type of list formatting the user wants
-			if(format["listType"] == "numbered")
-			{
-				listType = "numbered";
-			}
-		}
-		if(format.contains("prependString"))
-		{
-			prependString = format["prependString"];
-			originalPrependString = format["prependString"];
-		}
-		if(format.contains("appendString"))
-		{
-			appendString = format["appendString"];
-		}
-		if(format.contains("horizontal separator"))
-		{
-			horizontalSeparator = format["horizontal separator"];
-		}
-
-		//Begin printing the formatted vector. We do this storing all of the objects in a 2D vector.
-		std::vector< std::vector<T> > elementGrid; //responseGrid[column][response in row of index]
-		std::vector<T> emptyTVec;
-		std::vector< std::vector<std::string> > prependTextGrid; 
-		std::vector< std::vector<std::string> > appendTextGrid;
-		std::vector< std::string > emptyStringVec;
-		int numberLabel = 1;
-		if(columns <= 0)
-		{
-			columns = 1; //We cannot have a columns value of LTE 0
-		}
-		if(rows > 0)
-		{
-			emptyTVec.resize(rows); //make the columns contain the number of rows we designate in the function call
-			emptyStringVec.resize(rows);
-		}
-		else
-		{
-			//If the number of rows was not specified, we go with the size of the input vector we are printing
-			emptyTVec.resize(vec.size());
-			emptyStringVec.resize(vec.size());
-			rows = vec.size();
-		}
-		int currentColumnIndex = 0;
-		//cout << "Just before while loop\n";
-		while(vec.size() > 0) //Go through each column and fill a column vector with responses
-		{
-			elementGrid.push_back(emptyTVec); //add a column here
-			prependTextGrid.push_back(emptyStringVec);
-			appendTextGrid.push_back(emptyStringVec);
-			//cout << "vec.size() == " << vec.size() << "\n";
-			//cout << "column added\n";
-			for(int rowIndex = 0; rowIndex < rows; rowIndex++) //Add an element to each row of a column
-			{
-				if (vec.size() > 0)
-				{
-					if(listType == "numbered")
-					{
-						prependString = std::to_string(numberLabel) + " - " + prependString;
-					}
-					prependTextGrid[currentColumnIndex][rowIndex] = prependString;
-					appendTextGrid[currentColumnIndex][rowIndex] = appendString;
-					elementGrid[currentColumnIndex][rowIndex] = vec.front();
-					//cout << "response added\n";
-					//We've added the vector object to the grid we will print. We can erase it from its source vector.
-					vec.erase(vec.begin());
-					//Reset the prepend string
-					prependString = originalPrependString;
-					//Increase our number label
-					numberLabel++;
-				}
-				else
-				{
-					//If we have no more items in our source vector to add to the grid we will print, then we break out of the loop here<<
-					//cout << "we breakin\n";
-					break;
-				}
-			}
-			currentColumnIndex++;
-		}
-		//Now we have our responses in a grid/2D vector structure. We can print them out in lines now.
-		for(int rowIndex = 0; rowIndex < rows; rowIndex++)
-		{
-			for(int columnIndex = 0; columnIndex < columns; columnIndex++) //Print each column after each other separated by tabs
-			{
-				//void(0);
-				if (elementGrid[columnIndex][rowIndex].length() < MIN_CELL_WIDTH)
-				{
-					while(true)
-					{
-						elementGrid[columnIndex][rowIndex] += " ";
-						if (elementGrid[columnIndex][rowIndex].length() == MIN_CELL_WIDTH)
-						{
-							break;
-						}
-					}
-				}
-				//cout << "printing a row!" << endl;
-				print(prependTextGrid[columnIndex][rowIndex]);
-				print(elementGrid[columnIndex][rowIndex]);
-				print(appendTextGrid[columnIndex][rowIndex] + horizontalSeparator);
-			}
-			std::cout << "\n"; //Once we finish a row we print a newline
-		}
-		std::cout << "\n"; //print newline when finished
-		
-		//cout << "finished printVector()!\n";
-
-		return;
-	}
 
 	/**
 	 * Given a vector, return a print-friendly std::string that lists all of the elements in the vector with
@@ -805,8 +614,8 @@ namespace stevensTerminal
 							 	int y,
 								std::unordered_map<std::string,std::string> settingsMap );
 
-	void printFile(	std::string textFilePath,
-					bool wrap = true	);
+	// NOTE: printFile() was removed — unreachable dead code. Use
+	// curses_wprintFile() instead. See stevensTerminal.cpp.
 
 	/**
 	 *	Given a curses window and a path for file, print the content of the file to the curses window.
@@ -842,52 +651,8 @@ namespace stevensTerminal
 
 	// inputWithinResponseRange() is now in Input.hpp
 
-	#if defined(_WIN32)
-	void recolorText(std::string textColor, std::string bgColor);
-	#endif
-	
-	
-	/*
-	Handles any output in the terminal to make it look good and fit within a certain character range
-	
-	Input:
-		std::string input: the std::string to print
-		bool usingTextStyling: Users have the ability to tokenize groups of text in their input with curly brackets immediately
-								followed by square brackets. It may look like something like this in their input:
-							"{The quick brown fox}[name = fox, textColor = red, bgColor = yellow, bold = true, flash = true] jumps over the lazy dog"
-								This way, users can style their printing within the input parameter. If true, we process these style requests
-								when printing the input. If false, each instance of text styling we cut it out of being printed. For example, the example
-								sentence above would just be printed as:
-								"The quick brown fox jumps over the lazy dog"
-
-		unordered_map<std::string, std::String> format -	A map containing all of the possible formatting options
-															for the text being printed. The possible key-value pairs
-															are as follows:
-													"wrapped", "true"/"false"
-														-Would you like the input wrapped in such a way that strings too big to
-														fit on the screen horizontally wrap around to the next line? Yes if true,
-														false if no.
-													"indent",	numeric
-														-
-													"preserve newlines on wrap", "true"/"false"
-														-If the input std::string includes newlines, should we print those newlines?
-															Yes if true, no if false.
-													TODO:
-													Add the ability to style the entire body of text with ANSI codes. Styling text
-													this way should affect everything printed except the individually styled 
-													tokens.
-													"textColor"
-													"bgColor"
-													"flash"
-													"bold"
-													
-
-	Output:
-		Prints text to std out with cout.
-	*/
-	void print(	std::string input,
-				std::unordered_map<std::string, std::string> style,
-				std::unordered_map<std::string, std::string> format	);
+	// NOTE: recolorText() and print()/print_overload2 were removed — see
+	// stevensTerminal.cpp for details. Use curses_wprint() for colored output.
 
 	void menuLabel(std::string label);
 
