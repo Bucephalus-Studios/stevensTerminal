@@ -159,6 +159,30 @@ namespace stevensTerminal
 
 
     /**
+     * @brief Resize the terminal window itself (not just curses' idea of the
+     * screen) to the given dimensions, so the game doesn't open into a
+     * console smaller than its UI expects.
+     *
+     * On Windows (PDCurses/PDCursesMod wincon port), calls resize_term(),
+     * which directly resizes the actual Win32 console window via
+     * SetConsoleWindowInfo()/SetConsoleScreenBufferSize() - this only works
+     * after initscr() has been called (PDCursesMod's Windows backend can't
+     * do it beforehand). The requested size is silently clamped to whatever
+     * GetLargestConsoleWindowSize() allows for the user's screen/font, so
+     * asking for more than fits is safe.
+     *
+     * On Linux, terminal emulator windows aren't something a program can
+     * resize this way (the user's terminal emulator owns that) - this is a
+     * no-op there; players are expected to size their terminal manually
+     * (see CLAUDE.md's terminal size requirements).
+     *
+     * @param rows Desired terminal height in rows.
+     * @param cols Desired terminal width in columns.
+     */
+    void resizeTerminalWindow(int rows, int cols);
+
+
+    /**
      * @brief Initialize the stevensTerminal library
      *
      * This is the recommended way to initialize stevensTerminal. It handles:

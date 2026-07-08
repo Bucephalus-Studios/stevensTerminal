@@ -91,6 +91,15 @@ void setTerminalTitle(const std::string & title)
     #endif
 }
 
+void resizeTerminalWindow(int rows, int cols)
+{
+    #if defined(_WIN32)
+        resize_term(rows, cols);
+    #endif
+    // No portable way to resize the user's terminal emulator window on
+    // Linux/macOS - intentionally a no-op there.
+}
+
 void initialize(bool initWindowManager,
                 const std::vector<std::string>& windowNames) {
     // Initialize ncurses
