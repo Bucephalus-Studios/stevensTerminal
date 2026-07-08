@@ -6,6 +6,7 @@
 
 
 #include <sstream>
+#include <fstream>
 
 namespace stevensTerminal
 {
@@ -812,9 +813,9 @@ namespace PrintHelper
 	 * Returns:
 	 * 	void
 	*/
-	inline std::unordered_map<std::string,int>	curses_styleToken(	PrintToken token	)
+	inline std::unordered_map<std::string,chtype>	curses_styleToken(	PrintToken token	)
 	{
-		std::unordered_map<std::string,int> curses_attribute_data = {};
+		std::unordered_map<std::string,chtype> curses_attribute_data = {};
 
 		/*** COLOR ***/
 		// An unspecified (empty) or explicitly-"default" attribute renders as the terminal default.
@@ -928,9 +929,9 @@ namespace PrintHelper
 	 * Returns:
 	 * 	void
 	*/
-	inline std::unordered_map<std::string,int> curses_styleAttributes(	std::unordered_map<std::string,std::string> style	)
+	inline std::unordered_map<std::string,chtype> curses_styleAttributes(	std::unordered_map<std::string,std::string> style	)
 	{
-		std::unordered_map<std::string,int> curses_attribute_data = {};
+		std::unordered_map<std::string,chtype> curses_attribute_data = {};
 
 		/*** COLOR ***/
 		if(style["textColor"] == "default")
@@ -1022,7 +1023,7 @@ namespace PrintHelper
 	 * 	void;
 	*/
 	inline void curses_wAttrOn(	WINDOW * win,
-							std::unordered_map<std::string, int> curses_attribute_data	)
+							std::unordered_map<std::string, chtype> curses_attribute_data	)
 	{
 		for (auto const& [attrName, attrVal] : curses_attribute_data)
 		{
@@ -1043,7 +1044,7 @@ namespace PrintHelper
 	 * 		void;
 	*/
 	inline void curses_wAttrOff(	WINDOW * win,
-							std::unordered_map<std::string, int> curses_attribute_data	)
+							std::unordered_map<std::string, chtype> curses_attribute_data	)
 	{
 		for (auto const& [attrName, attrVal] : curses_attribute_data)
 		{
@@ -1062,7 +1063,7 @@ namespace PrintHelper
 	 * Returns:
 	 * 	void;
 	*/
-	inline void curses_attrOn(		std::unordered_map<std::string, int> curses_attribute_data	)
+	inline void curses_attrOn(		std::unordered_map<std::string, chtype> curses_attribute_data	)
 	{
 		for (auto const& [attrName, attrVal] : curses_attribute_data)
 		{
@@ -1099,9 +1100,9 @@ namespace PrintHelper
 									bool textStyling	)
 	{
 		//Holds data for which attributes to use before printing text
-		std::unordered_map<std::string, int> curses_attribute_data = {};
+		std::unordered_map<std::string, chtype> curses_attribute_data = {};
 		//Process the style map's attributes
-		std::unordered_map<std::string, int> style_attribute_data = curses_styleAttributes(style);
+		std::unordered_map<std::string, chtype> style_attribute_data = curses_styleAttributes(style);
 
 		/*** Formatting ***/
 		//Very important - get the window size
@@ -1350,7 +1351,7 @@ namespace PrintHelper
 		getmaxyx(win, height, width); //Curses function to get the width of the window we are printing to
 
 		//Turn on any styles we might be using
-		std::unordered_map<std::string,int> curses_style_data;
+		std::unordered_map<std::string,chtype> curses_style_data;
 		if(!style.empty())
 		{
 			//Turn on the style attributes
@@ -1434,9 +1435,9 @@ namespace PrintHelper
 									bool textStyling	)
 	{
 		//Holds data for which attributes to use before printing text
-		std::unordered_map<std::string, int> curses_attribute_data = {};
+		std::unordered_map<std::string, chtype> curses_attribute_data = {};
 		//Process the style map's attributes and store them in a map that can be understood by curses
-		std::unordered_map<std::string, int> style_attribute_data = curses_styleAttributes(style);
+		std::unordered_map<std::string, chtype> style_attribute_data = curses_styleAttributes(style);
 		/*** Formatting ***/
 		//Set the level of indenting each time text wraps around
 		int indent = 0;

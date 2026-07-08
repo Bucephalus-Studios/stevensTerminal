@@ -54,7 +54,7 @@ namespace stevensTerminal
 
         const std::string & ch = spec.frames[frame % static_cast<int>(spec.frames.size())];
         int pair = Colors::lookupColorPairByName(spec.fgColor, spec.bgColor);
-        int attrs = COLOR_PAIR(pair);
+        chtype attrs = COLOR_PAIR(pair);
         if (spec.bold) attrs |= A_BOLD;
 
         wattron(win, attrs);

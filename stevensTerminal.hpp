@@ -535,6 +535,47 @@ namespace stevensTerminal
 						std::unordered_map<std::string,std::string> format );
 
 	/**
+	 * @brief Prints a plain string directly to a curses window, bypassing the
+	 * style-token pipeline entirely (no tokenizePrintString()/tokenizeBetweenTokens()
+	 * parsing, no PrintToken vector). The style map's attributes are resolved once
+	 * and applied via a single wattron()/wattroff() pair around the print.
+	 *
+	 * Use this instead of curses_wprint() for hot paths that print many plain
+	 * (non-tokenized) strings per frame - e.g. per-tile map rendering - where
+	 * paying for tokenization on every call is wasted work. If printString
+	 * contains "{"/"}"/"$"/"["/"]" characters intended as literal text, they are
+	 * printed as-is (unlike curses_wprint(), nothing here treats them as markup).
+	 *
+	 * @param win The curses window to print to.
+	 * @param yMove The y coordinate to print at.
+	 * @param xMove The x coordinate to print at.
+	 * @param printString The plain text to print (no inline style-token markup supported).
+	 * @param style Style options - same keys as curses_wprint()'s style map
+	 *              ("textColor", "bgColor", "bold", "underline", "reverse", "dim", "italic", "blink").
+	 */
+	void curses_wprintDirect(	WINDOW * win,
+								int yMove,
+								int xMove,
+								const std::string & printString,
+								const std::unordered_map<std::string,std::string> & style );
+
+	/**
+	 * @brief Returns the attributes currently active on a curses window.
+	 *
+	 * A thin wrapper over the underlying curses implementation's own attribute
+	 * query (getattrs()/wattr_get() - see
+	 * https://invisible-island.net/ncurses/man/curs_attr.3x.html - both ncursesw
+	 * and PDCursesMod already provide this, so this just gives stevensTerminal
+	 * clients a consistent, discoverable name for it). Useful for saving off the
+	 * current attribute state before temporarily changing it and restoring it
+	 * afterward, instead of assuming a hardcoded "off" baseline.
+	 *
+	 * @param win The curses window to query.
+	 * @return The chtype bitmask of attributes currently set on win.
+	 */
+	chtype curses_wGetAttrs( WINDOW * win );
+
+	/**
 	 * @brief Clears a line in a curses window
 	 * @param win The window to clear the line in
 	 * @param y The y coordinate of the line to clear

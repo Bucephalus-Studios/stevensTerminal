@@ -11,6 +11,7 @@
 #include <unistd.h>
 #endif
 #include <limits>
+#include <fstream>
 
 #include "classes/PrintToken.hpp"
 #include "classes/PrintTokenHelper.hpp"
@@ -79,6 +80,15 @@ void curses_prepare_color()
         curses_colorCompatible = false;
         textStyling = false;
     }
+}
+
+void setTerminalTitle(const std::string & title)
+{
+    #if defined(_WIN32)
+        PDC_set_title(title.c_str());
+    #elif defined(__linux__)
+        std::cout << "\033]0;" << title << "\007" << std::flush;
+    #endif
 }
 
 void initialize(bool initWindowManager,
@@ -185,16 +195,24 @@ void curses_setup_colorCodes()
 		curses_colors["cyan"]    = COLOR_CYAN;
 	}
 	// 16 colors
+	// NOTE: computed from the base colors' own (already bit-order-correct)
+	// values rather than hardcoded absolute numbers. PDCurses' COLOR_RED/
+	// COLOR_BLUE/etc. resolve differently depending on whether PDC_RGB is
+	// defined (RGB vs. legacy PC BGR bit ordering) - hardcoding e.g.
+	// "bright-yellow = 11" silently assumed RGB ordering (yellow=3, +8=11),
+	// which is wrong under PDCursesMod's Windows default (BGR, where 11 is
+	// actually the bright-cyan slot) - this is exactly why yellow rendered
+	// as cyan and blue rendered as red on Windows.
 	if(COLORS >= 16)
 	{
-		curses_colors["bright-black"]   = 8;
-		curses_colors["bright-red"]     = 9;
-		curses_colors["bright-green"]   = 10;
-		curses_colors["bright-yellow"]  = 11;
-		curses_colors["bright-blue"]    = 12;
-		curses_colors["bright-magenta"] = 13;
-		curses_colors["bright-cyan"]    = 14;
-		curses_colors["bright-white"]   = 15;
+		curses_colors["bright-black"]   = curses_colors["black"]   + 8;
+		curses_colors["bright-red"]     = curses_colors["red"]     + 8;
+		curses_colors["bright-green"]   = curses_colors["green"]   + 8;
+		curses_colors["bright-yellow"]  = curses_colors["yellow"]  + 8;
+		curses_colors["bright-blue"]    = curses_colors["blue"]    + 8;
+		curses_colors["bright-magenta"] = curses_colors["magenta"] + 8;
+		curses_colors["bright-cyan"]    = curses_colors["cyan"]    + 8;
+		curses_colors["bright-white"]   = curses_colors["white"]   + 8;
 	}
 }
 
@@ -454,7 +472,7 @@ std::string input(
     set_escdelay(25);
 #endif
 
-    std::unordered_map<std::string,int> styleAttrs = PrintHelper::curses_styleAttributes(textStyle);
+    std::unordered_map<std::string,chtype> styleAttrs = PrintHelper::curses_styleAttributes(textStyle);
 
     // Re-renders str into the window interior on each keystroke.
     // Clears all inner rows first (eliminates color bleed from previously-rendered
@@ -743,6 +761,26 @@ namespace stevensTerminal
 												style,
 												format,
 												textStyling	);
+	}
+
+// ==================== curses_wprintDirect ====================
+	void curses_wprintDirect(	WINDOW * win,
+								int yMove,
+								int xMove,
+								const std::string & printString,
+								const std::unordered_map<std::string,std::string> & style )
+	{
+		std::unordered_map<std::string, chtype> attrs = PrintHelper::curses_styleAttributes(style);
+
+		PrintHelper::curses_wAttrOn(win, attrs);
+		mvwaddstr(win, yMove, xMove, printString.c_str());
+		PrintHelper::curses_wAttrOff(win, attrs);
+	}
+
+// ==================== curses_wGetAttrs ====================
+	chtype curses_wGetAttrs( WINDOW * win )
+	{
+		return getattrs(win);
 	}
 
 // ==================== curses_wClearLine ====================

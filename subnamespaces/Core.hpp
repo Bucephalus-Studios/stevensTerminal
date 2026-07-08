@@ -63,24 +63,25 @@
 #include "../classes/PrintHelper.hpp"
 #include "../classes/WindowManager.hpp"
 
-// Platform-specific character definitions
-#if defined(_WIN32) || defined(__MSDOS__)
-    #define ST_SPADE   "\x06"
-    #define ST_CLUB    "\x05"
-    #define ST_HEART   "\x03"
-    #define ST_DIAMOND "\x04"
-    #define ST_APPROXEQUAL "\xF7" // CP437 Almost Equal To (exact match)
-    #define ST_ASYMPEQUAL  "\xF7" // CP437 has no distinct asymptotically-equal glyph; reuses Almost Equal To
-    #define ST_DELTA       "\xEB" // CP437 lowercase delta; no uppercase Delta glyph exists in CP437
-#else
-    #define ST_SPADE   "\xE2\x99\xA0"
-    #define ST_CLUB    "\xE2\x99\xA3"
-    #define ST_HEART   "\xE2\x99\xA5"
-    #define ST_DIAMOND "\xE2\x99\xA6"
-    #define ST_APPROXEQUAL "\xE2\x89\x88"
-    #define ST_ASYMPEQUAL "\xE2\x89\x83"
-    #define ST_DELTA "\u0394"
-#endif
+// Decorative glyphs, shared across every platform (real UTF-8, decoded
+// correctly by ncursesw on Linux and by PDCursesMod's PDC_FORCE_UTF8 build
+// on Windows). Card-suit CP437 codepage bytes were tried on Windows as a
+// no-font-dependency alternative, but that only works for CP437's "real"
+// high-range characters (0x80-0xFF) \u2014 these live at CP437's low/control-range
+// byte positions (0x00-0x1F), which TrueType console fonts (Consolas
+// included) never render as graphics (only the legacy bitmap "Terminal"/
+// Raster Fonts font does that) \u2014 so it couldn't give real extensibility
+// either. Individual glyph choices below just need to stick to Unicode
+// blocks both Consolas and Ubuntu Mono actually cover (Mathematical
+// Operators, Greek) \u2014 see BorderStyle.hpp's CORNER for a case (Geometric
+// Shapes) that Consolas turned out not to cover.
+#define ST_SPADE       "\xE2\x99\xA0"
+#define ST_CLUB        "\xE2\x99\xA3"
+#define ST_HEART       "\xE2\x99\xA5"
+#define ST_DIAMOND     "\xE2\x99\xA6"
+#define ST_APPROXEQUAL "\xE2\x89\x88"
+#define ST_ASYMPEQUAL  "\xE2\x89\x83"
+#define ST_DELTA       "\xCE\x94"
 
 
 /**
@@ -142,6 +143,19 @@ namespace stevensTerminal
      * color functionality. Must be called after initscr().
      */
     void curses_prepare_color();
+
+
+    /**
+     * @brief Set the title of the terminal window the program is running in.
+     *
+     * On Windows (PDCurses/PDCursesMod wincon port), sets the console host
+     * window's title via PDC_set_title(). On Linux, emits the ANSI OSC escape
+     * sequence that terminal emulators (xterm, gnome-terminal, konsole, etc.)
+     * use to set their window title. Must be called after initscr().
+     *
+     * @param title The title to display.
+     */
+    void setTerminalTitle(const std::string & title);
 
 
     /**

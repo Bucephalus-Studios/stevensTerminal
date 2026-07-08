@@ -56,21 +56,44 @@ elseif(WIN32)
     set(PDC_SDL2_DEPS_BUILD OFF CACHE BOOL "" FORCE)
     set(PDC_GL_BUILD        OFF CACHE BOOL "" FORCE)
     # PDC_UTF8 -> -DPDC_FORCE_UTF8 (see cmake/gen_config_header.cmake), which
-    # curses.h treats as implying PDC_WIDE too. Needed so narrow char* strings
-    # containing raw UTF-8 bytes (e.g. BorderStyle.hpp's "◆") get decoded as
-    # UTF-8 codepoints instead of one garbled codepage byte per glyph byte —
-    # matching how ncursesw already behaves on Linux. Set PDC_WIDE explicitly
-    # too rather than relying solely on curses.h's implication.
+    # curses.h treats as implying PDC_WIDE too. Makes PDCursesMod decode
+    # narrow char* strings as UTF-8, matching ncursesw's behavior on Linux -
+    # decoding itself is confirmed correct (a torn multi-byte sequence
+    # becomes one clean glyph slot instead of garbled bytes). CP437 codepage
+    # bytes were tried as an alternative for guaranteed-no-font-dependency
+    # rendering, but that only works for CP437's "real" high-range
+    # characters (0x80-0xFF) - card suits and other decorative symbols only
+    # exist at CP437's low/control-range byte positions (0x00-0x1F), which
+    # TrueType console fonts (Consolas included) don't render as graphics at
+    # all (only the legacy bitmap "Terminal"/Raster Fonts font does that).
+    # So CP437 can't give real extensibility either. Back to true Unicode:
+    # individual glyph choices just need to stick to Unicode blocks Consolas
+    # and Ubuntu Mono both actually cover (Box Drawing, Block Elements,
+    # Mathematical Operators, Greek) rather than Geometric Shapes/Dingbats,
+    # which is where the previous "◆" pick fell down.
     set(PDC_WIDE            ON  CACHE BOOL "" FORCE)
     set(PDC_UTF8            ON  CACHE BOOL "" FORCE)
+
+    # Off by default: this trades away richer color modes (256-color/truecolor
+    # via ANSI/VT escape sequences) for guaranteed-identical behavior across
+    # every Windows version and console host, by pinning PDCurses to its
+    # original 16-color WriteConsoleOutput path. That tradeoff belongs to
+    # whichever project consumes stevensTerminal, not to stevensTerminal
+    # itself - cultgame opts in below because it targets the broadest
+    # possible Windows version support; other consumers may prefer PDCurses'
+    # default opportunistic ANSI/VT upgrade. See cmake/patch_pdcurses.cmake,
+    # patch_pdcurses_force_legacy_color.cmake, and patch_pdcurses_pin_colors_16.cmake.
+    option(STEVENSTERMINAL_FORCE_LEGACY_PDCURSES_COLOR
+        "Force PDCurses onto the legacy 16-color WriteConsoleOutput path instead of auto-detecting ANSI/VT escape sequences"
+        OFF)
 
     FetchContent_Declare(
         PDCurses
         GIT_REPOSITORY https://github.com/Bill-Gray/PDCursesMod.git
         GIT_TAG        v4.3.7
         GIT_SHALLOW    TRUE
-        # See cmake/patch_pdcurses_cmake_source_dir.cmake for why this is needed.
-        PATCH_COMMAND  ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patch_pdcurses_cmake_source_dir.cmake"
+        # See cmake/patch_pdcurses.cmake for the full list of patches applied.
+        PATCH_COMMAND  ${CMAKE_COMMAND} -DSTEVENSTERMINAL_FORCE_LEGACY_PDCURSES_COLOR=${STEVENSTERMINAL_FORCE_LEGACY_PDCURSES_COLOR} -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patch_pdcurses.cmake"
     )
     FetchContent_MakeAvailable(PDCurses)
 
@@ -94,8 +117,15 @@ elseif(WIN32)
     # and its consumers fails to LINK rather than silently misbehaving at
     # runtime. PUBLIC here ensures stevensTerminal's own sources AND anything
     # linking against it (cultgame) see the exact same defines the library
-    # was actually built with.
-    target_compile_definitions(stevensTerminal PUBLIC PDC_WIDE PDC_FORCE_UTF8)
+    # was actually built with - must mirror the PDC_WIDE/PDC_UTF8 CMake
+    # option values above exactly, not be unconditional, or this mismatches
+    # whatever the library was actually compiled with.
+    if(PDC_WIDE)
+        target_compile_definitions(stevensTerminal PUBLIC PDC_WIDE)
+    endif()
+    if(PDC_UTF8)
+        target_compile_definitions(stevensTerminal PUBLIC PDC_FORCE_UTF8)
+    endif()
 endif()
 
 find_package(Threads REQUIRED)
