@@ -19,14 +19,21 @@ namespace stevensTerminal
     /**
      * @brief Configuration for a printSpinner call.
      *
-     * frames    — UTF-8 strings cycled in order; defaults to the quarter-circle set.
+     * frames    — UTF-8 strings cycled in order; defaults to a rotating
+     *             small-triangle set. Was the quarter-circle glyphs
+     *             (U+25D0-25D3, Geometric Shapes block) - not covered by
+     *             Consolas; glyph::spinnerUp/Right/Down/Left (U+25B4/25B8/
+     *             25BE/25C2, same block) are.
      * fgColor   — ncurses color name for the spinner character.
      * bgColor   — ncurses color name for the background.
      * bold      — if true, A_BOLD is applied.
      */
     struct SpinnerSpec
     {
-        std::vector<std::string> frames   = { "◐", "◓", "◑", "◒" };
+        std::vector<std::string> frames   = { std::string(glyph::spinnerUp),
+                                               std::string(glyph::spinnerRight),
+                                               std::string(glyph::spinnerDown),
+                                               std::string(glyph::spinnerLeft) };
         std::string              fgColor  = "bright-yellow";
         std::string              bgColor  = "black";
         bool                     bold     = true;

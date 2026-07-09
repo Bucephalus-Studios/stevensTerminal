@@ -61,7 +61,21 @@ std::pair<int, int> get_screen_size() {
 
 void hideCursor() { curs_set(0); }
 
-void showCursor() { curs_set(1); }
+void showCursor()
+{
+    #if defined(_WIN32)
+        // PDCurses' wincon backend maps curs_set(1) ("normal") to the
+        // console's original/default cursor size (PDC_curs_set(), SP->
+        // orig_cursor), which on the standard Windows console is a thin
+        // underline - unlike Linux terminals, where a "normal" cursor
+        // typically fills the whole cell. curs_set(2) ("high visibility")
+        // maps to a 95%-of-cell-height block on wincon, matching Linux's
+        // appearance.
+        curs_set(2);
+    #else
+        curs_set(1);
+    #endif
+}
 
 void curses_prepare_color()
 {
@@ -98,6 +112,19 @@ void resizeTerminalWindow(int rows, int cols)
     #endif
     // No portable way to resize the user's terminal emulator window on
     // Linux/macOS - intentionally a no-op there.
+}
+
+void enableTrueBlink()
+{
+    #if defined(_WIN32)
+        // PDCursesMod defaults A_BLINK to setting the background to high
+        // intensity instead of actually blinking (PDC_set_blink(FALSE) is
+        // the default on most platforms, per pdcsetsc.c) - without this
+        // call, blink=true text just renders as a bright/light background
+        // and never flashes. Real terminals (Linux/macOS) already treat
+        // A_BLINK as a true blink via terminfo, so this is a no-op there.
+        PDC_set_blink(TRUE);
+    #endif
 }
 
 void initialize(bool initWindowManager,

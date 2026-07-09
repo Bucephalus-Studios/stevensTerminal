@@ -27,6 +27,7 @@
 #include <map>
 #include <unordered_map>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <iostream>
 #include <limits>
@@ -63,25 +64,52 @@
 #include "../classes/PrintHelper.hpp"
 #include "../classes/WindowManager.hpp"
 
-// Decorative glyphs, shared across every platform (real UTF-8, decoded
-// correctly by ncursesw on Linux and by PDCursesMod's PDC_FORCE_UTF8 build
-// on Windows). Card-suit CP437 codepage bytes were tried on Windows as a
-// no-font-dependency alternative, but that only works for CP437's "real"
-// high-range characters (0x80-0xFF) \u2014 these live at CP437's low/control-range
-// byte positions (0x00-0x1F), which TrueType console fonts (Consolas
-// included) never render as graphics (only the legacy bitmap "Terminal"/
-// Raster Fonts font does that) \u2014 so it couldn't give real extensibility
-// either. Individual glyph choices below just need to stick to Unicode
-// blocks both Consolas and Ubuntu Mono actually cover (Mathematical
-// Operators, Greek) \u2014 see BorderStyle.hpp's CORNER for a case (Geometric
-// Shapes) that Consolas turned out not to cover.
-#define ST_SPADE       "\xE2\x99\xA0"
-#define ST_CLUB        "\xE2\x99\xA3"
-#define ST_HEART       "\xE2\x99\xA5"
-#define ST_DIAMOND     "\xE2\x99\xA6"
-#define ST_APPROXEQUAL "\xE2\x89\x88"
-#define ST_ASYMPEQUAL  "\xE2\x89\x83"
-#define ST_DELTA       "\xCE\x94"
+/**
+ * @namespace stevensTerminal::glyph
+ * @brief Decorative glyphs, shared across every platform (real UTF-8, decoded
+ * correctly by ncursesw on Linux and by PDCursesMod's PDC_FORCE_UTF8 build
+ * on Windows).
+ *
+ * Card-suit CP437 codepage bytes were tried on Windows as a no-font-
+ * dependency alternative, but that only works for CP437's "real" high-range
+ * characters (0x80-0xFF) - these live at CP437's low/control-range byte
+ * positions (0x00-0x1F), which TrueType console fonts (Consolas included)
+ * never render as graphics (only the legacy bitmap "Terminal"/Raster Fonts
+ * font does that) - so it couldn't give real extensibility either.
+ *
+ * Each glyph below has been empirically confirmed present in Consolas via
+ * GetFontUnicodeRanges() - block-level assumptions are not reliable (e.g.
+ * U+2243 fails despite its neighbor U+2248 in the same Mathematical
+ * Operators block working; see BorderStyle.hpp's CORNER for a Geometric
+ * Shapes-block example of the same trap). Ubuntu Mono coverage has not yet
+ * been machine-verified the same way.
+ *
+ * Plain std::string_view (not a macro) so these live in stevensTerminal's
+ * namespace instead of the global preprocessor namespace, and so a typo'd
+ * name is a compile error at the point of use instead of silently expanding
+ * to nothing.
+ */
+namespace stevensTerminal::glyph
+{
+    inline constexpr std::string_view spade       = "\xE2\x99\xA0"; // U+2660 BLACK SPADE SUIT
+    inline constexpr std::string_view club        = "\xE2\x99\xA3"; // U+2663 BLACK CLUB SUIT
+    inline constexpr std::string_view heart       = "\xE2\x99\xA5"; // U+2665 BLACK HEART SUIT
+    inline constexpr std::string_view diamond     = "\xE2\x99\xA6"; // U+2666 BLACK DIAMOND SUIT
+    inline constexpr std::string_view approxEqual = "\xE2\x89\x88"; // U+2248 ALMOST EQUAL TO
+    inline constexpr std::string_view delta       = "\xCE\x94";     // U+0394 GREEK CAPITAL LETTER DELTA
+
+    // Added while auditing item/UI symbols against Consolas coverage.
+    inline constexpr std::string_view upTriangle       = "\xE2\x96\xB2"; // U+25B2 BLACK UP-POINTING TRIANGLE
+    inline constexpr std::string_view smallSquare      = "\xE2\x96\xAA"; // U+25AA BLACK SMALL SQUARE
+    inline constexpr std::string_view rectangle        = "\xE2\x96\xAC"; // U+25AC BLACK RECTANGLE
+    inline constexpr std::string_view filledCircle     = "\xE2\x97\x8F"; // U+25CF BLACK CIRCLE
+    inline constexpr std::string_view rightHalfBlock    = "\xE2\x96\x90"; // U+2590 RIGHT HALF BLOCK
+    inline constexpr std::string_view sixPointedStar   = "\xE2\x9C\xB6"; // U+2736 SIX POINTED BLACK STAR
+    inline constexpr std::string_view spinnerUp        = "\xE2\x96\xB4"; // U+25B4 BLACK UP-POINTING SMALL TRIANGLE
+    inline constexpr std::string_view spinnerRight     = "\xE2\x96\xB8"; // U+25B8 BLACK RIGHT-POINTING SMALL TRIANGLE
+    inline constexpr std::string_view spinnerDown      = "\xE2\x96\xBE"; // U+25BE BLACK DOWN-POINTING SMALL TRIANGLE
+    inline constexpr std::string_view spinnerLeft      = "\xE2\x97\x82"; // U+25C2 BLACK LEFT-POINTING SMALL TRIANGLE
+}
 
 
 /**
@@ -180,6 +208,23 @@ namespace stevensTerminal
      * @param cols Desired terminal width in columns.
      */
     void resizeTerminalWindow(int rows, int cols);
+
+
+    /**
+     * @brief Make the A_BLINK text attribute actually blink on Windows.
+     *
+     * On Windows (PDCurses/PDCursesMod wincon port), A_BLINK defaults to
+     * setting the background color to high intensity instead of blinking
+     * (PDC_set_blink(FALSE) is PDCursesMod's default on most platforms) -
+     * so blink=true text just renders with a bright background and never
+     * flashes until this is called. Must be called after initscr() (and
+     * after curses_prepare_color(), since PDC_set_blink() reinitializes
+     * COLORS when color support is already started).
+     *
+     * On Linux/macOS, real terminals already treat A_BLINK as a true blink
+     * via terminfo - this is a no-op there.
+     */
+    void enableTrueBlink();
 
 
     /**
