@@ -20,6 +20,7 @@
 #include "subnamespaces/ParticleFX/ParticleFX.hpp"
 #include "subnamespaces/Bar.hpp"
 #include "subnamespaces/Spinner.hpp"
+#include "subnamespaces/Animation.hpp"
 
 namespace stevensTerminal
 {

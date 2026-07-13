@@ -404,14 +404,15 @@ std::string resizeStyledString(std::string str, const size_t desiredLength, cons
 
     // If there are no style tokens, just return a call of the std::string.resize() function
     if(tokens.empty()) {
-        str.resize(desiredLength, fillChar);
+        str = stevensStringLib::utf8Resize(str, desiredLength, fillChar);
         return str;
     }
 
     // Otherwise, now that we have all of the style tokens, we take just their content and turn it into a std::string
     std::string contentString = removeAllStyleTokenization(str);
-    // We resize this std::string
-    contentString.resize(desiredLength, fillChar);
+    // We resize this std::string by codepoint, not byte, so multi-byte content (Cyrillic, CJK, etc.)
+    // isn't torn in half by truncation or padded to the wrong displayed width
+    contentString = stevensStringLib::utf8Resize(contentString, desiredLength, fillChar);
     std::string resizedStr = contentString;
     // We now place the style tokens back into this resized std::string
     for(int tokenIndex = 0; tokenIndex < tokens.size(); tokenIndex++) {
@@ -1086,7 +1087,7 @@ namespace stevensTerminal
 					}
 					else if(strToPrint.length() < width)
 					{
-						strToPrint.append(std::string(stevensStringLib::circularIndex(borderPatterns["top"], i),1));
+						strToPrint.append(stevensStringLib::circularIndex(borderPatterns["top"], i));
 						i++;
 					}
 				}
@@ -1128,7 +1129,7 @@ namespace stevensTerminal
 					}
 					else if(strToPrint.length() < width)
 					{
-						strToPrint.append(std::string(stevensStringLib::circularIndex(borderPatterns["bottom"], i),1));
+						strToPrint.append(stevensStringLib::circularIndex(borderPatterns["bottom"], i));
 						i++;
 					}
 				}

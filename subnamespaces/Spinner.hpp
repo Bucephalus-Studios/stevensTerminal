@@ -69,4 +69,16 @@ namespace stevensTerminal
         wattroff(win, attrs);
     }
 
+    /** Ready-made SpinnerSpec presets. Pass one as the last arg to printSpinner(). */
+    namespace spinners
+    {
+        inline const SpinnerSpec pipe    {{ "|", "/", "-", "\\" }};
+        inline const SpinnerSpec dots    {{ ".", "..", "..." }};
+        inline const SpinnerSpec braille {{ "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }};
+        inline const SpinnerSpec triangle{{ std::string(glyph::spinnerUp),
+                                           std::string(glyph::spinnerRight),
+                                           std::string(glyph::spinnerDown),
+                                           std::string(glyph::spinnerLeft) }};
+    }
+
 } // namespace stevensTerminal

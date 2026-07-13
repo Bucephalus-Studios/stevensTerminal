@@ -89,6 +89,24 @@
  * name is a compile error at the point of use instead of silently expanding
  * to nothing.
  */
+/**
+ * @namespace stevensTerminal::key
+ * @brief Named constants for special input key strings used as cg_response selectStr values.
+ *
+ * Use these instead of raw character literals so call sites are readable and
+ * consistent. These are plain std::string constants (not ncurses KEY_* integers)
+ * and are safe to include from any header.
+ *
+ * Arrow keys are intentionally excluded: they require ncurses KEY_UP/DOWN/LEFT/RIGHT
+ * integer constants (platform-specific), which belong at call sites via
+ * std::to_string(KEY_UP) etc., typically in "hidden" response sections.
+ */
+namespace stevensTerminal::key
+{
+    inline const std::string Esc = std::string(1, '\x1b'); // ASCII 27 — displayed as "Esc" by ResponseHelper
+}
+
+
 namespace stevensTerminal::glyph
 {
     inline constexpr std::string_view spade       = "\xE2\x99\xA0"; // U+2660 BLACK SPADE SUIT

@@ -583,106 +583,9 @@ TEST(printVector_str, customHorizontalSeparator_comma)
 }
 
 
-/*** stevensTerminal::countContentLines() ***/
-TEST(countContentLines, plainTextNoNewlines)
-{
-    //Arrange
-    std::string str = "This is a simple string without newlines";
-    //Act
-    unsigned long long int lines = stevensTerminal::countContentLines(str);
-    //Assert
-    ASSERT_EQ(lines, 0);
-}
-
-TEST(countContentLines, plainTextWithOneNewline)
-{
-    //Arrange
-    std::string str = "Line 1\nLine 2";
-    //Act
-    unsigned long long int lines = stevensTerminal::countContentLines(str);
-    //Assert
-    ASSERT_EQ(lines, 1);
-}
-
-TEST(countContentLines, plainTextWithMultipleNewlines)
-{
-    //Arrange
-    std::string str = "Line 1\nLine 2\nLine 3\nLine 4";
-    //Act
-    unsigned long long int lines = stevensTerminal::countContentLines(str);
-    //Assert
-    ASSERT_EQ(lines, 3);
-}
-
-TEST(countContentLines, styledTextNoNewlines)
-{
-    //Arrange
-    std::string str = "{Hello}$[textColor=red] {World}$[textColor=blue]";
-    //Act
-    unsigned long long int lines = stevensTerminal::countContentLines(str);
-    //Assert
-    ASSERT_EQ(lines, 0);
-}
-
-TEST(countContentLines, styledTextWithOneNewline)
-{
-    //Arrange
-    std::string str = "{Hello}$[textColor=red]\n{World}$[textColor=blue]";
-    //Act
-    unsigned long long int lines = stevensTerminal::countContentLines(str);
-    //Assert
-    ASSERT_EQ(lines, 1);
-}
-
-TEST(countContentLines, styledTextWithMultipleNewlines)
-{
-    //Arrange
-    std::string str = "{Line 1}$[textColor=red]\n{Line 2}$[textColor=green]\n{Line 3}$[textColor=blue]";
-    //Act
-    unsigned long long int lines = stevensTerminal::countContentLines(str);
-    //Assert
-    ASSERT_EQ(lines, 2);
-}
-
-TEST(countContentLines, nestedTokensWithNewlines)
-{
-    //Arrange
-    std::string str = "{Outer {inner}$[textColor=red] text}$[bgColor=blue]\n{Second line}$[textColor=green]";
-    //Act
-    unsigned long long int lines = stevensTerminal::countContentLines(str);
-    //Assert
-    ASSERT_EQ(lines, 1);
-}
-
-TEST(countContentLines, emptyString)
-{
-    //Arrange
-    std::string str = "";
-    //Act
-    unsigned long long int lines = stevensTerminal::countContentLines(str);
-    //Assert
-    ASSERT_EQ(lines, 0);
-}
-
-TEST(countContentLines, onlyTokensNoContent)
-{
-    //Arrange
-    std::string str = "{}$[textColor=red]{}$[textColor=blue]";
-    //Act
-    unsigned long long int lines = stevensTerminal::countContentLines(str);
-    //Assert
-    ASSERT_EQ(lines, 0);
-}
-
-TEST(countContentLines, multipleConsecutiveNewlines)
-{
-    //Arrange
-    std::string str = "{Text}$[textColor=red]\n\n\n{More text}$[textColor=blue]";
-    //Act
-    unsigned long long int lines = stevensTerminal::countContentLines(str);
-    //Assert
-    ASSERT_EQ(lines, 3);
-}
+// NOTE: countContentLines() tests removed — the function only ever existed in the orphaned
+// top-level Styling.hpp (dead code, not included by stevensTerminal.hpp; see subnamespaces/Styling.hpp,
+// which is the file actually built). Never migrated during that refactor.
 
 
 /*** stevensTerminal::PrintHelper::ignoreTokenStyling() ***/
@@ -1071,26 +974,10 @@ TEST(StylingFunctions, insertStyleToken_out_of_bounds)
     ASSERT_EQ(str, originalStr);
 }
 
-TEST(StylingFunctions, getValueColor_positive)
-{
-    // Test positive value returns green
-    std::string color = stevensTerminal::getValueColor(5.0f);
-    ASSERT_EQ(color, "bright-green");
-}
-
-TEST(StylingFunctions, getValueColor_negative)
-{
-    // Test negative value returns red
-    std::string color = stevensTerminal::getValueColor(-3.5f);
-    ASSERT_EQ(color, "bright-red");
-}
-
-TEST(StylingFunctions, getValueColor_zero)
-{
-    // Test zero value returns default
-    std::string color = stevensTerminal::getValueColor(0.0f);
-    ASSERT_EQ(color, "default");
-}
+// NOTE: getValueColor() tests removed — the function moved to cultgame's own cultgameLib
+// (cultgameLib::getValueColor(), see cultgame/src/libraries/cultgameLib.hpp) per the ownership
+// decision noted at SkillCheck.cpp:247. The stevensTerminal copy is commented out/removed in
+// subnamespaces/Styling.hpp, not just orphaned.
 
 /***** DISPLAY MODE TESTS *****/
 TEST(DisplayMode, setDisplayMode_small_screen)
