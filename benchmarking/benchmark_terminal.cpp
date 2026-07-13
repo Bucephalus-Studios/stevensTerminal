@@ -365,4 +365,278 @@ static void BM_VectorLib_Contains(benchmark::State& state) {
 }
 BENCHMARK(BM_VectorLib_Contains)->Range(8, 8192)->Complexity();
 
+
+// ==== UTF-8 CODEPOINT WRAPPING BENCHMARKS ====
+// Cost of the UTF-8 <-> UTF-32 decode/encode added to PrintHelper::computeWrapSegments() for
+// multi-byte correctness. Compares the current (codepoint-based) implementation against a
+// reference copy of the original (byte-based, pre-fix) implementation on the same ASCII inputs,
+// plus the current implementation alone on multi-byte input (the original has no valid
+// multi-byte baseline - it doesn't wrap multi-byte text correctly at all).
+
+namespace BenchmarkOriginal {
+    // Verbatim copy of computeWrapSegments() as it existed before the UTF-8 codepoint fix
+    // (see stevensTerminal git history). Byte-based - kept only for this comparison, not
+    // correct for multi-byte input.
+    inline std::vector<std::string> computeWrapSegments_bytesOnly(
+                            std::string line,
+                            int xMove,
+                            int width,
+                            int borderAdjustment)
+    {
+        std::vector<std::string> segments;
+        int textWidth = (width - borderAdjustment) - xMove;
+
+        if (textWidth <= 0) return segments;
+
+        while (true) {
+            if ((int)line.length() <= textWidth) {
+                segments.push_back(line);
+                break;
+            }
+            size_t cutPos = line.rfind(' ', (size_t)(textWidth - 1));
+            if (cutPos == std::string::npos) {
+                segments.push_back(line.substr(0, textWidth));
+                line = line.substr(textWidth);
+            } else {
+                segments.push_back(line.substr(0, cutPos));
+                line = line.substr(cutPos + 1);
+            }
+        }
+
+        return segments;
+    }
+}
+
+namespace WrapBenchmarkData {
+    inline std::string shortAsciiLine() {
+        return "The quick brown fox jumps over the lazy dog"; // 45 chars
+    }
+
+    inline std::string longAsciiLine() {
+        std::string line;
+        for (int i = 0; i < 20; ++i) line += "The quick brown fox jumps over the lazy dog ";
+        return line; // ~900 chars, wraps many times at narrow widths
+    }
+
+    inline std::string multiByteLine() {
+        std::string line;
+        for (int i = 0; i < 20; ++i) line += "Быстрая коричневая лиса перепрыгивает через ленивую собаку ";
+        return line; // Cyrillic, comparable character count to longAsciiLine, 2 bytes/char
+    }
+}
+
+/*** computeWrapSegments: short ASCII line, narrow width (frequent wraps) ***/
+static void BM_ComputeWrapSegments_Original_ShortAscii(benchmark::State& state) {
+    std::string line = WrapBenchmarkData::shortAsciiLine();
+    for (auto _ : state) {
+        auto result = BenchmarkOriginal::computeWrapSegments_bytesOnly(line, 0, 20, 0);
+        benchmark::DoNotOptimize(result);
+    }
+}
+BENCHMARK(BM_ComputeWrapSegments_Original_ShortAscii);
+
+static void BM_ComputeWrapSegments_Fixed_ShortAscii(benchmark::State& state) {
+    std::string line = WrapBenchmarkData::shortAsciiLine();
+    for (auto _ : state) {
+        auto result = stevensTerminal::PrintHelper::computeWrapSegments(line, 0, 20, 0);
+        benchmark::DoNotOptimize(result);
+    }
+}
+BENCHMARK(BM_ComputeWrapSegments_Fixed_ShortAscii);
+
+/*** computeWrapSegments: long ASCII line, many wraps per call ***/
+static void BM_ComputeWrapSegments_Original_LongAscii(benchmark::State& state) {
+    std::string line = WrapBenchmarkData::longAsciiLine();
+    for (auto _ : state) {
+        auto result = BenchmarkOriginal::computeWrapSegments_bytesOnly(line, 0, 40, 0);
+        benchmark::DoNotOptimize(result);
+    }
+}
+BENCHMARK(BM_ComputeWrapSegments_Original_LongAscii);
+
+static void BM_ComputeWrapSegments_Fixed_LongAscii(benchmark::State& state) {
+    std::string line = WrapBenchmarkData::longAsciiLine();
+    for (auto _ : state) {
+        auto result = stevensTerminal::PrintHelper::computeWrapSegments(line, 0, 40, 0);
+        benchmark::DoNotOptimize(result);
+    }
+}
+BENCHMARK(BM_ComputeWrapSegments_Fixed_LongAscii);
+
+/*** computeWrapSegments: multi-byte (Cyrillic) line - no valid "Original" baseline ***/
+static void BM_ComputeWrapSegments_Fixed_MultiByte(benchmark::State& state) {
+    std::string line = WrapBenchmarkData::multiByteLine();
+    for (auto _ : state) {
+        auto result = stevensTerminal::PrintHelper::computeWrapSegments(line, 0, 40, 0);
+        benchmark::DoNotOptimize(result);
+    }
+}
+BENCHMARK(BM_ComputeWrapSegments_Fixed_MultiByte);
+
+
+// ==== BORDER-FITTING BENCHMARKS (curses_wborder top/bottom pattern-fitting logic) ====
+// Same before/after comparison as computeWrapSegments, isolating just the string-prep logic
+// (not ncurses I/O, which is identical before/after) - see curses_wborder() in stevensTerminal.cpp.
+
+namespace BenchmarkOriginal {
+    // Verbatim copy of curses_wborder()'s top-pattern-fitting logic as it existed before the
+    // UTF-8 codepoint fix. Byte-based - kept only for this comparison, not correct for
+    // multi-byte patterns.
+    inline std::string fitBorderPattern_bytesOnly(const std::string & pattern, int width) {
+        if ((int)pattern.length() >= width) {
+            return pattern.substr(0, width);
+        }
+        std::string strToPrint = stevensStringLib::multiply(pattern, (width / pattern.length()));
+        int i = 0;
+        while ((int)strToPrint.length() != width) {
+            if ((int)strToPrint.length() > width) {
+                strToPrint.pop_back();
+            } else if ((int)strToPrint.length() < width) {
+                strToPrint += pattern[i % pattern.length()]; // original circularIndex() was byte-based too
+                i++;
+            }
+        }
+        return strToPrint;
+    }
+
+    // Fixed logic, extracted to a pure function for a fair comparison against the above
+    // (real curses_wborder() also does real ncurses I/O, which is identical either way and
+    // would just add noise to this specific comparison).
+    inline std::string fitBorderPattern_codepoints(const std::string & pattern, int width) {
+        if ((int)stevensStringLib::utf8Length(pattern) >= width) {
+            return stevensStringLib::utf32to8(stevensStringLib::utf8to32(pattern).substr(0, width));
+        }
+        std::string strToPrint = stevensStringLib::multiply(pattern, (width / stevensStringLib::utf8Length(pattern)));
+        std::u32string u32strToPrint = stevensStringLib::utf8to32(strToPrint);
+        int i = 0;
+        while ((int)u32strToPrint.length() != width) {
+            if ((int)u32strToPrint.length() > width) {
+                u32strToPrint.pop_back();
+            } else if ((int)u32strToPrint.length() < width) {
+                u32strToPrint += stevensStringLib::utf8to32(stevensStringLib::circularIndex(pattern, i));
+                i++;
+            }
+        }
+        return stevensStringLib::utf32to8(u32strToPrint);
+    }
+}
+
+static void BM_BorderFit_Original_AsciiPattern(benchmark::State& state) {
+    for (auto _ : state) {
+        auto result = BenchmarkOriginal::fitBorderPattern_bytesOnly("-~", 80);
+        benchmark::DoNotOptimize(result);
+    }
+}
+BENCHMARK(BM_BorderFit_Original_AsciiPattern);
+
+static void BM_BorderFit_Fixed_AsciiPattern(benchmark::State& state) {
+    for (auto _ : state) {
+        auto result = BenchmarkOriginal::fitBorderPattern_codepoints("-~", 80);
+        benchmark::DoNotOptimize(result);
+    }
+}
+BENCHMARK(BM_BorderFit_Fixed_AsciiPattern);
+
+/*** Multi-byte (box-drawing) pattern - no valid "Original" baseline (would tear characters) ***/
+static void BM_BorderFit_Fixed_MultiBytePattern(benchmark::State& state) {
+    for (auto _ : state) {
+        auto result = BenchmarkOriginal::fitBorderPattern_codepoints("\xE2\x99\xA6\xE2\x95\x90", 80); // diamond + double-line
+        benchmark::DoNotOptimize(result);
+    }
+}
+BENCHMARK(BM_BorderFit_Fixed_MultiBytePattern);
+
+
+// ==== REAL curses_wwrap()/curses_wwrap_withTokens() END-TO-END BENCHMARKS ====
+// Uses a headless ncurses screen (newterm() to /dev/null) so the real functions - including
+// real ncurses I/O, not just the string prep - can be benchmarked directly.
+
+class HeadlessNcursesFixture : public benchmark::Fixture {
+public:
+    WINDOW* win = nullptr;
+    SCREEN* screen = nullptr;
+    FILE* devnull = nullptr;
+
+    void SetUp(benchmark::State&) override {
+        devnull = fopen("/dev/null", "w");
+        screen = newterm("xterm", devnull, stdin);
+        set_term(screen);
+        win = newwin(24, 80, 0, 0);
+    }
+
+    void TearDown(benchmark::State&) override {
+        delwin(win);
+        endwin();
+        if (devnull) fclose(devnull);
+    }
+};
+
+BENCHMARK_F(HeadlessNcursesFixture, BM_CursesWwrap_Original_LongAscii)(benchmark::State& state) {
+    std::string line = WrapBenchmarkData::longAsciiLine();
+    for (auto _ : state) {
+        // Reference (pre-fix) curses_wwrap: byte-based length/substr/rfind.
+        std::istringstream in(line);
+        std::string l, output;
+        int lineCutOffIndex = 0;
+        while (getline(in, l)) {
+            int textWidth = 40;
+            while (true) {
+                if (textWidth > 0 && (int)l.length() > textWidth) {
+                    lineCutOffIndex = l.rfind(" ", (size_t)(textWidth - 1));
+                    if (lineCutOffIndex == std::string::npos) {
+                        output = l.substr(0, textWidth);
+                        mvwprintw(win, 0, 0, "%s", output.c_str());
+                        l = l.substr(textWidth);
+                    } else {
+                        output = l.substr(0, lineCutOffIndex);
+                        mvwprintw(win, 0, 0, "%s", output.c_str());
+                        l = l.substr(lineCutOffIndex + 1);
+                    }
+                } else {
+                    output = l;
+                    mvwprintw(win, 0, 0, "%s", output.c_str());
+                    break;
+                }
+            }
+        }
+    }
+}
+
+BENCHMARK_F(HeadlessNcursesFixture, BM_CursesWwrap_Fixed_LongAscii)(benchmark::State& state) {
+    std::string line = WrapBenchmarkData::longAsciiLine();
+    for (auto _ : state) {
+        stevensTerminal::PrintHelper::curses_wwrap(win, 0, 0, line, 0, {});
+    }
+}
+
+BENCHMARK_F(HeadlessNcursesFixture, BM_CursesWwrap_Fixed_MultiByte)(benchmark::State& state) {
+    std::string line = WrapBenchmarkData::multiByteLine();
+    for (auto _ : state) {
+        stevensTerminal::PrintHelper::curses_wwrap(win, 0, 0, line, 0, {});
+    }
+}
+
+/*** curses_wwrap_withTokens: absolute cost only (Fixed) - complex enough that a faithful
+     byte-based reference copy isn't worth the duplication; computeWrapSegments/curses_wwrap
+     comparisons above already establish the per-conversion cost of this same pattern. ***/
+BENCHMARK_F(HeadlessNcursesFixture, BM_CursesWwrapWithTokens_Fixed_LongAscii)(benchmark::State& state) {
+    std::string input = WrapBenchmarkData::longAsciiLine();
+    std::unordered_map<std::string,std::string> format = {{"wrap", "true"}};
+    std::unordered_map<std::string,std::string> style = {};
+    for (auto _ : state) {
+        std::string copy = input;
+        stevensTerminal::PrintHelper::curses_wprint(win, 0, 0, copy, style, format, true);
+    }
+}
+
+BENCHMARK_F(HeadlessNcursesFixture, BM_CursesWwrapWithTokens_Fixed_MultiByte)(benchmark::State& state) {
+    std::string input = WrapBenchmarkData::multiByteLine();
+    std::unordered_map<std::string,std::string> format = {{"wrap", "true"}};
+    std::unordered_map<std::string,std::string> style = {};
+    for (auto _ : state) {
+        std::string copy = input;
+        stevensTerminal::PrintHelper::curses_wprint(win, 0, 0, copy, style, format, true);
+    }
+}
+
 BENCHMARK_MAIN();

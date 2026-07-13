@@ -582,6 +582,46 @@ TEST(printVector_str, customHorizontalSeparator_comma)
     ASSERT_STREQ( result.c_str(), "Apple, Banana, Cherry, \n");
 }
 
+/*** formatTableAsString() cell wrapping (multi-byte UTF-8 correctness) ***/
+TEST(FormatTableAsString, wrapsMultiByteContentAtCodepointBoundaries)
+{
+    // 23 Cyrillic codepoints (7 + 1 + 10 + 1 + 4), with a real style token so resizeStyledString()
+    // recognizes each wrapped chunk as a proper token (a bare "{content}" with no "$[...]" isn't a
+    // valid token and gets double-truncated by resizeStyledString() afterward - unrelated pre-existing
+    // quirk, not what this test is targeting).
+    std::vector<std::vector<std::string>> table = { { stevensTerminal::style("Быстрая коричневая лиса", {{"textColor", "red"}}) } };
+    std::string result = stevensTerminal::formatTableAsString(
+        table,
+        {},
+        {   {"column widths",  "10"},
+            {"enable wrapping", "true"}    }
+    );
+
+    // Must decode cleanly - a byte-based cut at codepoint width 10 (20 bytes) would land mid-character
+    // and produce invalid UTF-8, which utf8Length() would throw on.
+    ASSERT_NO_THROW(stevensStringLib::utf8Length(result));
+
+    // Hard-cut at codepoint width 10 (this wrap block has no space-search, unlike curses_wwrap) should
+    // produce these exact whole-character chunks, not byte-offset-mangled ones.
+    ASSERT_NE(result.find("Быстрая ко"), std::string::npos);
+    ASSERT_NE(result.find("ричневая л"), std::string::npos);
+    ASSERT_NE(result.find("иса"), std::string::npos);
+}
+
+TEST(FormatTableAsString, autoColumnWidthUsesCodepointCountNotByteCount)
+{
+    // "мир мир мир" (11 codepoints, 20 bytes) is unambiguously the longest entry by both codepoint
+    // and byte count, so getLongestStringElement() (which itself has a separate, pre-existing,
+    // out-of-scope byte-length bug - see project memory) picks it correctly either way. This isolates
+    // just the fix under test: columnWidths must be computed as a codepoint count (11), so "hi" pads
+    // out to 11 codepoints, not 20 bytes.
+    std::vector<std::vector<std::string>> table = { { "мир мир мир" }, { "hi" } };
+    std::string result = stevensTerminal::formatTableAsString(table, {}, {});
+
+    ASSERT_NE(result.find("hi         "), std::string::npos); // "hi" + 9 spaces = 11 codepoints
+    ASSERT_EQ(result.find("hi" + std::string(18, ' ')), std::string::npos); // would be the byte-width-padded (wrong) result
+}
+
 
 // NOTE: countContentLines() tests removed — the function only ever existed in the orphaned
 // top-level Styling.hpp (dead code, not included by stevensTerminal.hpp; see subnamespaces/Styling.hpp,
@@ -1189,6 +1229,68 @@ TEST(ResizeStyledString, resize_no_tokens)
     std::string resized = stevensTerminal::resizeStyledString(input, 5);
 
     ASSERT_EQ(resized, "Plain");
+}
+
+/***** COMPUTE WRAP SEGMENTS (multi-byte UTF-8 correctness) *****/
+TEST(ComputeWrapSegments, asciiForceBreak_noSpace)
+{
+    // 10 chars, no space, width 5 -> force-break at the byte/codepoint boundary
+    std::vector<std::string> segments = stevensTerminal::PrintHelper::computeWrapSegments("HelloWorld", 0, 5, 0);
+
+    ASSERT_EQ(segments.size(), 2);
+    ASSERT_EQ(segments[0], "Hello");
+    ASSERT_EQ(segments[1], "World");
+}
+
+TEST(ComputeWrapSegments, asciiBreaksAtLastSpace)
+{
+    // "Hello there friend" (19 chars), width 11: each iteration's rfind bound (width-1) only
+    // reaches the first space in "Hello"/"there ", so it wraps once per word here, not once total
+    std::vector<std::string> segments = stevensTerminal::PrintHelper::computeWrapSegments("Hello there friend", 0, 11, 0);
+
+    ASSERT_EQ(segments.size(), 3);
+    ASSERT_EQ(segments[0], "Hello");
+    ASSERT_EQ(segments[1], "there");
+    ASSERT_EQ(segments[2], "friend");
+}
+
+TEST(ComputeWrapSegments, multiByteForceBreak_doesNotTearCharacter)
+{
+    // Cyrillic, 10 codepoints (20 bytes), no space, width 5 -> should force-break by codepoint
+    std::string input = "Приветмир!"; // 10 codepoints, no spaces
+    std::vector<std::string> segments = stevensTerminal::PrintHelper::computeWrapSegments(input, 0, 5, 0);
+
+    ASSERT_EQ(segments.size(), 2);
+    ASSERT_EQ(segments[0], "Приве");
+    ASSERT_EQ(segments[1], "тмир!");
+    // Every segment must be valid, whole-character UTF-8 - reconstitute and check round-trip length
+    ASSERT_EQ(stevensStringLib::utf8Length(segments[0]), 5u);
+    ASSERT_EQ(stevensStringLib::utf8Length(segments[1]), 5u);
+}
+
+TEST(ComputeWrapSegments, multiByteBreaksAtLastSpace)
+{
+    // Cyrillic with a space - "Привет мир" (6 + 1 + 3 = 10 codepoints), width 6.
+    // The space sits at codepoint index 6, just outside the rfind bound (width-1=5), so this
+    // force-breaks at "Привет" and leaves the separating space on the next segment - matching
+    // the original byte-based algorithm's behavior for the equivalent ASCII case, now correctly
+    // computed by codepoint instead of by byte.
+    std::string input = "Привет мир";
+    std::vector<std::string> segments = stevensTerminal::PrintHelper::computeWrapSegments(input, 0, 6, 0);
+
+    ASSERT_EQ(segments.size(), 2);
+    ASSERT_EQ(segments[0], "Привет");
+    ASSERT_EQ(segments[1], " мир");
+    ASSERT_EQ(stevensStringLib::utf8Length(segments[0]), 6u);
+}
+
+TEST(ComputeWrapSegments, lineFitsWithinWidth_returnsUnchanged)
+{
+    std::string input = "世界"; // 2 codepoints, 6 bytes - fits comfortably within width 10
+    std::vector<std::string> segments = stevensTerminal::PrintHelper::computeWrapSegments(input, 0, 10, 0);
+
+    ASSERT_EQ(segments.size(), 1);
+    ASSERT_EQ(segments[0], input);
 }
 
 /***** INPUT VALIDATION COMPREHENSIVE TESTS *****/

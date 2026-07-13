@@ -890,7 +890,7 @@ namespace stevensTerminal
 			for(int i = 0; i < tableByColumnsOfRows.size(); i++)
 			{
 				std::string longestStringElement = stevensVectorLib::getLongestStringElement(tableByColumnsOfRows[i]);
-				columnWidths.push_back(longestStringElement.length());
+				columnWidths.push_back(stevensStringLib::utf8Length(longestStringElement));
 			}
 		}
 
@@ -944,22 +944,28 @@ namespace stevensTerminal
 					int firstLineWidth = columnWidths[col];
 					int wrappedLineWidth = columnWidths[col] - indentSize;
 
+					// Decode once and work in codepoints (not bytes) for this cell's wrapping, so
+					// multi-byte content (Cyrillic, CJK, etc.) is measured/cut correctly instead of
+					// being torn apart by a byte-offset substr - see stevensStringLib::utf8to32()
+					// doc comment. Only re-encoded (via utf32to8()) when a line is finished.
+					std::u32string u32cellContent = stevensStringLib::utf8to32(cellContent);
+
 					// First line uses full width
-					if(cellContent.length() > firstLineWidth)
+					if((int)u32cellContent.length() > firstLineWidth)
 					{
-						lines.push_back("{" + cellContent.substr(0, firstLineWidth) + "}" + styleToken);
-						cellContent = cellContent.substr(firstLineWidth);
+						lines.push_back("{" + stevensStringLib::utf32to8(u32cellContent.substr(0, firstLineWidth)) + "}" + styleToken);
+						u32cellContent = u32cellContent.substr(firstLineWidth);
 
 						// Subsequent lines are indented and styled
-						while(cellContent.length() > wrappedLineWidth && wrappedLineWidth > 0)
+						while((int)u32cellContent.length() > wrappedLineWidth && wrappedLineWidth > 0)
 						{
-							lines.push_back("{" + std::string(indentSize, ' ') + cellContent.substr(0, wrappedLineWidth) + "}" + styleToken);
-							cellContent = cellContent.substr(wrappedLineWidth);
+							lines.push_back("{" + std::string(indentSize, ' ') + stevensStringLib::utf32to8(u32cellContent.substr(0, wrappedLineWidth)) + "}" + styleToken);
+							u32cellContent = u32cellContent.substr(wrappedLineWidth);
 						}
 						// Add remaining content with indentation and styling
-						if(!cellContent.empty())
+						if(!u32cellContent.empty())
 						{
-							lines.push_back("{" + std::string(indentSize, ' ') + cellContent + "}" + styleToken);
+							lines.push_back("{" + std::string(indentSize, ' ') + stevensStringLib::utf32to8(u32cellContent) + "}" + styleToken);
 						}
 					}
 					else
@@ -1062,12 +1068,12 @@ namespace stevensTerminal
 		{
 			//If the top border pattern is greater than or equal to the window width, print all the characters of
 			//the pattern equal up to the width size
-			if(borderPatterns["top"].length() >= width)
+			if(stevensStringLib::utf8Length(borderPatterns["top"]) >= width)
 			{
 				curses_wprint( 	win,
-								0, 
 								0,
-								borderPatterns["top"].substr(0, width),
+								0,
+								stevensStringLib::utf32to8(stevensStringLib::utf8to32(borderPatterns["top"]).substr(0, width)),
 								styleMap,
 								{}	);
 			}
@@ -1075,27 +1081,30 @@ namespace stevensTerminal
 			//divided by the border pattern length. To get the string that we'll print.
 			else
 			{
-				std::string strToPrint = stevensStringLib::multiply(borderPatterns["top"], (width/borderPatterns["top"].length()) );
+				std::string strToPrint = stevensStringLib::multiply(borderPatterns["top"], (width/stevensStringLib::utf8Length(borderPatterns["top"])) );
 				//If the resulting border pattern string is not equal to the width, add/subtract
-				//individual characters from the border pattern until we have a string equal to the window width
+				//individual characters from the border pattern until we have a string equal to the window width.
+				//Work in codepoints (not bytes) so multi-byte border glyphs aren't torn apart - see
+				//stevensStringLib::utf8to32() doc comment.
+				std::u32string u32strToPrint = stevensStringLib::utf8to32(strToPrint);
 				int i = 0;
-				while(strToPrint.length() != width)
+				while((int)u32strToPrint.length() != width)
 				{
-					if(strToPrint.length() > width)
+					if((int)u32strToPrint.length() > width)
 					{
-						strToPrint.pop_back();
+						u32strToPrint.pop_back();
 					}
-					else if(strToPrint.length() < width)
+					else if((int)u32strToPrint.length() < width)
 					{
-						strToPrint.append(stevensStringLib::circularIndex(borderPatterns["top"], i));
+						u32strToPrint += stevensStringLib::utf8to32(stevensStringLib::circularIndex(borderPatterns["top"], i));
 						i++;
 					}
 				}
 				//Now we can print the string!
 				curses_wprint( 	win,
-								0, 
 								0,
-								strToPrint,
+								0,
+								stevensStringLib::utf32to8(u32strToPrint),
 								styleMap,
 								{}	);
 			}
@@ -1104,12 +1113,12 @@ namespace stevensTerminal
 		{
 			//If the top border pattern is greater than or equal to the window width, print all the characters of
 			//the pattern equal up to the width size
-			if(borderPatterns["bottom"].length() >= width)
+			if(stevensStringLib::utf8Length(borderPatterns["bottom"]) >= width)
 			{
 				curses_wprint( 	win,
-								height-1, 
+								height-1,
 								0,
-								borderPatterns["bottom"].substr(0, width),
+								stevensStringLib::utf32to8(stevensStringLib::utf8to32(borderPatterns["bottom"]).substr(0, width)),
 								styleMap,
 								{}	);
 			}
@@ -1117,27 +1126,30 @@ namespace stevensTerminal
 			//divided by the border pattern length. To get the string that we'll print.
 			else
 			{
-				std::string strToPrint = stevensStringLib::multiply(borderPatterns["bottom"], (width/borderPatterns["bottom"].length()) );
+				std::string strToPrint = stevensStringLib::multiply(borderPatterns["bottom"], (width/stevensStringLib::utf8Length(borderPatterns["bottom"])) );
 				//If the resulting border pattern string is not equal to the width, add/subtract
-				//individual characters from the border pattern until we have a string equal to the window width
+				//individual characters from the border pattern until we have a string equal to the window width.
+				//Work in codepoints (not bytes) so multi-byte border glyphs aren't torn apart - see
+				//stevensStringLib::utf8to32() doc comment.
+				std::u32string u32strToPrint = stevensStringLib::utf8to32(strToPrint);
 				int i = 0;
-				while(strToPrint.length() != width)
+				while((int)u32strToPrint.length() != width)
 				{
-					if(strToPrint.length() > width)
+					if((int)u32strToPrint.length() > width)
 					{
-						strToPrint.pop_back();
+						u32strToPrint.pop_back();
 					}
-					else if(strToPrint.length() < width)
+					else if((int)u32strToPrint.length() < width)
 					{
-						strToPrint.append(stevensStringLib::circularIndex(borderPatterns["bottom"], i));
+						u32strToPrint += stevensStringLib::utf8to32(stevensStringLib::circularIndex(borderPatterns["bottom"], i));
 						i++;
 					}
 				}
 				//Now we can print the string!
 				curses_wprint( 	win,
-								height-1, 
+								height-1,
 								0,
-								strToPrint,
+								stevensStringLib::utf32to8(u32strToPrint),
 								styleMap,
 								{}	);
 			}

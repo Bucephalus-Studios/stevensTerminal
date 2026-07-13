@@ -1299,20 +1299,25 @@ namespace PrintHelper
 
 		if (textWidth <= 0) return segments;
 
+		// Decode once and work in codepoints (not bytes) for the rest of this function, so multi-byte
+		// characters (Cyrillic, CJK, box-drawing glyphs) are counted/cut correctly - see
+		// stevensStringLib::utf8to32() doc comment.
+		std::u32string u32line = stevensStringLib::utf8to32(line);
+
 		while (true) {
-			if ((int)line.length() <= textWidth) {
-				segments.push_back(line);
+			if ((int)u32line.length() <= textWidth) {
+				segments.push_back(stevensStringLib::utf32to8(u32line));
 				break;
 			}
 			// Find the last space within textWidth characters
-			size_t cutPos = line.rfind(' ', (size_t)(textWidth - 1));
-			if (cutPos == std::string::npos) {
+			size_t cutPos = u32line.rfind(U' ', (size_t)(textWidth - 1));
+			if (cutPos == std::u32string::npos) {
 				// No space: force-break
-				segments.push_back(line.substr(0, textWidth));
-				line = line.substr(textWidth);
+				segments.push_back(stevensStringLib::utf32to8(u32line.substr(0, textWidth)));
+				u32line = u32line.substr(textWidth);
 			} else {
-				segments.push_back(line.substr(0, cutPos));
-				line = line.substr(cutPos + 1);
+				segments.push_back(stevensStringLib::utf32to8(u32line.substr(0, cutPos)));
+				u32line = u32line.substr(cutPos + 1);
 			}
 		}
 
@@ -1361,6 +1366,12 @@ namespace PrintHelper
 
 		while(getline(in,line))
 		{
+			// Decode once and work in codepoints (not bytes) for the rest of this line, so
+			// multi-byte characters (Cyrillic, CJK, box-drawing glyphs) are counted/cut correctly
+			// instead of being torn apart by a byte-offset substr/rfind - see
+			// stevensStringLib::utf8to32() doc comment. Only re-encoded (via utf32to8()) right
+			// before each mvwprintw() call.
+			std::u32string u32line = stevensStringLib::utf8to32(line);
 			lineCutOffIndex = 0;
 			// Characters available for text on this line, accounting for where we start (xMove)
 			int textWidth = width - xMove - (int)indent;
@@ -1368,34 +1379,34 @@ namespace PrintHelper
 			while(true)
 			{
 				//Check to see if we need to wrap this line around
-				if(textWidth > 0 && (int)line.length() > textWidth)
+				if(textWidth > 0 && (int)u32line.length() > textWidth)
 				{
 					//Find the last space in the string that fits on the line
-					lineCutOffIndex = line.rfind(" ", (size_t)(textWidth - 1));
+					lineCutOffIndex = u32line.rfind(U' ', (size_t)(textWidth - 1));
 					//If we can't find a space in the string and the string is too long, we just cut the line and wrap to the next line
-					if(lineCutOffIndex == std::string::npos)
+					if(lineCutOffIndex == std::u32string::npos)
 					{
 						//Add as much of the line as we can to the output and then add a newline
-						output = std::string(indent, ' ') + line.substr(0, textWidth);
+						output = std::string(indent, ' ') + stevensStringLib::utf32to8(u32line.substr(0, textWidth));
 						mvwprintw(win,yMove,xMove,"%s", output.c_str());
 						yMove++;
 						//Continue looping until the rest of the line is added to the output
-						line = line.substr(textWidth);
+						u32line = u32line.substr(textWidth);
 					}
 					//If we find a space...
 					else
 					{
 						//Add the part of the string before the cut off point to the output
-						output = std::string(indent,' ') + line.substr(0, lineCutOffIndex);
+						output = std::string(indent,' ') + stevensStringLib::utf32to8(u32line.substr(0, lineCutOffIndex));
 						mvwprintw(win,yMove,xMove,"%s", output.c_str());
 						yMove++;
 						//Set the line equal to the cut off portion of the string and continue looping until the rest of the line is added to the output
-						line = line.substr(lineCutOffIndex+1);
+						u32line = u32line.substr(lineCutOffIndex+1);
 					}
 				}
 				else
 				{
-					output = line;
+					output = stevensStringLib::utf32to8(u32line);
 					mvwprintw(win, yMove, xMove, "%s", output.c_str());
 					break;
 				}
@@ -1526,8 +1537,14 @@ namespace PrintHelper
 			//Print each line of the token
 			while(getline(in,line))
 			{
+				// Decode once and work in codepoints (not bytes) for the rest of this line, so
+				// multi-byte characters (Cyrillic, CJK, box-drawing glyphs) are counted/cut correctly
+				// instead of being torn apart by a byte-offset substr/rfind - see
+				// stevensStringLib::utf8to32() doc comment. Only re-encoded (via utf32to8()) right
+				// before each mvwprintw() call.
+				std::u32string u32line = stevensStringLib::utf8to32(line);
 				lineCutOffIndex = 0;
-				while(!line.empty())
+				while(!u32line.empty())
 				{
 					// if(format.contains("debug"))
 					// {
@@ -1538,7 +1555,7 @@ namespace PrintHelper
 					//printw("%s:%d / %s:%ld / %s:%d", "cursor x", xMove, "line length", line.length(), "width with adjustment", (width-borderAdjustment));
 					//getch();
 					//Check to see if we need to wrap this line around TODO: Get the current X position in the window and add it here. Make sure to account for window borders.
-					if(((xMove-borderAdjustment) + (int)line.length()) >= (width - borderAdjustment))
+					if(((xMove-borderAdjustment) + (int)u32line.length()) >= (width - borderAdjustment))
 					{
 						// printw("%s", line.c_str());
 						if(format.contains("debug"))
@@ -1547,23 +1564,24 @@ namespace PrintHelper
 							getch();
 						}
 						size_t maxLength = ((width-borderAdjustment)-xMove);
-						if(maxLength > line.length()) maxLength = line.length();
-						std::string bitOfLineThatCanFit = line.substr(0, maxLength);
+						if(maxLength > u32line.length()) maxLength = u32line.length();
+						std::u32string bitOfLineThatCanFit = u32line.substr(0, maxLength);
 						//Find the last space in the string that fits on the line
-						lineCutOffIndex = bitOfLineThatCanFit.rfind(" ", (indent + width));
-						if (lineCutOffIndex == std::string::npos)
+						lineCutOffIndex = bitOfLineThatCanFit.rfind(U' ', (indent + width));
+						if (lineCutOffIndex == std::u32string::npos)
 						{
 							// No space within available width: force-break at maxLength.
 							// If maxLength is 0 (cursor already at right boundary) we just
 							// advance to the next line without printing anything.
 							if (maxLength > 0) {
-								output = line.substr(0, maxLength);
+								std::u32string u32output = u32line.substr(0, maxLength);
+								output = stevensStringLib::utf32to8(u32output);
 								{
 									int availableWidth = (int)maxLength;
-									int printX = xMove + (textAlign == "center" ? std::max(0, (availableWidth - (int)output.length()) / 2) : 0);
+									int printX = xMove + (textAlign == "center" ? std::max(0, (availableWidth - (int)u32output.length()) / 2) : 0);
 									mvwprintw(win, yMove, printX, "%s", output.c_str());
 								}
-								line = (maxLength < line.length()) ? line.substr(maxLength) : "";
+								u32line = (maxLength < u32line.length()) ? u32line.substr(maxLength) : U"";
 							}
 							yMove++;
 							charsPrintedToLine = 0;
@@ -1579,23 +1597,24 @@ namespace PrintHelper
 						else
 						{
 							// Space found: break at the last space within available width
-							output = line.substr(0, lineCutOffIndex);
+							std::u32string u32output = u32line.substr(0, lineCutOffIndex);
+							output = stevensStringLib::utf32to8(u32output);
 							{
 								int availableWidth = (int)((width - borderAdjustment) - xMove);
-								int printX = xMove + (textAlign == "center" ? std::max(0, (availableWidth - (int)output.length()) / 2) : 0);
+								int printX = xMove + (textAlign == "center" ? std::max(0, (availableWidth - (int)u32output.length()) / 2) : 0);
 								mvwprintw(win, yMove, printX, "%s", output.c_str());
 							}
 							yMove++;
 							charsPrintedToLine = 0;
-							if (lineCutOffIndex + 1 < line.length()) {
-								line = line.substr(lineCutOffIndex + 1);
+							if (lineCutOffIndex + 1 < u32line.length()) {
+								u32line = u32line.substr(lineCutOffIndex + 1);
 							} else {
-								line.clear();
+								u32line.clear();
 							}
 							if (retainXMoveOnNewline) {
 								xMove = xMoveOrigin;
-							} 
-							else if (avoidBorders) 
+							}
+							else if (avoidBorders)
 							{
 								xMove = 1;
 							}
