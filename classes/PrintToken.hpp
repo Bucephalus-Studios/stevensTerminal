@@ -12,7 +12,7 @@ class PrintToken
     public:
         /*** Member variables ***/
         bool styled; //Is this tokenized bit of text being specifically styled? If so, true. False otherwise.
-        int existsAtIndex; //The index of the source std::string that the token exists at.
+        size_t existsAtIndex; //The index of the source std::string that the token exists at. std::string::npos means unset.
         std::string content; //The string content of the token.
         std::string rawToken; //All of the token from the original string
         std::string textColor; //The color of the text in the token
@@ -30,7 +30,7 @@ class PrintToken
         PrintToken()
         {
             styled = false;
-            existsAtIndex = -1;
+            existsAtIndex = std::string::npos;
             content = "";
             rawToken = "";
             textColor = "default";
@@ -47,7 +47,7 @@ class PrintToken
         //Parameters
         PrintToken(   std::string contentParam,
                                 std::string rawTokenParam = "",
-                                int existsAtIndexParam = -1,
+                                size_t existsAtIndexParam = std::string::npos,
                                 std::string textColorParam = "default",
                                 std::string bgColorParam = "default",
                                 bool boldParam = false,

@@ -153,7 +153,7 @@ namespace PrintHelper
 																std::vector<PrintToken> tokens	)
 	{
 		//Start at the beginning of str
-		int startingIndex = 0;
+		size_t startingIndex = 0;
 		std::string contentToTokenize = "";
 		//Initialize the vector to return
 		std::vector<PrintToken> tokensToReturn = {};
@@ -166,6 +166,21 @@ namespace PrintHelper
 			{
 				//The starting index is where the token starts -- This means there's nothing before the token to tokenize
 				//Take the token and store it in the return vector
+				tokensToReturn.push_back(tokens[i]);
+				startingIndex += tokens[i].rawToken.length();
+				continue;
+			}
+
+			// tokens[] is expected to be in forward order with startingIndex tracking our scan
+			// position, so existsAtIndex should never be behind startingIndex - guard against it
+			// anyway now that both are unsigned, since the subtraction below would otherwise
+			// silently wrap to a huge value instead of throwing/crashing.
+			if(tokens[i].existsAtIndex < startingIndex)
+			{
+				std::cerr << "stevensTerminal library error: In PrintHelper::tokenizeBetweenTokens(), "
+							 "token existsAtIndex (" << tokens[i].existsAtIndex << ") is behind "
+							 "startingIndex (" << startingIndex << ") - tokens out of order or "
+							 "inconsistent, skipping this token." << std::endl;
 				tokensToReturn.push_back(tokens[i]);
 				startingIndex += tokens[i].rawToken.length();
 				continue;
@@ -504,7 +519,7 @@ namespace PrintHelper
 		// 3 - Looking for closed squarebracket
 		short styled_tokenFindStage = 0;
 		std::string rawToken = "";
-		std::vector<int> unmatchedOpenBracePositions;
+		std::vector<size_t> unmatchedOpenBracePositions;
 		std::vector<PrintToken> tokenVector = {};
 		std::vector<PrintToken> nestedTokenVector = {};
 		int currentBraceDepth = 0; // Track brace depth for proper nested token parsing
@@ -596,7 +611,7 @@ namespace PrintHelper
 					if (input[i] == ']')
 					{
 						// Found a complete token
-						int tokenStartPosition = unmatchedOpenBracePositions.back();
+						size_t tokenStartPosition = unmatchedOpenBracePositions.back();
 						
 						// Remove all braces that are part of this completed token
 						// We need to remove braces from the back until we reach the start of this token

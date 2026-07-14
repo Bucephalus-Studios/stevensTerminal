@@ -410,17 +410,43 @@ std::string resizeStyledString(std::string str, const size_t desiredLength, cons
 
     // Otherwise, now that we have all of the style tokens, we take just their content and turn it into a std::string
     std::string contentString = removeAllStyleTokenization(str);
+
+    // getAllTokens() reports each token's existsAtIndex as a byte position in the ORIGINAL
+    // (fully tokenized) string, but insertStyleToken() below needs each token's position within
+    // contentString (the token-stripped string) to reinsert it correctly. Adjust for the wrapper
+    // overhead ("{" + "}$[" + style + "]") of every earlier token, which contentString doesn't
+    // have - without this, only a single leading token's position is ever correct by coincidence;
+    // a second (or later) token's existsAtIndex is too large by the combined wrapper overhead of
+    // every token before it, so it gets reinserted at the wrong spot. Byte-based on purpose (see
+    // insertStyleToken()'s std::string::insert() calls below) - safe for multi-byte content because
+    // rawToken.length() - content.length() always cancels content's own length out, leaving just
+    // the (always-ASCII) markup's byte count, regardless of what content actually contains.
+    size_t wrapperOverhead = 0;
+    for(PrintToken & token : tokens)
+    {
+        token.existsAtIndex -= wrapperOverhead;
+        wrapperOverhead += token.rawToken.length() - token.content.length();
+    }
+
     // We resize this std::string by codepoint, not byte, so multi-byte content (Cyrillic, CJK, etc.)
     // isn't torn in half by truncation or padded to the wrong displayed width
     contentString = stevensStringLib::utf8Resize(contentString, desiredLength, fillChar);
     std::string resizedStr = contentString;
-    // We now place the style tokens back into this resized std::string
+    // We now place the style tokens back into this resized std::string. insertStyleToken() mutates
+    // resizedStr in place, growing it by each token's wrapper overhead - so every later token's
+    // existsAtIndex (already adjusted above to be correct against the original content-only string)
+    // also needs to account for the growth every earlier-in-this-loop insertion just added, or it
+    // lands wherever the string happened to be *before* those insertions instead of where the
+    // content actually ended up.
+    size_t reinsertionGrowth = 0;
     for(int tokenIndex = 0; tokenIndex < tokens.size(); tokenIndex++) {
+        tokens.at(tokenIndex).existsAtIndex += reinsertionGrowth;
         // For each style token, check to see if the index which it starts relative to the content and all other tokens
         // is still in bounds of the string's length
         if(tokens.at(tokenIndex).existsAtIndex+1 < resizedStr.length()) {
             // If so, then we add the style token back at its original location
             insertStyleToken(resizedStr, tokens.at(tokenIndex));
+            reinsertionGrowth += tokens.at(tokenIndex).rawToken.length() - tokens.at(tokenIndex).content.length();
         } else {
             // Otherwise, all other style tokens will no longer be in bounds either, as they come after the current one
             // in order, so we break and finish

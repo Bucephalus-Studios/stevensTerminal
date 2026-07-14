@@ -1244,13 +1244,31 @@ TEST(ResizeStyledString, expand_beyond_content)
 
 TEST(ResizeStyledString, resize_with_multiple_tokens)
 {
+    // Regression test: PrintTokenHelper::getAllTokens() reports existsAtIndex relative to the
+    // ORIGINAL fully-tokenized string, but resizeStyledString() reinserts tokens into the
+    // token-stripped content string - a second (or later) token's position needs adjusting for the
+    // wrapper overhead of every earlier token, or it lands in the wrong spot (or gets dropped/
+    // corrupted) once there's more than one token.
     std::string input = "{First}$[textColor=red] {Second}$[textColor=blue]";
     std::string resized = stevensTerminal::resizeStyledString(input, 8);
     std::string clean = stevensTerminal::removeAllStyleTokenization(resized);
 
-    // The resize should preserve tokens, so actual length may include token markup
-    ASSERT_GT(clean.length(), 0);
-    ASSERT_LE(clean.length(), 100); // Reasonable upper bound
+    ASSERT_EQ(clean, "First Se"); // "Second" correctly truncated to "Se" to fit width 8
+    ASSERT_NE(resized.find("{First}$[textColor=red]"), std::string::npos); // first token untouched
+    ASSERT_NE(resized.find("{Se}$[textColor=blue]"), std::string::npos);   // second token truncated but its own style preserved
+}
+
+TEST(ResizeStyledString, resize_with_multiple_tokens_no_truncation_needed)
+{
+    // When nothing needs truncating, both tokens (and the space between them) should survive
+    // completely intact, just padded out to the desired width.
+    std::string input = "{First}$[textColor=red] {Second}$[textColor=blue]";
+    std::string resized = stevensTerminal::resizeStyledString(input, 20);
+    std::string clean = stevensTerminal::removeAllStyleTokenization(resized);
+
+    ASSERT_EQ(clean, "First Second        "); // 12 real chars + 8 padding spaces = 20
+    ASSERT_NE(resized.find("{First}$[textColor=red]"), std::string::npos);
+    ASSERT_NE(resized.find("{Second}$[textColor=blue]"), std::string::npos);
 }
 
 TEST(ResizeStyledString, resize_no_tokens)
