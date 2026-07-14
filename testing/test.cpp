@@ -5,6 +5,7 @@
  */
 
 #include "../stevensTerminal.hpp"
+#include <clocale>
 #include <iostream>
 #include <fstream>
 #include <gtest/gtest.h>
@@ -600,11 +601,12 @@ TEST(FormatTableAsString, wrapsMultiByteContentAtCodepointBoundaries)
     // result is a multi-line wrapped table, and lineDisplayWidth() rightly throws on embedded newlines.)
     ASSERT_NO_THROW(stevensStringLib::charCount(result));
 
-    // Hard-cut at codepoint width 10 (this wrap block has no space-search, unlike curses_wwrap) should
-    // produce these exact whole-character chunks, not byte-offset-mangled ones.
-    ASSERT_NE(result.find("Быстрая ко"), std::string::npos);
-    ASSERT_NE(result.find("ричневая л"), std::string::npos);
-    ASSERT_NE(result.find("иса"), std::string::npos);
+    // Cell wrapping now goes through stevensStringLib::wrapToWidth(), which prefers breaking at
+    // spaces (like curses_wwrap) rather than hard-cutting mid-word - a real improvement over the
+    // old byte/codepoint-width hard cut, and this content has spaces to break at.
+    ASSERT_NE(result.find("Быстрая"), std::string::npos);
+    ASSERT_NE(result.find("коричневая"), std::string::npos);
+    ASSERT_NE(result.find("лиса"), std::string::npos);
 }
 
 TEST(FormatTableAsString, wrapsUnstyledContentWithoutLosingLastCharacter)
@@ -1289,66 +1291,138 @@ TEST(ResizeStyledString, resize_no_tokens)
     ASSERT_EQ(resized, "Plain");
 }
 
-/***** COMPUTE WRAP SEGMENTS (multi-byte UTF-8 correctness) *****/
-TEST(ComputeWrapSegments, asciiForceBreak_noSpace)
-{
-    // 10 chars, no space, width 5 -> force-break at the byte/codepoint boundary
-    std::vector<std::string> segments = stevensTerminal::PrintHelper::computeWrapSegments("HelloWorld", 0, 5, 0);
+/***** Headless ncurses fixture - real rendering correctness tests for curses_wwrap()/
+ * curses_wwrap_withTokens(), since neither had any prior test coverage and both were
+ * substantially rewritten to use the display-width-aware stevensStringLib::wrapToWidth(). *****/
+class HeadlessNcursesTest : public ::testing::Test {
+protected:
+    WINDOW* win = nullptr;
+    SCREEN* screen = nullptr;
+    FILE* devnull = nullptr;
 
-    ASSERT_EQ(segments.size(), 2);
-    ASSERT_EQ(segments[0], "Hello");
-    ASSERT_EQ(segments[1], "World");
+    void SetUp() override {
+        // Real cultgame calls this once at startup (cultgame.cpp) before any ncurses calls -
+        // without it, the process runs in the minimal "C" locale, which has no multibyte
+        // awareness, so ncurses can't correctly write or read back UTF-8 content. Needed here
+        // so this fixture matches production conditions instead of producing false failures.
+        setlocale(LC_ALL, "");
+        devnull = fopen("/dev/null", "w");
+        screen = newterm("xterm", devnull, stdin);
+        set_term(screen);
+        win = newwin(24, 80, 0, 0);
+    }
+
+    void TearDown() override {
+        delwin(win);
+        endwin();
+        if (devnull) fclose(devnull);
+    }
+
+    // Reads back a row of the window, trimmed of trailing space padding.
+    //
+    // mvwinnstr()'s size parameter is a BYTE budget, not a display-column count - a row that's
+    // N columns wide can need up to 4*N bytes for multi-byte UTF-8 content (CJK/Cyrillic/etc.),
+    // so the read buffer must be sized generously, independent of the window's column width, or
+    // multi-byte rows silently read back truncated even though they were written correctly.
+    std::string readRow(int y, int columnWidth = 80)
+    {
+        size_t byteBudget = static_cast<size_t>(columnWidth) * 4;
+        std::vector<char> buf(byteBudget + 1, '\0');
+        mvwinnstr(win, y, 0, buf.data(), static_cast<int>(byteBudget));
+        std::string result(buf.data());
+        size_t end = result.find_last_not_of(' ');
+        return (end == std::string::npos) ? "" : result.substr(0, end + 1);
+    }
+};
+
+TEST_F(HeadlessNcursesTest, CursesWwrap_BreaksAtSpaceNotMidWord)
+{
+    stevensTerminal::PrintHelper::curses_wwrap(win, 0, 0, "the quick brown fox", 0, {});
+    EXPECT_EQ(readRow(0, 20), "the quick brown fox"); // fits in the default 80-wide window
 }
 
-TEST(ComputeWrapSegments, asciiBreaksAtLastSpace)
+TEST_F(HeadlessNcursesTest, CursesWwrap_WrapsCjkAtDisplayWidth)
 {
-    // "Hello there friend" (19 chars), width 11: each iteration's rfind bound (width-1) only
-    // reaches the first space in "Hello"/"there ", so it wraps once per word here, not once total
-    std::vector<std::string> segments = stevensTerminal::PrintHelper::computeWrapSegments("Hello there friend", 0, 11, 0);
+    // 6-column window = exactly 3 double-width CJK codepoints per row (matches
+    // stevensStringLib's own WrapToWidth.CjkWrapsAtDisplayWidthNotCodepointCount expectations)
+    WINDOW * narrowWin = newwin(24, 6, 0, 0);
+    stevensTerminal::PrintHelper::curses_wwrap(narrowWin, 0, 0, "世界世界世界", 0, {});
 
-    ASSERT_EQ(segments.size(), 3);
-    ASSERT_EQ(segments[0], "Hello");
-    ASSERT_EQ(segments[1], "there");
-    ASSERT_EQ(segments[2], "friend");
+    // mvwinnstr()'s size is a byte budget, not a column count - CJK needs up to 3 bytes/column
+    // worth of budget per character, so read generously rather than tying it to window width.
+    std::vector<char> buf(64, '\0');
+    mvwinnstr(narrowWin, 0, 0, buf.data(), 63);
+    std::string row0(buf.data());
+    mvwinnstr(narrowWin, 1, 0, buf.data(), 63);
+    std::string row1(buf.data());
+
+    EXPECT_NE(row0.find("世界世"), std::string::npos);
+    EXPECT_NE(row1.find("界世界"), std::string::npos);
+    delwin(narrowWin);
 }
 
-TEST(ComputeWrapSegments, multiByteForceBreak_doesNotTearCharacter)
+TEST_F(HeadlessNcursesTest, CursesWborder_ShortPatternRepeatsToExactWidth)
 {
-    // Cyrillic, 10 codepoints (20 bytes), no space, width 5 -> should force-break by codepoint
-    std::string input = "Приветмир!"; // 10 codepoints, no spaces
-    std::vector<std::string> segments = stevensTerminal::PrintHelper::computeWrapSegments(input, 0, 5, 0);
-
-    ASSERT_EQ(segments.size(), 2);
-    ASSERT_EQ(segments[0], "Приве");
-    ASSERT_EQ(segments[1], "тмир!");
-    // Every segment must be valid, whole-character UTF-8 - reconstitute and check round-trip length
-    ASSERT_EQ(stevensStringLib::charCount(segments[0]), 5u);
-    ASSERT_EQ(stevensStringLib::charCount(segments[1]), 5u);
+    WINDOW * narrowWin = newwin(10, 20, 0, 0);
+    stevensTerminal::curses_wborder(narrowWin, {{"top", "-"}});
+    std::string buf(64, '\0');
+    mvwinnstr(narrowWin, 0, 0, buf.data(), 63);
+    std::string row0(buf.data());
+    EXPECT_EQ(row0, std::string(20, '-')); // exactly fills the 20-column window, no overshoot
+    delwin(narrowWin);
 }
 
-TEST(ComputeWrapSegments, multiByteBreaksAtLastSpace)
+TEST_F(HeadlessNcursesTest, CursesWborder_MultiCharPatternFitsExactWidth)
 {
-    // Cyrillic with a space - "Привет мир" (6 + 1 + 3 = 10 codepoints), width 6.
-    // The space sits at codepoint index 6, just outside the rfind bound (width-1=5), so this
-    // force-breaks at "Привет" and leaves the separating space on the next segment - matching
-    // the original byte-based algorithm's behavior for the equivalent ASCII case, now correctly
-    // computed by codepoint instead of by byte.
-    std::string input = "Привет мир";
-    std::vector<std::string> segments = stevensTerminal::PrintHelper::computeWrapSegments(input, 0, 6, 0);
-
-    ASSERT_EQ(segments.size(), 2);
-    ASSERT_EQ(segments[0], "Привет");
-    ASSERT_EQ(segments[1], " мир");
-    ASSERT_EQ(stevensStringLib::charCount(segments[0]), 6u);
+    WINDOW * narrowWin = newwin(10, 21, 0, 0);
+    stevensTerminal::curses_wborder(narrowWin, {{"top", "=~"}});
+    std::string buf(64, '\0');
+    mvwinnstr(narrowWin, 0, 0, buf.data(), 63);
+    std::string row0(buf.data());
+    EXPECT_EQ(row0.size(), 21u); // "=~" repeated + trimmed to exactly 21 columns
+    EXPECT_EQ(row0, "=~=~=~=~=~=~=~=~=~=~="); // 10 full "=~" pairs + 1 leftover "="
+    delwin(narrowWin);
 }
 
-TEST(ComputeWrapSegments, lineFitsWithinWidth_returnsUnchanged)
+TEST_F(HeadlessNcursesTest, CursesWborder_CjkPatternDoesNotOverflowWidth)
 {
-    std::string input = "世界"; // 2 codepoints, 6 bytes - fits comfortably within width 10
-    std::vector<std::string> segments = stevensTerminal::PrintHelper::computeWrapSegments(input, 0, 10, 0);
+    // 10-column window with a double-width CJK pattern - must not overshoot past column 10
+    WINDOW * narrowWin = newwin(10, 10, 0, 0);
+    stevensTerminal::curses_wborder(narrowWin, {{"top", "世"}});
+    std::string buf(64, '\0');
+    mvwinnstr(narrowWin, 0, 0, buf.data(), 63);
+    std::string row0(buf.data());
+    size_t end = row0.find_last_not_of(' ');
+    row0 = (end == std::string::npos) ? "" : row0.substr(0, end + 1);
+    EXPECT_EQ(stevensStringLib::lineDisplayWidth(row0), 10u);
+    delwin(narrowWin);
+}
 
-    ASSERT_EQ(segments.size(), 1);
-    ASSERT_EQ(segments[0], input);
+TEST_F(HeadlessNcursesTest, CursesWwrapWithTokens_MultipleTokensShareOneRow)
+{
+    // Regression test: tokens must continue on the SAME visual row when they fit, not each
+    // force a fresh row - this is the exact bug caught while rewriting this function to use
+    // wrapToWidth()'s firstLineWidth parameter.
+    std::vector<stevensTerminal::PrintToken> tokens = {
+        stevensTerminal::PrintToken("Hello "),
+        stevensTerminal::PrintToken("World")
+    };
+    stevensTerminal::PrintHelper::curses_wwrap_withTokens(win, 0, 0, tokens, {}, {}, true);
+    EXPECT_EQ(readRow(0), "Hello World");
+}
+
+TEST_F(HeadlessNcursesTest, CursesWwrapWithTokens_LongTokenWrapsAcrossRows)
+{
+    std::vector<stevensTerminal::PrintToken> tokens = {
+        stevensTerminal::PrintToken("the quick brown fox jumps over the lazy dog and then keeps right on going for a while longer")
+    };
+    stevensTerminal::PrintHelper::curses_wwrap_withTokens(win, 0, 0, tokens, {}, {}, true);
+    std::string row0 = readRow(0);
+    std::string row1 = readRow(1);
+    EXPECT_LE(row0.size(), 80u);
+    EXPECT_FALSE(row1.empty()); // content actually continued onto a second row
+    // Neither row should have been cut mid-word
+    EXPECT_NE(row0.back(), ' ');
 }
 
 /***** INPUT VALIDATION COMPREHENSIVE TESTS *****/

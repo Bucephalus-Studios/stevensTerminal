@@ -35,11 +35,6 @@ namespace PrintHelper
 									std::unordered_map<std::string,std::string> style,
 									std::unordered_map<std::string,std::string> format,
 									bool textStyling	);
-	inline std::vector<std::string> computeWrapSegments(
-									std::string line,
-									int xMove,
-									int width,
-									int borderAdjustment = 0);
 	// END PROTOTYPES //
 	
 	
@@ -1287,60 +1282,6 @@ namespace PrintHelper
 
 
 	/**
-	 * Pure helper: splits a single text line (no embedded newlines) into the visual
-	 * segments it would occupy when printed in a curses window.
-	 *
-	 * Parameters:
-	 *   line             - text to split (no newlines)
-	 *   xMove            - starting x column
-	 *   width            - window width from getmaxyx()
-	 *   borderAdjustment - pass 1 when the window has a right border to avoid
-	 *
-	 * Returns a vector of strings; each element is the text for one visual row.
-	 * Every segment fits entirely within columns [xMove, width - borderAdjustment).
-	 * When a space is available it is used as the break point; otherwise the line
-	 * is force-broken at the available width.
-	 *
-	 * This function has no ncurses dependencies and can be called from unit tests.
-	*/
-	inline std::vector<std::string> computeWrapSegments(
-							std::string line,
-							int xMove,
-							int width,
-							int borderAdjustment)
-	{
-		std::vector<std::string> segments;
-		int textWidth = (width - borderAdjustment) - xMove;
-
-		if (textWidth <= 0) return segments;
-
-		// Decode once and work in codepoints (not bytes) for the rest of this function, so multi-byte
-		// characters (Cyrillic, CJK, box-drawing glyphs) are counted/cut correctly - see
-		// stevensStringLib::utf8to32() doc comment.
-		std::u32string u32line = stevensStringLib::utf8to32(line);
-
-		while (true) {
-			if ((int)u32line.length() <= textWidth) {
-				segments.push_back(stevensStringLib::utf32to8(u32line));
-				break;
-			}
-			// Find the last space within textWidth characters
-			size_t cutPos = u32line.rfind(U' ', (size_t)(textWidth - 1));
-			if (cutPos == std::u32string::npos) {
-				// No space: force-break
-				segments.push_back(stevensStringLib::utf32to8(u32line.substr(0, textWidth)));
-				u32line = u32line.substr(textWidth);
-			} else {
-				segments.push_back(stevensStringLib::utf32to8(u32line.substr(0, cutPos)));
-				u32line = u32line.substr(cutPos + 1);
-			}
-		}
-
-		return segments;
-	}
-
-
-	/**
 	 * Prints and styles a string into a curses window, making sure to wrap the text around the curses window so nothing is cut off.
 	 *
 	 * Parameters:
@@ -1360,12 +1301,6 @@ namespace PrintHelper
 						size_t indent,
 						std::unordered_map<std::string,std::string> style )
 	{
-		std::istringstream in(printString);
-		std::string line;
-		std::string output;
-		int lineCutOffIndex = 0;
-		int numberOfLines = stevensStringLib::countLines(printString);
-		int currLineNum = 0;
 		int width;
 		int height;
 		getmaxyx(win, height, width); //Curses function to get the width of the window we are printing to
@@ -1379,55 +1314,26 @@ namespace PrintHelper
 			curses_wAttrOn(win, curses_style_data);
 		}
 
+		// Characters available for text, accounting for where we start (xMove) and the indent
+		// reserved on every printed row. If the window is too narrow to fit anything, fall back
+		// to printing unwrapped rather than looping - matches the previous behavior for this
+		// degenerate case.
+		int textWidth = width - xMove - (int)indent;
+		std::string wrapped = (textWidth > 0)
+			? stevensStringLib::wrapToWidth(printString, static_cast<size_t>(textWidth))
+			: printString;
+
+		std::istringstream in(wrapped);
+		std::string line;
+		int numberOfLines = stevensStringLib::countLines(wrapped);
+		int currLineNum = 0;
+
 		while(getline(in,line))
 		{
-			// Decode once and work in codepoints (not bytes) for the rest of this line, so
-			// multi-byte characters (Cyrillic, CJK, box-drawing glyphs) are counted/cut correctly
-			// instead of being torn apart by a byte-offset substr/rfind - see
-			// stevensStringLib::utf8to32() doc comment. Only re-encoded (via utf32to8()) right
-			// before each mvwprintw() call.
-			std::u32string u32line = stevensStringLib::utf8to32(line);
-			lineCutOffIndex = 0;
-			// Characters available for text on this line, accounting for where we start (xMove)
-			int textWidth = width - xMove - (int)indent;
-
-			while(true)
-			{
-				//Check to see if we need to wrap this line around
-				if(textWidth > 0 && (int)u32line.length() > textWidth)
-				{
-					//Find the last space in the string that fits on the line
-					lineCutOffIndex = u32line.rfind(U' ', (size_t)(textWidth - 1));
-					//If we can't find a space in the string and the string is too long, we just cut the line and wrap to the next line
-					if(lineCutOffIndex == std::u32string::npos)
-					{
-						//Add as much of the line as we can to the output and then add a newline
-						output = std::string(indent, ' ') + stevensStringLib::utf32to8(u32line.substr(0, textWidth));
-						mvwprintw(win,yMove,xMove,"%s", output.c_str());
-						yMove++;
-						//Continue looping until the rest of the line is added to the output
-						u32line = u32line.substr(textWidth);
-					}
-					//If we find a space...
-					else
-					{
-						//Add the part of the string before the cut off point to the output
-						output = std::string(indent,' ') + stevensStringLib::utf32to8(u32line.substr(0, lineCutOffIndex));
-						mvwprintw(win,yMove,xMove,"%s", output.c_str());
-						yMove++;
-						//Set the line equal to the cut off portion of the string and continue looping until the rest of the line is added to the output
-						u32line = u32line.substr(lineCutOffIndex+1);
-					}
-				}
-				else
-				{
-					output = stevensStringLib::utf32to8(u32line);
-					mvwprintw(win, yMove, xMove, "%s", output.c_str());
-					break;
-				}
-			}
+			std::string output = std::string(indent, ' ') + line;
+			mvwprintw(win, yMove, xMove, "%s", output.c_str());
 			currLineNum++;
-			//Add a new line when printing the next line from the string, or print a newline if we only have a newline character
+			//Move to the next row unless this was the last one
 			if(currLineNum < numberOfLines)
 			{
 				yMove++;
@@ -1464,21 +1370,10 @@ namespace PrintHelper
 		std::unordered_map<std::string, chtype> curses_attribute_data = {};
 		//Process the style map's attributes and store them in a map that can be understood by curses
 		std::unordered_map<std::string, chtype> style_attribute_data = curses_styleAttributes(style);
-		/*** Formatting ***/
-		//Set the level of indenting each time text wraps around
-		int indent = 0;
-		if(format.contains("indent"))
-		{
-			if(stevensStringLib::isInteger(format["indent"]))
-			{
-				indent = std::stoi(format["indent"]);
-			}
-		}
+
 		//Get the window size that we're printing to
 		int width;
 		int height;
-		//Keep track of the number of characters currently printed to the line
-		int charsPrintedToLine = 0;
 		getmaxyx(win, height, width); //Curses function to get the width of the window we are printing to
 		//Set the yMove and xMove origins
 		int yMoveOrigin = yMove;
@@ -1490,7 +1385,7 @@ namespace PrintHelper
 			if(stevensStringLib::stringToBool(format["retain xmove on newline"]))
 			{
 				retainXMoveOnNewline = true;
-			}	
+			}
 		}
 		//Border adjustment
 		bool avoidBorders = false;
@@ -1510,32 +1405,16 @@ namespace PrintHelper
 		// horizontally centred; "right" is reserved for future use.
 		std::string textAlign = format.contains("textAlign") ? format.at("textAlign") : "left";
 
-		//Get the total amount of lines of content in all of the tokens that we're printing
-		int totalLines = 0;
-		int currLineNum = 0;
-		for(int i = 0; i < tokens.size(); i++)
-		{
-			totalLines += stevensStringLib::countLines(tokens[i].content);
-		}
+		// The x position every row resets to after a wrap or an explicit newline - as opposed to
+		// the first row of a token, which may continue mid-row from wherever the previous token
+		// (or, for the very first token, whatever was already printed before this function was
+		// called) left off. xMove itself always holds "where the next row starts" - updated
+		// after every printed row below - so it's used directly, with no separate tracking needed.
+		int resetXMove = retainXMoveOnNewline ? xMoveOrigin : (avoidBorders ? 1 : 0);
 
 		//For each token we are printing:
 		for(int i = 0; i < tokens.size(); i++)
 		{
-			if(format.contains("debug"))
-			{
-				printw("Token #%d", i);
-				std::cout << tokens[i].content << std::endl;
-				getch();
-			}
-			
-			std::istringstream in(tokens[i].content);
-			std::string line;
-			std::string output;
-			int lineCutOffIndex = 0;
-			int tokenLines = stevensStringLib::countLines(tokens[i].content);
-			int currTokenLineNum = 0;
-			//printw("lines:%d", numberOfLines);
-
 			//Is the token specifically styled?
 			if(tokens[i].styled)
 			{
@@ -1549,198 +1428,58 @@ namespace PrintHelper
 
 			PrintHelper::curses_wAttrOn(win, curses_attribute_data);
 
-			//Print each line of the token
-			while(getline(in,line))
+			// Wrap this token's content by display width, preferring to break at spaces (see
+			// stevensStringLib::wrapToWidth()). This token's first row may have a reduced budget
+			// if it's continuing mid-row from the previous token (or from before this call);
+			// every row after that - whether from a wrap or an explicit newline in the token's
+			// own content - gets the full reset-position width.
+			int constantWidth = (width - borderAdjustment) - resetXMove;
+			int firstSegmentWidth = (width - borderAdjustment) - xMove;
+			std::string wrapped = (constantWidth > 0)
+				? stevensStringLib::wrapToWidth(
+					tokens[i].content,
+					static_cast<size_t>(std::max(constantWidth, 0)),
+					static_cast<size_t>(std::max(firstSegmentWidth, 0)))
+				: tokens[i].content;
+
+			//Split into the individual rows this token will occupy
+			std::vector<std::string> rows;
 			{
-				// Decode once and work in codepoints (not bytes) for the rest of this line, so
-				// multi-byte characters (Cyrillic, CJK, box-drawing glyphs) are counted/cut correctly
-				// instead of being torn apart by a byte-offset substr/rfind - see
-				// stevensStringLib::utf8to32() doc comment. Only re-encoded (via utf32to8()) right
-				// before each mvwprintw() call.
-				std::u32string u32line = stevensStringLib::utf8to32(line);
-				lineCutOffIndex = 0;
-				while(!u32line.empty())
+				std::istringstream in(wrapped);
+				std::string rowLine;
+				while(getline(in, rowLine))
 				{
-					// if(format.contains("debug"))
-					// {
-					// 	cout << line << std::endl;
-					// 	getch();
-					// }
-					//printw("%s %ld ", "Line will finish printing at:", (xMove+line.length()));
-					//printw("%s:%d / %s:%ld / %s:%d", "cursor x", xMove, "line length", line.length(), "width with adjustment", (width-borderAdjustment));
-					//getch();
-					//Check to see if we need to wrap this line around TODO: Get the current X position in the window and add it here. Make sure to account for window borders.
-					if(((xMove-borderAdjustment) + (int)u32line.length()) >= (width - borderAdjustment))
-					{
-						// printw("%s", line.c_str());
-						if(format.contains("debug"))
-						{
-							std::cout << "need to wrap" << std::endl;
-							getch();
-						}
-						size_t maxLength = ((width-borderAdjustment)-xMove);
-						if(maxLength > u32line.length()) maxLength = u32line.length();
-						std::u32string bitOfLineThatCanFit = u32line.substr(0, maxLength);
-						//Find the last space in the string that fits on the line
-						lineCutOffIndex = bitOfLineThatCanFit.rfind(U' ', (indent + width));
-						if (lineCutOffIndex == std::u32string::npos)
-						{
-							// No space within available width: force-break at maxLength.
-							// If maxLength is 0 (cursor already at right boundary) we just
-							// advance to the next line without printing anything.
-							if (maxLength > 0) {
-								std::u32string u32output = u32line.substr(0, maxLength);
-								output = stevensStringLib::utf32to8(u32output);
-								{
-									int availableWidth = (int)maxLength;
-									int printX = xMove + (textAlign == "center" ? std::max(0, (availableWidth - (int)u32output.length()) / 2) : 0);
-									mvwprintw(win, yMove, printX, "%s", output.c_str());
-								}
-								u32line = (maxLength < u32line.length()) ? u32line.substr(maxLength) : U"";
-							}
-							yMove++;
-							charsPrintedToLine = 0;
-							if (retainXMoveOnNewline) {
-								xMove = xMoveOrigin;
-							} else if (avoidBorders) {
-								xMove = 1;
-							} else {
-								xMove = 0;
-							}
-							wmove(win, yMove, xMove);
-						}
-						else
-						{
-							// Space found: break at the last space within available width
-							std::u32string u32output = u32line.substr(0, lineCutOffIndex);
-							output = stevensStringLib::utf32to8(u32output);
-							{
-								int availableWidth = (int)((width - borderAdjustment) - xMove);
-								int printX = xMove + (textAlign == "center" ? std::max(0, (availableWidth - (int)u32output.length()) / 2) : 0);
-								mvwprintw(win, yMove, printX, "%s", output.c_str());
-							}
-							yMove++;
-							charsPrintedToLine = 0;
-							if (lineCutOffIndex + 1 < u32line.length()) {
-								u32line = u32line.substr(lineCutOffIndex + 1);
-							} else {
-								u32line.clear();
-							}
-							if (retainXMoveOnNewline) {
-								xMove = xMoveOrigin;
-							}
-							else if (avoidBorders)
-							{
-								xMove = 1;
-							}
-							else {
-								xMove = 0;
-							}
-							wmove(win, yMove, xMove);
-						}
-						// lineCutOffIndex = bitOfLineThatCanFit.rfind(" ", (indent + width));
-						// //If we can't find a space in the string and the string is too long, we just cut the line and wrap to the next line
-						// if(lineCutOffIndex == std::string::npos)
-						// {
-						// 	//printw("Cannot find space, just breaking to next line...\n");
-						// 	//Add as much of the line as we can to the output and then add a newline
-						// 	if(format.contains("debug"))
-						// 	{
-						// 		std::cout << "printing as much of the line as we can" << std::endl;
-						// 		getch();
-						// 	}
-						// 	output = std::string(indent, ' ') + line.substr(0, (width-indent));
-						// 	mvwprintw(win,yMove,xMove,"%s", output.c_str());
-						// 	//mvwprintw(win,yMove,xMove,"%s", "NEWLINE BY BREAK");
-						// 	//getch();
-						// 	yMove++;
-						// 	charsPrintedToLine = 0;
-						// 	//Continue looping until the rest of the line is added to the output
-						// 	line = line.substr(width-indent);
-						// }
-						// //If we find a space...
-						// else
-						// {
-						// 	if(format.contains("debug"))
-						// 	{
-						// 		std::cout << "found a space" << std::endl;
-						// 		getch();
-						// 	}
-						// 	//Add the part of the string before the cut off point to the output
-						// 	output = std::string(indent,' ') + line.substr(0, lineCutOffIndex);
-						// 	mvwprintw(win, yMove, xMove, "%s", output.c_str());
-						// 	//mvwprintw(win,yMove,xMove,"NEWLINE BY WRAP");
-						// 	//getch();
-						// 	//Move to the next line to continue printing
-						// 	yMove++;
-						// 	charsPrintedToLine = 0;
-						// 	if(avoidBorders)
-						// 	{
-						// 		xMove = 1;
-						// 	}
-						// 	else
-						// 	{
-						// 		xMove = 0;
-						// 	}
-						// 	//Set the line equal to the cut off portion of the string and continue looping until the rest of the line is added to the output
-						// 	line = line.substr(lineCutOffIndex+1);
-						// }
-					}
-					else
-					{
-						// std::cout << "Printed a full line!" << std::endl;
-						// getch();
-						output = line;
-						{
-							int availableWidth = (int)((width - borderAdjustment) - xMove);
-							int printX = xMove + (textAlign == "center" ? std::max(0, (availableWidth - (int)output.length()) / 2) : 0);
-							mvwprintw(win, yMove, printX, "%s", output.c_str());
-						}
-						break;
-					}
+					rows.push_back(rowLine);
 				}
-				currTokenLineNum++;
-				currLineNum++;
-				//Add a new line when printing the next line from the string, or print a newline if we only have a newline character
-				if((currTokenLineNum <= tokenLines))
+			}
+
+			//Print each row of the token
+			for(size_t r = 0; r < rows.size(); r++)
+			{
+				int rowXMove = xMove;
+				int availableWidth = (width - borderAdjustment) - rowXMove;
+				int printX = rowXMove + (textAlign == "center"
+					? std::max(0, (availableWidth - (int)stevensStringLib::lineDisplayWidth(rows[r])) / 2)
+					: 0);
+				mvwprintw(win, yMove, printX, "%s", rows[r].c_str());
+
+				//Where printing left the cursor, in case the next row/token continues here
+				xMove = printX + static_cast<int>(stevensStringLib::lineDisplayWidth(rows[r]));
+
+				//Advance to a fresh row only if more rows remain within THIS token (a wrap or an
+				//explicit newline in its own content) - if this was the token's last row, leave
+				//xMove where printing ended so the next token (if any) continues on the same row.
+				bool moreRowsThisToken = (r + 1) < rows.size();
+				if(moreRowsThisToken)
 				{
-					if(retainXMoveOnNewline)
-					{
-						xMove = xMoveOrigin;
-					}
-					else if(avoidBorders)
-					{
-						xMove = 1;
-					}
-					else
-					{
-						xMove = 0;
-					}
 					yMove++;
+					xMove = resetXMove;
 					wmove(win, yMove, xMove);
 				}
 			}
-			//If the token content ends with a newline character, move the cursor
-			// if(tokens[i].content.back() == '\n')
-			// {
-			// 	if(avoidBorders)
-			// 	{
-			// 		xMove = 1;
-			// 	}
-			// 	else
-			// 	{
-			// 		xMove = 0;
-			// 	}
-			// 	yMove++;
-			// 	wmove(win, yMove, xMove);
-			// }
-			//After we're done prinnting all the lines of the token, turn off its attributes
-			getyx(win, yMove, xMove);
+
 			curses_wAttrOff(win, curses_attribute_data);
 		}
-
-		// std::cout << "after" << std::endl;
-		// getch();
 	}
 
 } // namespace PrintHelper

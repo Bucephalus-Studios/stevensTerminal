@@ -42,6 +42,12 @@ target_link_libraries(stevensTerminal PUBLIC
 )
 
 if(UNIX AND NOT APPLE)
+    # Without this, FindCurses may resolve to the narrow (non-wide-character) ncurses library
+    # even when ncursesw is installed - narrow ncurses cannot correctly buffer multi-byte UTF-8
+    # into terminal cells (writes/reads of CJK/Cyrillic/etc. content silently corrupt), regardless
+    # of locale. cultgame's own CMakeLists.txt links ncursesw explicitly for this exact reason;
+    # this makes stevensTerminal's own standalone test/benchmark builds do the same.
+    set(CURSES_NEED_WIDE TRUE)
     find_package(Curses REQUIRED)
     target_link_libraries(stevensTerminal PUBLIC ${CURSES_LIBRARIES})
     target_include_directories(stevensTerminal PUBLIC ${CURSES_INCLUDE_DIR})

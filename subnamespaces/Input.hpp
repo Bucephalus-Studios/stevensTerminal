@@ -22,18 +22,6 @@
 
 namespace stevensTerminal
 {
-    /**
-     * @brief Raw byte value for the ESC key.
-     *
-     * ncurses defines KEY_BACKSPACE / KEY_ENTER for special keys but does not
-     * ship an equivalent for escape — pressing ESC just delivers the literal
-     * byte 0x1B (the start of every ANSI escape sequence). This constant gives
-     * callers a named alternative to the magic number when comparing against
-     * the result of wgetch().
-     */
-    inline constexpr int KEY_ESCAPE = 27;
-
-
 //TODO clearInput is a function that does not work with curses, as it deals with cin and cout. What should we do with all of our non-curses
     //cin/cout functions? They are useful, but they don't feel like they lock into place with the other curses functions here which are the star
     //of the show. My first idea is to create a new library or namespace used for the non curses functions, but I'm up for suggestions, Claude.
