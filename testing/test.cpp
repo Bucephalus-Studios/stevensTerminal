@@ -585,10 +585,7 @@ TEST(printVector_str, customHorizontalSeparator_comma)
 /*** formatTableAsString() cell wrapping (multi-byte UTF-8 correctness) ***/
 TEST(FormatTableAsString, wrapsMultiByteContentAtCodepointBoundaries)
 {
-    // 23 Cyrillic codepoints (7 + 1 + 10 + 1 + 4), with a real style token so resizeStyledString()
-    // recognizes each wrapped chunk as a proper token (a bare "{content}" with no "$[...]" isn't a
-    // valid token and gets double-truncated by resizeStyledString() afterward - unrelated pre-existing
-    // quirk, not what this test is targeting).
+    // 23 Cyrillic codepoints (7 + 1 + 10 + 1 + 4), with a real style token.
     std::vector<std::vector<std::string>> table = { { stevensTerminal::style("Быстрая коричневая лиса", {{"textColor", "red"}}) } };
     std::string result = stevensTerminal::formatTableAsString(
         table,
@@ -607,6 +604,27 @@ TEST(FormatTableAsString, wrapsMultiByteContentAtCodepointBoundaries)
     ASSERT_NE(result.find("Быстрая ко"), std::string::npos);
     ASSERT_NE(result.find("ричневая л"), std::string::npos);
     ASSERT_NE(result.find("иса"), std::string::npos);
+}
+
+TEST(FormatTableAsString, wrapsUnstyledContentWithoutLosingLastCharacter)
+{
+    // Regression test: unstyled cell content used to get wrapped in a bare "{chunk}" (no "$[...]"
+    // suffix), which findToken() didn't recognize as a valid token, so resizeStyledString()'s
+    // "no tokens" branch then truncated the literal string *including the braces*, silently eating
+    // the closing brace and the chunk's last character. Fixed by routing every wrapped chunk through
+    // stevensTerminal::style() (which always emits a valid token, even with an empty style map)
+    // instead of hand-building "{...}$[...]" only when a style happened to be present.
+    std::vector<std::vector<std::string>> table = { { "abcdefghij klmnop" } }; // no style token at all
+    std::string result = stevensTerminal::formatTableAsString(
+        table,
+        {},
+        {   {"column widths",  "10"},
+            {"enable wrapping", "true"}    }
+    );
+    std::string clean = stevensTerminal::removeAllStyleTokenization(result);
+
+    ASSERT_NE(clean.find("abcdefghij"), std::string::npos); // full first chunk present, not "abcdefghi"
+    ASSERT_NE(clean.find("klmnop"), std::string::npos);
 }
 
 TEST(FormatTableAsString, autoColumnWidthUsesDisplayWidthNotByteCount)

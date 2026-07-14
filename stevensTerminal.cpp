@@ -914,17 +914,13 @@ namespace stevensTerminal
 					originalStyledCells.push_back(originalStyled);
 					std::string cellContent = removeAllStyleTokenization(originalStyled);
 
-					// Extract style token from original (format: {text}$[style])
-					std::string styleToken = "";
-					size_t styleStart = originalStyled.find("}$[");
-					if(styleStart != std::string::npos)
-					{
-						size_t styleEnd = originalStyled.find("]", styleStart);
-						if(styleEnd != std::string::npos)
-						{
-							styleToken = originalStyled.substr(styleStart + 1, styleEnd - styleStart); // Include $[ and ]
-						}
-					}
+					// Extract the style map from the original cell content, if any, using the shared
+					// token parser (PrintTokenHelper::getAllTokens() + PrintToken::getStyleMap())
+					// instead of ad-hoc substring searching, so this matches the same nesting-aware
+					// parsing used everywhere else tokens are read.
+					std::vector<PrintToken> originalTokens = PrintTokenHelper::getAllTokens(originalStyled);
+					std::unordered_map<std::string,std::string> cellStyle =
+						originalTokens.empty() ? std::unordered_map<std::string,std::string>{} : originalTokens[0].getStyleMap();
 
 					std::vector<std::string> lines;
 
@@ -953,19 +949,19 @@ namespace stevensTerminal
 					// First line uses full width
 					if((int)u32cellContent.length() > firstLineWidth)
 					{
-						lines.push_back("{" + stevensStringLib::utf32to8(u32cellContent.substr(0, firstLineWidth)) + "}" + styleToken);
+						lines.push_back(stevensTerminal::style(stevensStringLib::utf32to8(u32cellContent.substr(0, firstLineWidth)), cellStyle));
 						u32cellContent = u32cellContent.substr(firstLineWidth);
 
 						// Subsequent lines are indented and styled
 						while((int)u32cellContent.length() > wrappedLineWidth && wrappedLineWidth > 0)
 						{
-							lines.push_back("{" + std::string(indentSize, ' ') + stevensStringLib::utf32to8(u32cellContent.substr(0, wrappedLineWidth)) + "}" + styleToken);
+							lines.push_back(stevensTerminal::style(std::string(indentSize, ' ') + stevensStringLib::utf32to8(u32cellContent.substr(0, wrappedLineWidth)), cellStyle));
 							u32cellContent = u32cellContent.substr(wrappedLineWidth);
 						}
 						// Add remaining content with indentation and styling
 						if(!u32cellContent.empty())
 						{
-							lines.push_back("{" + std::string(indentSize, ' ') + stevensStringLib::utf32to8(u32cellContent) + "}" + styleToken);
+							lines.push_back(stevensTerminal::style(std::string(indentSize, ' ') + stevensStringLib::utf32to8(u32cellContent), cellStyle));
 						}
 					}
 					else

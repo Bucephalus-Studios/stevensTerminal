@@ -149,6 +149,56 @@ class PrintToken
 
 
         /**
+         * @brief Gets this PrintToken's styles as a map, suitable for passing directly to functions
+         *        like stevensTerminal::style() that take a style map (e.g. {"textColor", "red"}).
+         *
+         *        Same "only actually-set attributes are included" semantics as getStyleString() (see
+         *        that method's doc comment) - this is just the map form instead of the serialized
+         *        "$[...]"-ready string form, for callers that want to build a style programmatically
+         *        rather than round-trip through getStyleString() + a string parser.
+         */
+        std::unordered_map<std::string,std::string> getStyleMap() const
+        {
+            std::unordered_map<std::string,std::string> styleMap;
+
+            if(!textColor.empty())
+            {
+                styleMap["textColor"] = textColor;
+            }
+            if(!bgColor.empty())
+            {
+                styleMap["bgColor"] = bgColor;
+            }
+            if(blink)
+            {
+                styleMap["blink"] = "true";
+            }
+            if(bold)
+            {
+                styleMap["bold"] = "true";
+            }
+            if(underline)
+            {
+                styleMap["underline"] = "true";
+            }
+            if(reverse)
+            {
+                styleMap["reverse"] = "true";
+            }
+            if(dim)
+            {
+                styleMap["dim"] = "true";
+            }
+            if(italic)
+            {
+                styleMap["italic"] = "true";
+            }
+
+            return styleMap;
+        }
+
+
+        /**
          * @brief Inherit the styles of the parent token if this token is a child token.
          *
          * Only UNSPECIFIED attributes (empty string) inherit from the parent. An attribute set to
