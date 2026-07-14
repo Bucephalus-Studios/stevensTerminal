@@ -503,10 +503,10 @@ namespace BenchmarkOriginal {
     // (real curses_wborder() also does real ncurses I/O, which is identical either way and
     // would just add noise to this specific comparison).
     inline std::string fitBorderPattern_codepoints(const std::string & pattern, int width) {
-        if ((int)stevensStringLib::utf8Length(pattern) >= width) {
+        if ((int)stevensStringLib::charCount(pattern) >= width) {
             return stevensStringLib::utf32to8(stevensStringLib::utf8to32(pattern).substr(0, width));
         }
-        std::string strToPrint = stevensStringLib::multiply(pattern, (width / stevensStringLib::utf8Length(pattern)));
+        std::string strToPrint = stevensStringLib::multiply(pattern, (width / stevensStringLib::charCount(pattern)));
         std::u32string u32strToPrint = stevensStringLib::utf8to32(strToPrint);
         int i = 0;
         while ((int)u32strToPrint.length() != width) {

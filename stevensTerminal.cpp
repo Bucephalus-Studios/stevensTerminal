@@ -886,11 +886,11 @@ namespace stevensTerminal
 					tableByColumnsOfRows[i][n] = removeAllStyleTokenization(tableByColumnsOfRows[i][n]);
 				}
 			}
-			//For each column, discover the string element with the greatest length and store it to that column's index
+			//For each column, discover the string element with the greatest display width and store it to that column's index
 			for(int i = 0; i < tableByColumnsOfRows.size(); i++)
 			{
-				std::string longestStringElement = stevensVectorLib::getLongestStringElement(tableByColumnsOfRows[i]);
-				columnWidths.push_back(stevensStringLib::utf8Length(longestStringElement));
+				std::string widestStringElement = stevensVectorLib::getStringWithMaxDisplayWidth(tableByColumnsOfRows[i]);
+				columnWidths.push_back(stevensStringLib::lineDisplayWidth(widestStringElement));
 			}
 		}
 
@@ -1068,7 +1068,7 @@ namespace stevensTerminal
 		{
 			//If the top border pattern is greater than or equal to the window width, print all the characters of
 			//the pattern equal up to the width size
-			if(stevensStringLib::utf8Length(borderPatterns["top"]) >= width)
+			if(stevensStringLib::charCount(borderPatterns["top"]) >= width)
 			{
 				curses_wprint( 	win,
 								0,
@@ -1081,7 +1081,7 @@ namespace stevensTerminal
 			//divided by the border pattern length. To get the string that we'll print.
 			else
 			{
-				std::string strToPrint = stevensStringLib::multiply(borderPatterns["top"], (width/stevensStringLib::utf8Length(borderPatterns["top"])) );
+				std::string strToPrint = stevensStringLib::multiply(borderPatterns["top"], (width/stevensStringLib::charCount(borderPatterns["top"])) );
 				//If the resulting border pattern string is not equal to the width, add/subtract
 				//individual characters from the border pattern until we have a string equal to the window width.
 				//Work in codepoints (not bytes) so multi-byte border glyphs aren't torn apart - see
@@ -1113,7 +1113,7 @@ namespace stevensTerminal
 		{
 			//If the top border pattern is greater than or equal to the window width, print all the characters of
 			//the pattern equal up to the width size
-			if(stevensStringLib::utf8Length(borderPatterns["bottom"]) >= width)
+			if(stevensStringLib::charCount(borderPatterns["bottom"]) >= width)
 			{
 				curses_wprint( 	win,
 								height-1,
@@ -1126,7 +1126,7 @@ namespace stevensTerminal
 			//divided by the border pattern length. To get the string that we'll print.
 			else
 			{
-				std::string strToPrint = stevensStringLib::multiply(borderPatterns["bottom"], (width/stevensStringLib::utf8Length(borderPatterns["bottom"])) );
+				std::string strToPrint = stevensStringLib::multiply(borderPatterns["bottom"], (width/stevensStringLib::charCount(borderPatterns["bottom"])) );
 				//If the resulting border pattern string is not equal to the width, add/subtract
 				//individual characters from the border pattern until we have a string equal to the window width.
 				//Work in codepoints (not bytes) so multi-byte border glyphs aren't torn apart - see

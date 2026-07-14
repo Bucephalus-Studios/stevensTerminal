@@ -598,8 +598,9 @@ TEST(FormatTableAsString, wrapsMultiByteContentAtCodepointBoundaries)
     );
 
     // Must decode cleanly - a byte-based cut at codepoint width 10 (20 bytes) would land mid-character
-    // and produce invalid UTF-8, which utf8Length() would throw on.
-    ASSERT_NO_THROW(stevensStringLib::utf8Length(result));
+    // and produce invalid UTF-8, which charCount() would throw on. (Not lineDisplayWidth() here -
+    // result is a multi-line wrapped table, and lineDisplayWidth() rightly throws on embedded newlines.)
+    ASSERT_NO_THROW(stevensStringLib::charCount(result));
 
     // Hard-cut at codepoint width 10 (this wrap block has no space-search, unlike curses_wwrap) should
     // produce these exact whole-character chunks, not byte-offset-mangled ones.
@@ -608,18 +609,29 @@ TEST(FormatTableAsString, wrapsMultiByteContentAtCodepointBoundaries)
     ASSERT_NE(result.find("иса"), std::string::npos);
 }
 
-TEST(FormatTableAsString, autoColumnWidthUsesCodepointCountNotByteCount)
+TEST(FormatTableAsString, autoColumnWidthUsesDisplayWidthNotByteCount)
 {
-    // "мир мир мир" (11 codepoints, 20 bytes) is unambiguously the longest entry by both codepoint
-    // and byte count, so getLongestStringElement() (which itself has a separate, pre-existing,
-    // out-of-scope byte-length bug - see project memory) picks it correctly either way. This isolates
-    // just the fix under test: columnWidths must be computed as a codepoint count (11), so "hi" pads
-    // out to 11 codepoints, not 20 bytes.
+    // "мир мир мир" (11 codepoints, 20 bytes, all single-column Cyrillic) is unambiguously the
+    // longest/widest entry by byte count, codepoint count, AND display width alike, so
+    // getStringWithMaxDisplayWidth() picks it correctly regardless of which measure is used. This
+    // isolates just the fix under test: columnWidths must be computed as a display-width count (11),
+    // so "hi" pads out to 11 columns, not 20 (the old byte-count bug's answer).
     std::vector<std::vector<std::string>> table = { { "мир мир мир" }, { "hi" } };
     std::string result = stevensTerminal::formatTableAsString(table, {}, {});
 
-    ASSERT_NE(result.find("hi         "), std::string::npos); // "hi" + 9 spaces = 11 codepoints
+    ASSERT_NE(result.find("hi         "), std::string::npos); // "hi" + 9 spaces = 11 columns
     ASSERT_EQ(result.find("hi" + std::string(18, ' ')), std::string::npos); // would be the byte-width-padded (wrong) result
+}
+
+TEST(FormatTableAsString, autoColumnWidthAccountsForCjkDoubleWidth)
+{
+    // "世界世界" (4 codepoints, but double-width -> 8 terminal columns) is visually widest despite
+    // having fewer codepoints than "hello world" would. A codepoint-count-only comparison would
+    // (wrongly) undersize the column; display width correctly sizes it to 8 columns.
+    std::vector<std::vector<std::string>> table = { { "世界世界" }, { "hi" } };
+    std::string result = stevensTerminal::formatTableAsString(table, {}, {});
+
+    ASSERT_NE(result.find("hi      "), std::string::npos); // "hi" + 6 spaces = 8 columns
 }
 
 
@@ -1264,8 +1276,8 @@ TEST(ComputeWrapSegments, multiByteForceBreak_doesNotTearCharacter)
     ASSERT_EQ(segments[0], "Приве");
     ASSERT_EQ(segments[1], "тмир!");
     // Every segment must be valid, whole-character UTF-8 - reconstitute and check round-trip length
-    ASSERT_EQ(stevensStringLib::utf8Length(segments[0]), 5u);
-    ASSERT_EQ(stevensStringLib::utf8Length(segments[1]), 5u);
+    ASSERT_EQ(stevensStringLib::charCount(segments[0]), 5u);
+    ASSERT_EQ(stevensStringLib::charCount(segments[1]), 5u);
 }
 
 TEST(ComputeWrapSegments, multiByteBreaksAtLastSpace)
@@ -1281,7 +1293,7 @@ TEST(ComputeWrapSegments, multiByteBreaksAtLastSpace)
     ASSERT_EQ(segments.size(), 2);
     ASSERT_EQ(segments[0], "Привет");
     ASSERT_EQ(segments[1], " мир");
-    ASSERT_EQ(stevensStringLib::utf8Length(segments[0]), 6u);
+    ASSERT_EQ(stevensStringLib::charCount(segments[0]), 6u);
 }
 
 TEST(ComputeWrapSegments, lineFitsWithinWidth_returnsUnchanged)
