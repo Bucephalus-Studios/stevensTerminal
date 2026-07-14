@@ -315,23 +315,23 @@ TEST(tokenizePrintString, nestedTokensV2)
     //Act
     std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintHelper::tokenizePrintString(str);
     //Assert
+    // getStyleString() only serializes actually-set attributes (see its doc comment) - bold/blink
+    // default false and are omitted rather than emitted as "bold=false"/"blink=false", so an
+    // unset-but-false attribute stays inheritable when this token is nested inside a parent.
     ASSERT_STREQ( tokens[0].content.c_str(), "Toggle text styling (" );
     ASSERT_STREQ( tokens[0].bgColor.c_str(), "black" );
     ASSERT_STREQ( tokens[0].textColor.c_str(), "bright-yellow" );
-    ASSERT_STREQ( tokens[0].getStyleString().c_str(), "textColor=bright-yellow,bgColor=black,blink=false,bold=false" );
-    //ASSERT_STREQ( tokens[0].rawToken.c_str(), "{Toggle text styling (}$[textColor=bright-yellow,bgColor=black,blink=false,bold=false]" );
+    ASSERT_STREQ( tokens[0].getStyleString().c_str(), "textColor=bright-yellow,bgColor=black" );
 
     ASSERT_STREQ( tokens[1].content.c_str(), "On" );
     ASSERT_STREQ( tokens[1].bgColor.c_str(), "black" );
     ASSERT_STREQ( tokens[1].textColor.c_str(), "bright-green" );
-    ASSERT_STREQ( tokens[1].getStyleString().c_str(), "textColor=bright-green,bgColor=black,blink=false,bold=false" );
-    //ASSERT_STREQ( tokens[1].rawToken.c_str(), "{On}$[textColor=bright-green,bgColor=black,blink=false,bold=false]" );
+    ASSERT_STREQ( tokens[1].getStyleString().c_str(), "textColor=bright-green,bgColor=black" );
 
     ASSERT_STREQ( tokens[2].content.c_str(), ")" );
     ASSERT_STREQ( tokens[2].bgColor.c_str(), "black" );
     ASSERT_STREQ( tokens[2].textColor.c_str(), "bright-yellow" );
-    ASSERT_STREQ( tokens[2].getStyleString().c_str(), "textColor=bright-yellow,bgColor=black,blink=false,bold=false" );
-    //ASSERT_STREQ( tokens[2].rawToken.c_str(), "{)}$[textColor=bright-yellow,bgColor=black,blink=false,bold=false]" );
+    ASSERT_STREQ( tokens[2].getStyleString().c_str(), "textColor=bright-yellow,bgColor=black" );
 }
 
 /**
@@ -360,18 +360,19 @@ TEST(tokenizePrintString, twoNestedTokens_noBetween)
     //Assert - Optimized version eliminates empty tokens
     ASSERT_EQ( tokens.size(), 2 );
 
+    // getStyleString() only serializes actually-set attributes (see its doc comment) - bold defaults
+    // false and is omitted rather than emitted as "bold=false"; blink IS emitted here because it was
+    // genuinely inherited as true from the parent token (see the doc comment above this test).
     if(tokens.size() >= 2) {
         ASSERT_STREQ( tokens[0].content.c_str(), "First nested token" );
         ASSERT_STREQ( tokens[0].bgColor.c_str(), "black" );
         ASSERT_STREQ( tokens[0].textColor.c_str(), "bright-yellow" );
-        ASSERT_STREQ( tokens[0].getStyleString().c_str(), "textColor=bright-yellow,bgColor=black,blink=true,bold=false" );
-        //ASSERT_STREQ( tokens[0].rawToken.c_str(), "{First nested token}$[textColor=bright-yellow,bgColor=black,blink=true,bold=false]" );
+        ASSERT_STREQ( tokens[0].getStyleString().c_str(), "textColor=bright-yellow,bgColor=black,blink=true" );
 
         ASSERT_STREQ( tokens[1].content.c_str(), " and the second nested token with no between" );
         ASSERT_STREQ( tokens[1].bgColor.c_str(), "black" );
         ASSERT_STREQ( tokens[1].textColor.c_str(), "bright-green" );
-        ASSERT_STREQ( tokens[1].getStyleString().c_str(), "textColor=bright-green,bgColor=black,blink=true,bold=false" );
-        //ASSERT_STREQ( tokens[1].rawToken.c_str(), "{ and the second nested token with no between}$[textColor=bright-green,bgColor=black,blink=true,bold=false]" );
+        ASSERT_STREQ( tokens[1].getStyleString().c_str(), "textColor=bright-green,bgColor=black,blink=true" );
     }
 }
 
@@ -1155,9 +1156,13 @@ TEST(TokenInheritance, inherit_text_color)
     parent.bold = true;
     parent.blink = false;
 
+    // Empty string means "genuinely unspecified" for inheritStyle() (see its doc comment) - an
+    // explicit "default" is treated as the author's deliberate choice and does NOT inherit, so a
+    // child can opt out of inheritance and stay terminal-default. To actually test inheritance, the
+    // child's unset attributes need to be empty, not the literal string "default".
     stevensTerminal::PrintToken child;
-    child.textColor = "default";
-    child.bgColor = "default";
+    child.textColor = "";
+    child.bgColor = "";
     child.bold = false;
     child.blink = false;
 
@@ -1192,6 +1197,11 @@ TEST(TokenInheritance, preserve_own_styles)
 /***** TOKEN STYLING TESTS *****/
 TEST(TokenStyling, getStyleString_all_defaults)
 {
+    // textColor/bgColor set to the explicit string "default" ARE serialized (that's a deliberate
+    // author choice, distinct from being unset - see getStyleString()'s doc comment). bold/blink
+    // being false is indistinguishable from "unset" for a bool field, so they're omitted rather
+    // than emitted as "bold=false"/"blink=false" - this is what lets an unset/false attribute stay
+    // inheritable when this token is nested inside a parent.
     stevensTerminal::PrintToken token;
     token.textColor = "default";
     token.bgColor = "default";
@@ -1202,8 +1212,8 @@ TEST(TokenStyling, getStyleString_all_defaults)
 
     ASSERT_NE(styleString.find("textColor=default"), std::string::npos);
     ASSERT_NE(styleString.find("bgColor=default"), std::string::npos);
-    ASSERT_NE(styleString.find("bold=false"), std::string::npos);
-    ASSERT_NE(styleString.find("blink=false"), std::string::npos);
+    ASSERT_EQ(styleString.find("bold=false"), std::string::npos);
+    ASSERT_EQ(styleString.find("blink=false"), std::string::npos);
 }
 
 TEST(TokenStyling, getStyleString_all_set)
