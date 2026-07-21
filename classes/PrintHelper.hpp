@@ -7,6 +7,7 @@
 
 #include <sstream>
 #include <fstream>
+#include "TokenParser.hpp"
 
 namespace stevensTerminal
 {
@@ -193,10 +194,13 @@ namespace PrintHelper
 				continue;
 			}
 
-			//Create a token for the content we just grabbed
+			//Create a token for the content we just grabbed. This content is guaranteed to be
+			//plain text (not a real style token) - build the PrintToken directly rather than
+			//wrapping it in synthetic token syntax and re-parsing it, since literal '{'/'}'
+			//characters in plain content (e.g. ASCII art) would otherwise trip TokenParser's
+			//brace-depth matching, which is meant for genuine nested tokens.
 			std::string rawBetweenToken = PrintTokenHelper::tokenize(contentToTokenize, 0, contentToTokenize.length());
-			PrintToken betweenToken = PrintTokenHelper::parseRawToken(rawBetweenToken);
-			betweenToken.existsAtIndex = startingIndex;
+			PrintToken betweenToken(contentToTokenize, rawBetweenToken, startingIndex);
 			betweenToken.styled = false; //This token is not styled, it is just the content between the tokens
 
 			//Change the str parameter to have the tokenized content
@@ -221,9 +225,10 @@ namespace PrintHelper
 		{
 			//Grab everything up until the end of the string
 			contentToTokenize = str.substr(startingIndex);
+			//Same reasoning as above: build the PrintToken directly instead of wrapping and
+			//re-parsing, since this trailing content is plain text and may contain literal braces.
 			std::string rawBetweenToken = PrintTokenHelper::tokenize(contentToTokenize, 0, contentToTokenize.length());
-			PrintToken betweenToken = PrintTokenHelper::parseRawToken(rawBetweenToken);
-			betweenToken.existsAtIndex = startingIndex;
+			PrintToken betweenToken(contentToTokenize, rawBetweenToken, startingIndex);
 			betweenToken.styled = false; //This token is not styled, it is just the content after the last token
 
 			//Change the str parameter to have the tokenized content
@@ -254,41 +259,18 @@ namespace PrintHelper
 	inline std::string processNestedContent(const std::string& content, const std::string& parentStyle);
 	inline std::string inheritParentStyle(const std::string& nestedStyle, const std::string& parentStyle);
 	
-	// OPTIMIZED: Fast inline pattern matching without substr()
+	// Thin wrapper kept for call-site compatibility; delegates to TokenParser.
 	inline bool matchesTokenEnd(const std::string& input, size_t pos) {
-		return pos + 2 < input.length() && 
-			   input[pos] == '}' && 
-			   input[pos + 1] == '$' && 
-			   input[pos + 2] == '[';
-	}
-	
-	// OPTIMIZED: Single-pass brace matching with optimized pattern detection
-	inline size_t findMatchingTokenEnd(const std::string& input, size_t openBrace) {
-		int braceCount = 1;
-		size_t pos = openBrace + 1;
-		const size_t inputLen = input.length();
-		
-		while (pos < inputLen && braceCount > 0) {
-			const char c = input[pos];
-			if (c == '{') {
-				braceCount++;
-				pos++;
-			} else if (c == '}' && matchesTokenEnd(input, pos)) {
-				braceCount--;
-				if (braceCount == 0) {
-					// Found the matching }$[ - now find the end of the style section
-					size_t styleEnd = input.find(']', pos + 3);
-					return styleEnd;
-				}
-				pos += 3; // Skip the }$[ pattern
-			} else {
-				pos++;
-			}
-		}
-		return std::string::npos;
+		return TokenParser::detail::isClosingBrace(input, pos);
 	}
 
-	// OPTIMIZED: Combined brace matching and content extraction in single pass
+	// Returns the styleEnd position (closing ']') of the token beginning at openBrace,
+	// or std::string::npos if no valid token starts there.
+	inline size_t findMatchingTokenEnd(const std::string& input, size_t openBrace) {
+		TokenParser::TokenSpan span = TokenParser::parseAt(input, openBrace);
+		return span.valid ? span.styleEnd : std::string::npos;
+	}
+
 	struct TokenInfo {
 		size_t contentStart;
 		size_t contentEnd;
@@ -296,42 +278,23 @@ namespace PrintHelper
 		size_t styleEnd;
 		bool hasNestedTokens;
 	};
-	
-	// OPTIMIZED: Single-pass token info extraction
+
+	// Extracts per-field span info for the token beginning at openBrace.
+	// hasNestedTokens is true when the content contains at least one '{'.
 	inline TokenInfo extractTokenInfo(const std::string& input, size_t openBrace) {
-		TokenInfo info = {0, 0, 0, 0, false};
-		int braceCount = 1;
-		size_t pos = openBrace + 1;
-		const size_t inputLen = input.length();
-		bool foundDollarBracket = false;
-		
-		info.contentStart = openBrace + 1;
-		
-		while (pos < inputLen && braceCount > 0) {
-			const char c = input[pos];
-			if (c == '{') {
-				braceCount++;
-				// Check if we're still in the root content for nested token detection
-				if (braceCount == 2 && !foundDollarBracket) {
-					info.hasNestedTokens = true;
-				}
-				pos++;
-			} else if (c == '}' && matchesTokenEnd(input, pos)) {
-				braceCount--;
-				if (braceCount == 0) {
-					// This is the matching }$[ for our opening brace
-					info.contentEnd = pos;
-					info.styleStart = pos + 3;
-					info.styleEnd = input.find(']', pos + 3);
-					foundDollarBracket = true;
-					break;
-				}
-				pos += 3;
-			} else {
-				pos++;
-			}
+		TokenInfo info = {0, 0, 0, std::string::npos, false};
+		TokenParser::TokenSpan span = TokenParser::parseAt(input, openBrace);
+		if (!span.valid) { return info; }
+
+		info.contentStart = span.contentStart;
+		info.contentEnd   = span.contentEnd;
+		info.styleStart   = span.styleStart;
+		info.styleEnd     = span.styleEnd;
+
+		for (size_t i = span.contentStart; i < span.contentEnd; i++) {
+			if (input[i] == '{') { info.hasNestedTokens = true; break; }
 		}
-		
+
 		return info;
 	}
 	
@@ -1466,9 +1429,11 @@ namespace PrintHelper
 				//Where printing left the cursor, in case the next row/token continues here
 				xMove = printX + static_cast<int>(stevensStringLib::lineDisplayWidth(rows[r]));
 
-				//Advance to a fresh row only if more rows remain within THIS token (a wrap or an
-				//explicit newline in its own content) - if this was the token's last row, leave
-				//xMove where printing ended so the next token (if any) continues on the same row.
+				//Advance to a fresh row only if more rows remain within THIS token (a wrap
+				//splitting its content into multiple rows) - if this was the token's last row,
+				//leave xMove where printing ended so the next token (if any) continues on the
+				//same row. A token content's OWN trailing newline (e.g. a bare "\n" separator
+				//token between grid rows) is handled separately below, not here.
 				bool moreRowsThisToken = (r + 1) < rows.size();
 				if(moreRowsThisToken)
 				{
@@ -1476,6 +1441,21 @@ namespace PrintHelper
 					xMove = resetXMove;
 					wmove(win, yMove, xMove);
 				}
+			}
+
+			// stevensStringLib::wrapToWidth() always appends a trailing "\n" after the last
+			// line it processes (even when that line had no newline of its own), so splitting
+			// `wrapped` above can't distinguish "this token's real last row" from "this token's
+			// content explicitly ended in \n, forcing whatever comes next onto a new row" - a
+			// bare separator token of content "\n" (as produced between rows of a printed grid,
+			// see stevensTerminal::printVector_str()) round-trips to a single empty row and the
+			// row-loop above never sees a transition. Check the token's own pre-wrap content
+			// directly instead, and force the row advance the row-loop couldn't detect.
+			if(!tokens[i].content.empty() && tokens[i].content.back() == '\n')
+			{
+				yMove++;
+				xMove = resetXMove;
+				wmove(win, yMove, xMove);
 			}
 
 			curses_wAttrOff(win, curses_attribute_data);

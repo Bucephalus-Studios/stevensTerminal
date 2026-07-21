@@ -8,6 +8,7 @@
 #include <clocale>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <gtest/gtest.h>
 
 
@@ -484,7 +485,7 @@ TEST(printVector_str,  defaultRows_singleColumnSpecified)
     std::string result = stevensTerminal::printVector_str(   vec,
                                                             {   {"columns", "1"}    }   );
     //Assert
-    ASSERT_STREQ( result.c_str(), "Vin\t\nKelsier\t\nSazed\t\nDockson\t\nBreeze\t\nHam\t\nSpook\t\nClubs\t\n");
+    ASSERT_STREQ( result.c_str(), "Vin\nKelsier\nSazed\nDockson\nBreeze\nHam\nSpook\nClubs\n");
 }
 
 TEST(printVector_str, fourRows_twoColumns)
@@ -494,9 +495,10 @@ TEST(printVector_str, fourRows_twoColumns)
     //Act
     std::string result = stevensTerminal::printVector_str(   vec,
                                                             {   {"columns",     "2"},
-                                                                {"rows",        "4"}    }   );
+                                                                {"rows",        "4"},
+                                                                {"horizontal separator", "     "}    }   );
     //Assert
-    ASSERT_STREQ( result.c_str(), "Vin\tBreeze\t\nKelsier\tHam\t\nSazed\tSpook\t\nDockson\tClubs\t\n");
+    ASSERT_STREQ( result.c_str(), "Vin     Breeze\nKelsier     Ham\nSazed     Spook\nDockson     Clubs\n");
 }
 
 TEST(printVector_str, threeRows_threeColumns)
@@ -507,11 +509,12 @@ TEST(printVector_str, threeRows_threeColumns)
     //Act
     std::string result = stevensTerminal::printVector_str(  vec,
                                                             {   {"columns", "3"},
-                                                                {"rows",    "3"}    }   );
+                                                                {"rows",    "3"},
+                                                                {"horizontal separator", "     "}    }   );
     //Assert
-    ASSERT_STREQ( result.c_str(),   "Lawful Good\tNeutral Good\tChaotic Good\t\n"
-                                    "Lawful Neutral\tTrue Neutral\tChaotic Neutral\t\n"
-                                    "Lawful Evil\tNeutral Evil\tChaotic Evil\t\n");
+    ASSERT_STREQ( result.c_str(),   "Lawful Good     Neutral Good     Chaotic Good\n"
+                                    "Lawful Neutral     True Neutral     Chaotic Neutral\n"
+                                    "Lawful Evil     Neutral Evil     Chaotic Evil\n");
 }
 
 TEST(printVector_str, columnOverflow)
@@ -522,11 +525,12 @@ TEST(printVector_str, columnOverflow)
     std::string result = stevensTerminal::printVector_str( vec,
                                                             {   {"columns", "2"},
                                                                 {"rows",    "3"},
-                                                                {"allowOverflow",    "true"}    }   );
+                                                                {"allowOverflow",    "true"},
+                                                                {"horizontal separator", "     "}    }   );
     //Assert
-    ASSERT_STREQ(   result.c_str(), "Jack\tLock\tOogie Boogie\t\n"
-                                    "Sally\tShock\t\n"
-                                    "Mayor\tBarrel\t\n");
+    ASSERT_STREQ(   result.c_str(), "Jack     Lock     Oogie Boogie\n"
+                                    "Sally     Shock\n"
+                                    "Mayor     Barrel\n");
 }
 
 TEST(printVector_str, autoColumnWidth)
@@ -537,12 +541,13 @@ TEST(printVector_str, autoColumnWidth)
     std::string result = stevensTerminal::printVector_str(  vec,
                                                             {   {"columns", "2"},
                                                                 {"rows",    "4"},
-                                                                {"defaultColumnWidth", "auto"}    }   );
+                                                                {"defaultColumnWidth", "auto"},
+                                                                {"horizontal separator", "     "}    }   );
     //Assert
-    ASSERT_STREQ(   result.c_str(), "Actions       \tMonthly Report\t\n"
-                                    "World Map     \tSettings      \t\n"
-                                    "Theology      \tEnd Month     \t\n"
-                                    "Infrastructure\tQuit          \t\n");
+    ASSERT_STREQ(   result.c_str(), "Actions            Monthly Report\n"
+                                    "World Map          Settings      \n"
+                                    "Theology           End Month     \n"
+                                    "Infrastructure     Quit          \n");
 }
 
 TEST(printVector_str, customHorizontalSeparator_spaces)
@@ -555,7 +560,7 @@ TEST(printVector_str, customHorizontalSeparator_spaces)
                                                                 {"rows",        "4"},
                                                                 {"horizontal separator", "  "}    }   );
     //Assert
-    ASSERT_STREQ( result.c_str(), "Vin  Breeze  \nKelsier  Ham  \nSazed  Spook  \nDockson  Clubs  \n");
+    ASSERT_STREQ( result.c_str(), "Vin  Breeze\nKelsier  Ham\nSazed  Spook\nDockson  Clubs\n");
 }
 
 TEST(printVector_str, customHorizontalSeparator_pipe)
@@ -568,7 +573,7 @@ TEST(printVector_str, customHorizontalSeparator_pipe)
                                                                 {"rows",        "2"},
                                                                 {"horizontal separator", " | "}    }   );
     //Assert
-    ASSERT_STREQ( result.c_str(), "A | C | \nB | D | \n");
+    ASSERT_STREQ( result.c_str(), "A | C\nB | D\n");
 }
 
 TEST(printVector_str, customHorizontalSeparator_comma)
@@ -581,7 +586,80 @@ TEST(printVector_str, customHorizontalSeparator_comma)
                                                                 {"rows",        "1"},
                                                                 {"horizontal separator", ", "}    }   );
     //Assert
-    ASSERT_STREQ( result.c_str(), "Apple, Banana, Cherry, \n");
+    ASSERT_STREQ( result.c_str(), "Apple, Banana, Cherry\n");
+}
+
+TEST(printVector_str, autoColumnWidth_alignsColumnStartsDespiteRaggedCellLengths)
+{
+    // Regression test for the exact scenario a ragged (defaultColumnWidth: "none") layout would
+    // produce: column 2 drifting left/right per row because it starts immediately after column
+    // 1's own text instead of a shared column boundary. "1 - Hello" (9 chars) and "2 - Hola" (8
+    // chars) differ in length, but with defaultColumnWidth "auto", column 2 must start at the
+    // SAME offset on both rows - padded to the width of the widest cell in column 1.
+    std::vector<std::string> vec = {"1 - Hello", "2 - Hola", "3 - Goodbye", "4 - Adios"};
+    std::string result = stevensTerminal::printVector_str(  vec,
+                                                            {   {"columns", "2"},
+                                                                {"rows",    "2"},
+                                                                {"defaultColumnWidth", "auto"},
+                                                                {"horizontal separator", "     "}    }   );
+    ASSERT_STREQ( result.c_str(), "1 - Hello     3 - Goodbye\n2 - Hola      4 - Adios  \n");
+
+    // Column 2 ("3 - Goodbye" / "4 - Adios") must start at the identical byte offset on both rows
+    std::istringstream in(result);
+    std::string row0, row1;
+    std::getline(in, row0);
+    std::getline(in, row1);
+    EXPECT_EQ(row0.find("3 - Goodbye"), row1.find("4 - Adios"));
+}
+
+TEST(printVector_str, numericDefaultColumnWidthPadsEveryColumnToThatExactWidth)
+{
+    // defaultColumnWidth as a plain integer string is a fixed width shared by every column,
+    // distinct from "auto" (pads to that column's OWN widest cell) - "A" and "CCC" are in
+    // different columns with different natural widths, but both must pad out to 6 here.
+    std::vector<std::string> vec = {"A", "BB", "CCC", "DDDD"};
+    std::string result = stevensTerminal::printVector_str(  vec,
+                                                            {   {"columns", "2"},
+                                                                {"rows",    "2"},
+                                                                {"defaultColumnWidth", "6"},
+                                                                {"horizontal separator", "|"}    }   );
+    ASSERT_STREQ( result.c_str(), "A     |CCC   \nBB    |DDDD  \n");
+}
+
+TEST(printVector_str, columnWidthsOverrideTakesPrecedenceOverNumericDefaultColumnWidth)
+{
+    // A per-column columnWidths entry must win over defaultColumnWidth for that column, even
+    // when defaultColumnWidth is itself a specific (not "auto") width.
+    std::vector<std::string> vec = {"A", "BB"};
+    std::string result = stevensTerminal::printVector_str(  vec,
+                                                            {   {"columns", "2"},
+                                                                {"rows",    "1"},
+                                                                {"defaultColumnWidth", "6"},
+                                                                {"horizontal separator", "|"}    },
+                                                            {},
+                                                            { {0, "3"} }   );
+    ASSERT_STREQ( result.c_str(), "A  |BB    \n");
+}
+
+TEST(printVector_str, PrintFormatOverloadMatchesEquivalentFormatMap)
+{
+    // The PrintFormat-taking overload must produce byte-identical output to the string-keyed map
+    // it's built to replace, since it works by converting to that map and delegating.
+    std::vector<std::string> vec = {"A", "BB", "CCC", "DDDD"};
+    std::string fromMap = stevensTerminal::printVector_str(  vec,
+                                                            {   {"columns", "2"},
+                                                                {"rows",    "2"},
+                                                                {"defaultColumnWidth", "auto"},
+                                                                {"horizontal separator", "     "}    }   );
+    std::string fromStruct = stevensTerminal::printVector_str(  vec,
+        stevensTerminal::PrintFormat{
+            .columns = 2,
+            .rows = 2,
+            .defaultColumnWidth = "auto",
+            .horizontalSeparator = "     "
+        }   );
+    ASSERT_EQ(fromMap, fromStruct);
+    ASSERT_STREQ(fromStruct.c_str(), "A      CCC \nBB     DDDD\n");
 }
 
 /*** formatTableAsString() cell wrapping (multi-byte UTF-8 correctness) ***/
@@ -1423,6 +1501,31 @@ TEST_F(HeadlessNcursesTest, CursesWwrapWithTokens_LongTokenWrapsAcrossRows)
     EXPECT_FALSE(row1.empty()); // content actually continued onto a second row
     // Neither row should have been cut mid-word
     EXPECT_NE(row0.back(), ' ');
+}
+
+TEST_F(HeadlessNcursesTest, CursesWwrapWithTokens_BareNewlineTokenForcesRowAdvance)
+{
+    // Regression test: stevensTerminal::printVector_str() (used to render response grids like
+    // the main menu) builds its output as alternating styled-label tokens and plain "between"
+    // tokens, where each grid row is terminated by a token whose ENTIRE content is "\n" - not
+    // embedded in a larger token. wrapToWidth() always appends its own trailing "\n" after the
+    // last line it processes, so such a token round-trips to a single empty row and the
+    // row-loop's "more rows remain in this token" check never sees the transition, silently
+    // gluing the next row's tokens onto the current row.
+    std::vector<stevensTerminal::PrintToken> tokens = {
+        stevensTerminal::PrintToken("1 - New game"),
+        stevensTerminal::PrintToken("     "),
+        stevensTerminal::PrintToken("5 - Dev Tools"),
+        stevensTerminal::PrintToken("\n"),
+        stevensTerminal::PrintToken("2 - Load game"),
+        stevensTerminal::PrintToken("     "),
+        stevensTerminal::PrintToken("6 - Credits"),
+    };
+    stevensTerminal::PrintHelper::curses_wwrap_withTokens(win, 0, 0, tokens, {}, {}, true);
+    std::string row0 = readRow(0);
+    std::string row1 = readRow(1);
+    EXPECT_EQ(row0, "1 - New game     5 - Dev Tools");
+    EXPECT_EQ(row1, "2 - Load game     6 - Credits");
 }
 
 /***** INPUT VALIDATION COMPREHENSIVE TESTS *****/

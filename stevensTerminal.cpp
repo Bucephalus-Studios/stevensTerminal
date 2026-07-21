@@ -399,17 +399,37 @@ std::string removeAllStyleTokenization(std::string str)
 
 std::string resizeStyledString(std::string str, const size_t desiredLength, const char fillChar)
 {
-    // First, get all of the style tokens that the std::string contains
-    std::vector<PrintToken> tokens = PrintTokenHelper::getAllTokens(str);
+    // Measure the display width of the plain content (all token markup stripped).
+    std::string contentString = removeAllStyleTokenization(str);
+    size_t currentWidth = stevensStringLib::lineDisplayWidth(contentString);
 
-    // If there are no style tokens, just return a call of the std::string.resize() function
-    if(tokens.empty()) {
-        str = stevensStringLib::resizeToCodepoints(str, desiredLength, fillChar);
+    if (currentWidth == desiredLength)
+    {
         return str;
     }
 
-    // Otherwise, now that we have all of the style tokens, we take just their content and turn it into a std::string
-    std::string contentString = removeAllStyleTokenization(str);
+    if (currentWidth < desiredLength)
+    {
+        // Padding: append fill characters directly to the end of the styled string.
+        // This preserves all nested token structure intact — no strip-and-reinsert needed,
+        // so inner tokens (e.g. bright-green value inside a bright-yellow response line)
+        // survive and are correctly flattened later by tokenizePrintString/preprocessNestedTokens.
+        str.append(desiredLength - currentWidth, fillChar);
+        return str;
+    }
+
+    // Truncation path (currentWidth > desiredLength): strip tokens, truncate plain content,
+    // reinsert top-level tokens. Note: nested inner tokens lose their structure here because
+    // token.content may contain markup that isn't present in contentString; this is a
+    // pre-existing limitation of the strip-and-reinsert approach, and truncation with nested
+    // styled strings is rare in practice.
+
+    // If there are no style tokens, just resize the plain content
+    std::vector<PrintToken> tokens = PrintTokenHelper::getAllTokens(str);
+    if (tokens.empty())
+    {
+        return stevensStringLib::resizeToCodepoints(contentString, desiredLength, fillChar);
+    }
 
     // getAllTokens() reports each token's existsAtIndex as a byte position in the ORIGINAL
     // (fully tokenized) string, but insertStyleToken() below needs each token's position within
@@ -422,7 +442,7 @@ std::string resizeStyledString(std::string str, const size_t desiredLength, cons
     // rawToken.length() - content.length() always cancels content's own length out, leaving just
     // the (always-ASCII) markup's byte count, regardless of what content actually contains.
     size_t wrapperOverhead = 0;
-    for(PrintToken & token : tokens)
+    for (PrintToken & token : tokens)
     {
         token.existsAtIndex -= wrapperOverhead;
         wrapperOverhead += token.rawToken.length() - token.content.length();
@@ -439,22 +459,25 @@ std::string resizeStyledString(std::string str, const size_t desiredLength, cons
     // lands wherever the string happened to be *before* those insertions instead of where the
     // content actually ended up.
     size_t reinsertionGrowth = 0;
-    for(int tokenIndex = 0; tokenIndex < tokens.size(); tokenIndex++) {
+    for (int tokenIndex = 0; tokenIndex < (int)tokens.size(); tokenIndex++)
+    {
         tokens.at(tokenIndex).existsAtIndex += reinsertionGrowth;
         // For each style token, check to see if the index which it starts relative to the content and all other tokens
         // is still in bounds of the string's length
-        if(tokens.at(tokenIndex).existsAtIndex+1 < resizedStr.length()) {
+        if (tokens.at(tokenIndex).existsAtIndex + 1 < resizedStr.length())
+        {
             // If so, then we add the style token back at its original location
             insertStyleToken(resizedStr, tokens.at(tokenIndex));
             reinsertionGrowth += tokens.at(tokenIndex).rawToken.length() - tokens.at(tokenIndex).content.length();
-        } else {
+        }
+        else
+        {
             // Otherwise, all other style tokens will no longer be in bounds either, as they come after the current one
             // in order, so we break and finish
             break;
         }
     }
 
-    // Return the resized styled std::string
     return resizedStr;
 }
 

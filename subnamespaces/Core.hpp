@@ -57,8 +57,10 @@
 
 // Stevens Terminal component classes
 #include "../classes/DisplayMode.hpp"
+#include "../classes/PrintFormat.hpp"
 #include "../classes/PrintToken.hpp"
 #include "../classes/PrintTokenStyling.hpp"
+#include "../classes/TokenParser.hpp"       // single-source token parser — included before helpers that use it
 #include "../classes/PrintTokenHelper.hpp"
 #include "Colors.hpp"   // Must be included before PrintHelper
 #include "../classes/PrintHelper.hpp"

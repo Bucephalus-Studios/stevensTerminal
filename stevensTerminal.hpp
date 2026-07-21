@@ -218,13 +218,17 @@ namespace stevensTerminal
 			appendString = format.at("appendString");
 		}
 		//Indicates what the default width of columns should be. By default, there is no set default width.
+		//"auto" pads every column to the length of its own longest cell. A plain integer string pads
+		//every column to that exact width instead - this is the DEFAULT, so a column with its own
+		//entry in columnWidths still takes precedence over it (see the columnWidths.contains() check
+		//below). Anything else (including no key at all) falls back to "none" - no padding.
 		std::string defaultColumnWidth = "none";
 		if( format.contains("defaultColumnWidth") )
 		{
-			//"auto" makes the default column width equal to the length of the longest cell 
-			if( format.at("defaultColumnWidth") == "auto" )
+			if( format.at("defaultColumnWidth") == "auto" ||
+				stevensStringLib::isInteger( format.at("defaultColumnWidth") ) )
 			{
-				defaultColumnWidth = "auto";
+				defaultColumnWidth = format.at("defaultColumnWidth");
 			}
 		}
 		//A setting for the string we use to separate columns. \t by default.
@@ -403,7 +407,10 @@ namespace stevensTerminal
 				if( (columnWidths.contains(columnIndex)) ||
 					(defaultColumnWidth != "none") )
 				{
-					//Get the width of the column that we can print to
+					//Get the width of the column that we can print to. A per-column columnWidths entry
+					//always wins; otherwise fall back to defaultColumnWidth - either "auto" (pad to
+					//this column's own longest cell) or a specific integer width shared by every
+					//column that didn't get its own columnWidths entry.
 					size_t columnWidth;
 					if(columnWidths.contains(columnIndex))
 					{
@@ -418,16 +425,31 @@ namespace stevensTerminal
 							columnWidth = greatestCellSizePerColumn.at(columnIndex);
 						}
 					}
-					//If we didn't supply the width of the column, use the "auto" column sizing
-					else
+					else if(defaultColumnWidth == "auto")
 					{
 						columnWidth = greatestCellSizePerColumn.at(columnIndex);
+					}
+					else
+					{
+						//defaultColumnWidth was validated to be "auto" or a plain integer above
+						columnWidth = std::stoi(defaultColumnWidth);
 					}
 					//Resize the cell based on our given column size
 					cell = stevensTerminal::resizeStyledString(cell, columnWidth);
 				}
 
-				cell += horizontalSeparator;
+				// Join semantics, not append: the separator belongs BETWEEN columns, not after
+				// the last one in a row. Appending it unconditionally after every cell (including
+				// the row's last/only column) left stray trailing whitespace past the real content
+				// on every row - harmless for plain text, but for a highlighted/reverse-video
+				// response it widened the visible highlight past the actual label. Compared against
+				// this row's real item count (not columnsToPrint) so a short trailing row - with
+				// some column slots skipped above via `continue` - doesn't get a separator dangling
+				// after what's actually its last populated cell.
+				if(columnIndex < static_cast<int>(elementGrid.at(rowIndex).size()) - 1)
+				{
+					cell += horizontalSeparator;
+				}
 
 				stringToPrint += cell;
 			}
@@ -460,6 +482,20 @@ namespace stevensTerminal
 		// getch();
 
 		return stringToPrint;
+	}
+
+	/**
+	 * @brief PrintFormat overload of printVector_str() - see PrintFormat.hpp. Delegates to the
+	 *        string-keyed overload above via PrintFormat::toFormatMap() rather than duplicating
+	 *        its logic, so both stay behaviorally identical by construction.
+	 */
+	template<typename T>
+	std::string printVector_str(	std::vector<T> vec,
+									const PrintFormat & format,
+									const std::unordered_map<std::string,std::string> & style = {},
+									const std::unordered_map<int, std::string> columnWidths = {} )
+	{
+		return printVector_str(vec, format.toFormatMap(), style, columnWidths);
 	}
 
 	/**
@@ -523,6 +559,21 @@ namespace stevensTerminal
 												style,
 												format,
 												textStyling	);
+	}
+
+	/**
+	 * @brief PrintFormat overload of curses_mvw_printVector() - see PrintFormat.hpp. Delegates to
+	 *        the string-keyed overload above via PrintFormat::toFormatMap().
+	 */
+	template<typename T>
+	void curses_mvw_printVector(	std::vector<T> vec,
+									WINDOW * win,
+									std::unordered_map<std::string,std::string> style,
+									const PrintFormat & format,
+									int yMove = 0,
+									int xMove = 0	)
+	{
+		curses_mvw_printVector(vec, win, style, format.toFormatMap(), yMove, xMove);
 	}
 
 	/**
