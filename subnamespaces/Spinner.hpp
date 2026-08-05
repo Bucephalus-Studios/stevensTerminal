@@ -22,7 +22,7 @@ namespace stevensTerminal
      * frames    — UTF-8 strings cycled in order; defaults to a rotating
      *             small-triangle set. Was the quarter-circle glyphs
      *             (U+25D0-25D3, Geometric Shapes block) - not covered by
-     *             Consolas; glyph::spinnerUp/Right/Down/Left (U+25B4/25B8/
+     *             Consolas; glyph::smallTriangleUp/Right/Down/Left (U+25B4/25B8/
      *             25BE/25C2, same block) are.
      * fgColor   — ncurses color name for the spinner character.
      * bgColor   — ncurses color name for the background.
@@ -30,10 +30,10 @@ namespace stevensTerminal
      */
     struct SpinnerSpec
     {
-        std::vector<std::string> frames   = { std::string(glyph::spinnerUp),
-                                               std::string(glyph::spinnerRight),
-                                               std::string(glyph::spinnerDown),
-                                               std::string(glyph::spinnerLeft) };
+        std::vector<std::string> frames   = { std::string(glyph::smallTriangleUp),
+                                               std::string(glyph::smallTriangleRight),
+                                               std::string(glyph::smallTriangleDown),
+                                               std::string(glyph::smallTriangleLeft) };
         std::string              fgColor  = "bright-yellow";
         std::string              bgColor  = "black";
         bool                     bold     = true;
@@ -75,10 +75,10 @@ namespace stevensTerminal
         inline const SpinnerSpec pipe    {{ "|", "/", "-", "\\" }};
         inline const SpinnerSpec dots    {{ ".", "..", "..." }};
         inline const SpinnerSpec braille {{ "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }};
-        inline const SpinnerSpec triangle{{ std::string(glyph::spinnerUp),
-                                           std::string(glyph::spinnerRight),
-                                           std::string(glyph::spinnerDown),
-                                           std::string(glyph::spinnerLeft) }};
+        inline const SpinnerSpec triangle{{ std::string(glyph::smallTriangleUp),
+                                           std::string(glyph::smallTriangleRight),
+                                           std::string(glyph::smallTriangleDown),
+                                           std::string(glyph::smallTriangleLeft) }};
     }
 
 } // namespace stevensTerminal

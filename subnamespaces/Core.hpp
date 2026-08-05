@@ -125,10 +125,22 @@ namespace stevensTerminal::glyph
     inline constexpr std::string_view filledCircle     = "\xE2\x97\x8F"; // U+25CF BLACK CIRCLE
     inline constexpr std::string_view rightHalfBlock    = "\xE2\x96\x90"; // U+2590 RIGHT HALF BLOCK
     inline constexpr std::string_view sixPointedStar   = "\xE2\x9C\xB6"; // U+2736 SIX POINTED BLACK STAR
-    inline constexpr std::string_view spinnerUp        = "\xE2\x96\xB4"; // U+25B4 BLACK UP-POINTING SMALL TRIANGLE
-    inline constexpr std::string_view spinnerRight     = "\xE2\x96\xB8"; // U+25B8 BLACK RIGHT-POINTING SMALL TRIANGLE
-    inline constexpr std::string_view spinnerDown      = "\xE2\x96\xBE"; // U+25BE BLACK DOWN-POINTING SMALL TRIANGLE
-    inline constexpr std::string_view spinnerLeft      = "\xE2\x97\x82"; // U+25C2 BLACK LEFT-POINTING SMALL TRIANGLE
+    inline constexpr std::string_view smallTriangleUp        = "\xE2\x96\xB4"; // U+25B4 BLACK UP-POINTING SMALL TRIANGLE
+    inline constexpr std::string_view smallTriangleRight     = "\xE2\x96\xB8"; // U+25B8 BLACK RIGHT-POINTING SMALL TRIANGLE
+    inline constexpr std::string_view smallTriangleDown      = "\xE2\x96\xBE"; // U+25BE BLACK DOWN-POINTING SMALL TRIANGLE
+    inline constexpr std::string_view smallTriangleLeft      = "\xE2\x97\x82"; // U+25C2 BLACK LEFT-POINTING SMALL TRIANGLE
+
+    // Left partial blocks for smooth horizontal bar fill (see Bar.hpp's smoothPartial).
+    // ⚠ NOT YET machine-verified in Consolas like the glyphs above: leftHalfBlock (U+258C)
+    // is CP437-safe so it's a certainty, but the finer eighth steps are extended Block
+    // Elements and must be confirmed on a Windows/Consolas build (fallback: BarSpec::halfChar).
+    inline constexpr std::string_view leftOneEighthBlock     = "\xE2\x96\x8F"; // U+258F LEFT ONE EIGHTH BLOCK
+    inline constexpr std::string_view leftOneQuarterBlock    = "\xE2\x96\x8E"; // U+258E LEFT ONE QUARTER BLOCK
+    inline constexpr std::string_view leftThreeEighthsBlock  = "\xE2\x96\x8D"; // U+258D LEFT THREE EIGHTHS BLOCK
+    inline constexpr std::string_view leftHalfBlock          = "\xE2\x96\x8C"; // U+258C LEFT HALF BLOCK (CP437-safe)
+    inline constexpr std::string_view leftFiveEighthsBlock   = "\xE2\x96\x8B"; // U+258B LEFT FIVE EIGHTHS BLOCK
+    inline constexpr std::string_view leftThreeQuartersBlock = "\xE2\x96\x8A"; // U+258A LEFT THREE QUARTERS BLOCK
+    inline constexpr std::string_view leftSevenEighthsBlock  = "\xE2\x96\x89"; // U+2589 LEFT SEVEN EIGHTHS BLOCK
 }
 
 
