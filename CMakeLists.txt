@@ -96,7 +96,7 @@ elseif(WIN32)
     FetchContent_Declare(
         PDCurses
         GIT_REPOSITORY https://github.com/Bill-Gray/PDCursesMod.git
-        GIT_TAG        v4.3.7
+        GIT_TAG        v4.5.4
         GIT_SHALLOW    TRUE
         # See cmake/patch_pdcurses.cmake for the full list of patches applied.
         PATCH_COMMAND  ${CMAKE_COMMAND} -DSTEVENSTERMINAL_FORCE_LEGACY_PDCURSES_COLOR=${STEVENSTERMINAL_FORCE_LEGACY_PDCURSES_COLOR} -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patch_pdcurses.cmake"
@@ -107,6 +107,14 @@ elseif(WIN32)
     # (shared) or "${PROJECT_NAME}_pdcursesstatic" (static) — not "PDCurses_wincon".
     if(TARGET wincon_pdcursesstatic)
         target_link_libraries(stevensTerminal PUBLIC wincon_pdcursesstatic)
+        # PDCursesMod's own project_common.cmake only links winmm (needed for wincon's
+        # PlaySoundW-based beep()) on the PDC_BUILD_SHARED path - the static branch we
+        # use here (PDC_BUILD_SHARED OFF, set above) adds no target_link_libraries call
+        # at all, so the final executable never sees winmm and fails to link with
+        # "undefined reference to __imp_PlaySoundW". Confirmed still present on
+        # PDCursesMod's current master, not something a newer tag will fix - supply the
+        # missing system lib here instead.
+        target_link_libraries(stevensTerminal PUBLIC winmm)
     elseif(TARGET wincon_pdcurses)
         target_link_libraries(stevensTerminal PUBLIC wincon_pdcurses)
     else()
