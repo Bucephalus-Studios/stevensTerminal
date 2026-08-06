@@ -3,6 +3,23 @@ project(stevensTerminal VERSION 1.0 LANGUAGES CXX)
 
 include(FetchContent)
 
+# For diagnostic-only tracing (debug/trace level) - real errors (contract violations,
+# malformed input) still go through thrown exceptions, not logging. Uses spdlog's
+# ambient default logger, so a consumer that wants total silence just calls
+# spdlog::set_level(spdlog::level::off) (or never raises the level above that) - no
+# stevensTerminal-specific suppression mechanism needed. Matches cultgame's own spdlog
+# pin exactly (src/CMakeLists.txt) - when stevensTerminal is fetched as a sub-dependency
+# of a project that already declares spdlog itself, FetchContent treats a re-declaration
+# with identical arguments as a no-op, so this only actually fetches anything on a
+# standalone stevensTerminal build.
+set(SPDLOG_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(SPDLOG_BUILD_BENCH OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(spdlog
+    GIT_REPOSITORY https://github.com/gabime/spdlog.git
+    GIT_TAG        v1.15.0
+    GIT_SHALLOW    TRUE
+)
+
 FetchContent_Declare(stevensMathLib
     GIT_REPOSITORY https://github.com/Bucephalus-Studios/stevensMathLib.git
     GIT_TAG main
@@ -23,7 +40,7 @@ FetchContent_Declare(stevensFileLib
     GIT_REPOSITORY https://github.com/Bucephalus-Studios/stevensFileLib.git
     GIT_TAG main
 )
-FetchContent_MakeAvailable(stevensMathLib stevensMapLib stevensVectorLib stevensStringLib stevensFileLib)
+FetchContent_MakeAvailable(spdlog stevensMathLib stevensMapLib stevensVectorLib stevensStringLib stevensFileLib)
 
 add_library(stevensTerminal STATIC stevensTerminal.cpp)
 
@@ -34,6 +51,7 @@ target_include_directories(stevensTerminal PUBLIC
 )
 
 target_link_libraries(stevensTerminal PUBLIC
+    spdlog::spdlog
     stevensMathLib
     stevensMapLib
     stevensVectorLib

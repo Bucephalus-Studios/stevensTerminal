@@ -7,6 +7,7 @@
 
 #include <sstream>
 #include <fstream>
+#include <spdlog/spdlog.h>
 #include "TokenParser.hpp"
 
 namespace stevensTerminal
@@ -1312,12 +1313,68 @@ namespace PrintHelper
 	}
 
 
+	// ---------------------------------------------------------------------------
+	// Internal detail
+	// ---------------------------------------------------------------------------
+
+	namespace detail {
+
+	/**
+	 * @brief Decides whether a token continuing mid-row should be deferred to a fresh row
+	 *        instead of being wrapped in place where it is.
+	 *
+	 * True when doing so would let the token's leading word break cleanly at a space rather
+	 * than being force-broken mid-word by wrapToWidth()/findWrapCut() - which otherwise have
+	 * no choice but to force a break somewhere, since they must always make forward progress
+	 * (see findWrapCut()'s doc comment in stevensStringLib). That's correct behavior for a
+	 * standalone line, but wrong for one token continuing on from prior ones on the same row
+	 * when a fresh row (with the full row width available) is one line down.
+	 *
+	 * False - i.e. wrap in place - whenever there's nowhere better to send the word: we're
+	 * already at the start of a row (xMove == resetXMove, so a fresh row wouldn't be any
+	 * wider than this one), there's no room left at all to compare against (firstSegmentWidth
+	 * <= 0), the leading word can't be measured (empty, or containing a literal newline -
+	 * lineDisplayWidth() only supports single lines), or the leading word simply fits already.
+	 *
+	 * @param content The token's own text content (not yet wrapped).
+	 * @param xMove Current print column (where this token would start).
+	 * @param resetXMove The column every row resets to (start of row, after any border/indent).
+	 * @param firstSegmentWidth Columns remaining on the current row (from xMove to the edge).
+	 *
+	 * @retval bool True if this token should move to a fresh row before wrapping.
+	*/
+	inline bool tokenShouldDeferToFreshRow(	const std::string & content,
+										int xMove,
+										int resetXMove,
+										int firstSegmentWidth	)
+	{
+		if(xMove == resetXMove || firstSegmentWidth <= 0)
+		{
+			return false;
+		}
+
+		size_t firstWordEnd = content.find(' ');
+		std::string firstWord = (firstWordEnd == std::string::npos)
+			? content
+			: content.substr(0, firstWordEnd);
+
+		if(firstWord.empty() || firstWord.find('\n') != std::string::npos)
+		{
+			return false;
+		}
+
+		return stevensStringLib::lineDisplayWidth(firstWord) > static_cast<size_t>(firstSegmentWidth);
+	}
+
+	} // namespace detail
+
+
 	/**
 	 * Given a vector of tokens, style and print each of them to a curses window.
-	 * 
+	 *
 	 * Parameters:
-	 * 
-	 * 
+	 *
+	 *
 	 * Returns:
 	 * 	void
 	*/
@@ -1398,6 +1455,19 @@ namespace PrintHelper
 			// own content - gets the full reset-position width.
 			int constantWidth = (width - borderAdjustment) - resetXMove;
 			int firstSegmentWidth = (width - borderAdjustment) - xMove;
+
+			// Concretely: "Ardor: 0" (whose first space is 6 columns in, after "Ardor:")
+			// landing with only 3 columns left on the row was splitting into "Ard" / "or: 0"
+			// without this check - see tokenShouldDeferToFreshRow()'s doc comment.
+			if(detail::tokenShouldDeferToFreshRow(tokens[i].content, xMove, resetXMove, firstSegmentWidth))
+			{
+				spdlog::debug("[curses_wwrap_withTokens] token {} deferred to fresh row (yMove {} -> {})", i, yMove, yMove + 1);
+				yMove++;
+				xMove = resetXMove;
+				wmove(win, yMove, xMove);
+				firstSegmentWidth = constantWidth;
+			}
+
 			std::string wrapped = (constantWidth > 0)
 				? stevensStringLib::wrapToWidth(
 					tokens[i].content,
@@ -1412,6 +1482,16 @@ namespace PrintHelper
 				std::string rowLine;
 				while(getline(in, rowLine))
 				{
+					// getline() only splits on '\n', so a CRLF source (or one using the
+					// Unicode line/paragraph separators) leaves these attached to the row.
+					// They aren't meaningful display content here - curses writes to fixed
+					// screen cells rather than being a live streaming terminal, so a literal
+					// \r/separator glyph has no real effect - and stevensStringLib::lineDisplayWidth()
+					// below treats any of them as a single-line-contract violation and throws,
+					// so strip them before they get there.
+					rowLine = stevensStringLib::replaceSubstr(rowLine, "\r", "");
+					rowLine = stevensStringLib::replaceSubstr(rowLine, "\xE2\x80\xA8", ""); // U+2028 LINE SEPARATOR
+					rowLine = stevensStringLib::replaceSubstr(rowLine, "\xE2\x80\xA9", ""); // U+2029 PARAGRAPH SEPARATOR
 					rows.push_back(rowLine);
 				}
 			}
@@ -1459,6 +1539,8 @@ namespace PrintHelper
 			}
 
 			curses_wAttrOff(win, curses_attribute_data);
+
+			spdlog::debug("[curses_wwrap_withTokens] token {} done, yMove={}, window height={}", i, yMove, height);
 		}
 	}
 

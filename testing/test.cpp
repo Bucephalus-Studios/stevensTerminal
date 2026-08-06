@@ -1528,6 +1528,40 @@ TEST_F(HeadlessNcursesTest, CursesWwrapWithTokens_BareNewlineTokenForcesRowAdvan
     EXPECT_EQ(row1, "2 - Load game     6 - Credits");
 }
 
+TEST_F(HeadlessNcursesTest, CursesWwrapWithTokens_OrphanWordDefersToFreshRowInsteadOfMidWordBreak)
+{
+    // Regression test for a real cultgame HUD header bug: a token continuing mid-row whose
+    // leading word can't fit in the remaining space was being force-broken mid-word by
+    // wrapToWidth() (its correct, documented behavior for a standalone line with no other
+    // choice), instead of deferring the whole token to a fresh row where the full row width
+    // is available. This reproduces the exact real-world case: a 21-column token plus a
+    // 3-column separator leaves exactly 3 columns on the row for "Ardor: 0" - not enough to
+    // reach even its first space (6 columns in, after "Ardor:") - which used to split into
+    // "Ard" on the current row and "or: 0" on the next.
+    WINDOW * narrowWin = newwin(24, 27, 0, 0);
+    std::vector<stevensTerminal::PrintToken> tokens = {
+        stevensTerminal::PrintToken("Devotion to Nature: 0"),
+        stevensTerminal::PrintToken("   "),
+        stevensTerminal::PrintToken("Ardor: 0")
+    };
+    stevensTerminal::PrintHelper::curses_wwrap_withTokens(narrowWin, 0, 0, tokens, {}, {}, true);
+
+    std::vector<char> buf(128, '\0');
+    mvwinnstr(narrowWin, 0, 0, buf.data(), 127);
+    std::string row0(buf.data());
+    size_t end0 = row0.find_last_not_of(' ');
+    row0 = (end0 == std::string::npos) ? "" : row0.substr(0, end0 + 1);
+
+    mvwinnstr(narrowWin, 1, 0, buf.data(), 127);
+    std::string row1(buf.data());
+    size_t end1 = row1.find_last_not_of(' ');
+    row1 = (end1 == std::string::npos) ? "" : row1.substr(0, end1 + 1);
+
+    EXPECT_EQ(row0, "Devotion to Nature: 0");
+    EXPECT_EQ(row1, "Ardor: 0"); // whole word deferred to its own row, not split into "Ard" / "or: 0"
+    delwin(narrowWin);
+}
+
 /***** INPUT VALIDATION COMPREHENSIVE TESTS *****/
 TEST(InputValidation, inputWithinResponseRange_all_valid_numbers)
 {
