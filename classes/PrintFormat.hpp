@@ -11,6 +11,16 @@
  * A forgotten field simply keeps its default - unlike the map, there's no key to forget, and no
  * way to typo one ("horizontal seperator" silently doing nothing was a real, hard-to-diagnose bug
  * this struct exists to make impossible).
+ *
+ * TODO (deferred, not started): several fields below are still closed-set strings
+ * (sequence, listType, defaultColumnWidth, textAlign) - a typo in one of these silently
+ * falls through to a default the same way the old map keys did, just one layer in. Once
+ * this struct is used broadly enough to be worth a dedicated pass, convert each to an enum
+ * (e.g. `enum class FillSequence { ColumnMajor, RowMajor }`) and update toFormatMap() to
+ * stringify it at the boundary, rather than storing the string form directly. This is part
+ * of the larger "options structs instead of string-keyed maps" modernization for
+ * stevensTerminal's API (formatTableAsString, curses_wprint, curses_wwrap_withTokens, etc.
+ * still take raw string-keyed maps) - PrintFormat is a first step, not the finished state.
  */
 
 #include <string>
@@ -24,7 +34,7 @@ struct PrintFormat
     int columns = -1;                          // number of columns; -1 = unset (single column)
     int rows = -1;                              // number of rows; -1 = unset (as many as needed)
     bool allowOverflow = false;                 // print elements past columns*rows instead of dropping them
-    std::string sequence = "column first";      // "column first" or "row first" grid-fill order
+    std::string sequence = "column-major";      // "column-major" or "row-major" grid-fill order
     std::string listType = "";                  // "" or "numbered" (prefixes each element with its index)
     std::string prependString = "";             // text prepended to every element
     std::string appendString = "";              // text appended to every element

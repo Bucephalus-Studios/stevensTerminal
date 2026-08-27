@@ -185,9 +185,9 @@ bool inputWithinResponseRange(std::string response, int responseRange);
 
 #### Styling Helpers
 ```cpp
-// Add style token to string
-std::string addStyleToken(std::string str,
-                         std::unordered_map<std::string,std::string> styleMap);
+// Wrap a string in a style token
+std::string style(std::string str,
+                 std::unordered_map<std::string,std::string> styleMap);
 
 // Remove all styling
 std::string removeAllStyleTokenization(std::string str);

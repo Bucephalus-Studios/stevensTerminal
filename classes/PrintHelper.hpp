@@ -1370,7 +1370,43 @@ namespace PrintHelper
 
 
 	/**
+	 * Given the width of a window and the same format options that would be passed to
+	 * curses_wprint(), returns the effective width text will actually wrap to -- e.g.
+	 * accounting for the border margin subtracted when format["avoid borders"] is true (see
+	 * the identical border-adjustment math in curses_wwrap_withTokens() below). Callers that
+	 * need to predict how many lines a string will wrap to (before printing it, to position
+	 * something else relative to it) should use this instead of duplicating the border
+	 * arithmetic themselves, so the prediction can't drift out of sync with the real wrap.
+	 *
+	 * Parameters:
+	 * 	int windowWidth - The width (in columns) of the window text will be printed into.
+	 * 	std::unordered_map<std::string,std::string> format - The same format options map
+	 * 		passed to curses_wprint(). Only "avoid borders" affects the result.
+	 *
+	 * Returns:
+	 * 	int - The effective width text will wrap to.
+	*/
+	inline int getWrapWidth(int windowWidth, const std::unordered_map<std::string,std::string> & format)
+	{
+		if(format.contains("avoid borders"))
+		{
+			if(stevensStringLib::stringToBool(format.at("avoid borders")))
+			{
+				return windowWidth - 2;
+			}
+		}
+		return windowWidth;
+	}
+
+
+	/**
 	 * Given a vector of tokens, style and print each of them to a curses window.
+	 *
+	 * @warning If a row's printed width lands EXACTLY on the available wrap width, the
+	 * row-ending "\n" token can advance yMove by 2 instead of 1, leaving a stray blank line.
+	 * Root cause unproven (suspect wrapToWidth()'s zero-width-remaining path); workaround is
+	 * giving rows a few columns of slack (e.g. defaultColumnWidth "auto" instead of a fixed
+	 * width that happens to fill the row exactly).
 	 *
 	 * Parameters:
 	 *

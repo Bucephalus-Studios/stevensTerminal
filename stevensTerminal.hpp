@@ -148,7 +148,7 @@ namespace stevensTerminal
 		//We know that the user wants some specific type of formatting applied, we begin to set that up here.
 		int columns = -1;
 		int rows = -1;
-		std::string sequence = "column first";
+		std::string sequence = "column-major";
 		bool allowOverflow = false;
 		std::string listType = "";
 		std::string prependString = "";
@@ -174,13 +174,13 @@ namespace stevensTerminal
 		//In what order should we add the items from a vector into a string
 		if(format.contains("sequence"))
 		{
-			if(format.at("sequence") == "column first")
+			if(format.at("sequence") == "column-major")
 			{
-				sequence = "column first";
+				sequence = "column-major";
 			}
-			else if(format.at("sequence") == "row first")
+			else if(format.at("sequence") == "row-major")
 			{
-				sequence = "row first"; //TODO
+				sequence = "row-major";
 			}
 		}
 		//Are we allowing overflow?
@@ -190,7 +190,7 @@ namespace stevensTerminal
 			{
 				//If yes, then if the input vector exceeds the column and row dimensions we pass in,
 				//we still output the excess elements in the returned string by adding additional columns for
-				//sequence == "column first" or additional rows for sequence == "row first"
+				//sequence == "column-major" or additional rows for sequence == "row-major"
 				allowOverflow = true;
 			}
 			else
@@ -259,7 +259,72 @@ namespace stevensTerminal
 		
 		//Construct the elementGrid by iterating through vec and pushing its elements back into elementGrid
 		//Begin with choosing a starting index
-		if(sequence == "column first")
+		if(sequence == "row-major")
+		{
+			//Fill each row with up to `columns` consecutive elements from vec before
+			//moving to the next row, i.e. left-to-right then top-to-bottom - the
+			//mirror image of "column-major" below, which fills top-to-bottom then
+			//left-to-right. Lets callers group related items onto their own row
+			//(e.g. pagination controls together on one line, action buttons on
+			//another) just by choosing `columns` and ordering `vec` accordingly.
+			int workingIndex = 0;
+
+			for(int rowIndex = 0; rowIndex < rows; rowIndex++)
+			{
+				std::vector<T> workingElementRow = {};
+				std::vector<std::string> workingPrependStringRow = {};
+				std::vector<std::string> workingAppendStringRow = {};
+
+				for(int columnIndex = 0; columnIndex < columns; columnIndex++)
+				{
+					//Make sure the working index is within the bounds of vec
+					if(vec.size() <= workingIndex)
+					{
+						break;
+					}
+
+					//Add the element at the working index to the row
+					workingElementRow.push_back(vec.at(workingIndex));
+
+					//Add the correct prepend and append strings
+					if(listType == "numbered")
+					{
+						prependString = std::to_string(workingIndex + 1) + " - " + prependString;
+					}
+					workingPrependStringRow.push_back(prependString);
+					workingAppendStringRow.push_back(appendString);
+
+					if(defaultColumnWidth == "auto")
+					{
+						//Get the length of the cell (less the style token characters)
+						int cellLength = stevensTerminal::removeAllStyleTokenization(prependString + vec.at(workingIndex) + appendString).length();
+						//Do we have a recorded greatest cell size for this column?
+						if( greatestCellSizePerColumn.contains(workingElementRow.size() - 1) )
+						{
+							//Yes, so we compare the length of this cell to the recorded greatest cell size
+							if( greatestCellSizePerColumn.at(workingElementRow.size() - 1) < cellLength )
+							{
+								//If the cell length is greater than our recorded greatest, it becomes the new recorded greatest
+								greatestCellSizePerColumn[workingElementRow.size() - 1] = cellLength;
+							}
+						}
+						else
+						{
+							//No, so we set the greatest length for this column to be this cell's length
+							greatestCellSizePerColumn[workingElementRow.size() - 1] = cellLength;
+						}
+					}
+
+					//Step to the next element in vec, since we're filling this row left-to-right
+					workingIndex++;
+				}
+
+				elementGrid.push_back(workingElementRow);
+				prependTextGrid.push_back(workingPrependStringRow);
+				appendTextGrid.push_back(workingAppendStringRow);
+			}
+		}
+		else if(sequence == "column-major")
 		{
 			//Declare the starting index
 			int startingIndex = 0;
@@ -461,7 +526,7 @@ namespace stevensTerminal
 		// {
 		// 	//Add a styling token to the stringToPrint
 		// 	std::unordered_map<string,std::string> wholeStringStyle = stevensMapLib::erasePairsWhereKeysStartWith(style,std::string("@"));
-		// 	stringToPrint = stevensTerminal::addStyleToken(stringToPrint,wholeStringStyle);
+		// 	stringToPrint = stevensTerminal::style(stringToPrint,wholeStringStyle);
 		// 	//Apply styling to individual indices of the vector
 		// 	//Check to see the specific styling directives given for each index
 		// 	std::vector<string> separatedVectorOfStrings = stevensStringLib::separate(stringToPrint, "\n", false);
@@ -472,7 +537,7 @@ namespace stevensTerminal
 		// 		{
 		// 			std::string indexingString = "@" + std::std::to_string(i) + ":";
 		// 			indexStyle = stevensMapLib::eraseStringFromKeys(indexStyle, indexingString);
-		// 			separatedVectorOfStrings[i] = stevensTerminal::addStyleToken(	separatedVectorOfStrings.at(i),
+		// 			separatedVectorOfStrings[i] = stevensTerminal::style(	separatedVectorOfStrings.at(i),
 		// 																			indexStyle	);
 		// 		}
 		// 	}
@@ -585,6 +650,22 @@ namespace stevensTerminal
 						std::string printString,
 						std::unordered_map<std::string,std::string> style,
 						std::unordered_map<std::string,std::string> format );
+
+	/**
+	 * @brief Returns the effective width text will wrap to when printed with curses_wprint()
+	 * using the given windowWidth and format options -- see PrintHelper::getWrapWidth() for
+	 * why this exists (keeping line-count predictions in sync with the real wrap).
+	 */
+	int getWrapWidth(int windowWidth, const std::unordered_map<std::string,std::string> & format);
+
+	/**
+	 * @brief Predicts how many lines a (possibly style-tokenized) string will wrap to when
+	 * printed with curses_wprint() using the given windowWidth and format options. Combines
+	 * removeAllStyleTokenization() and getWrapWidth() with stevensStringLib's wrap/line-count
+	 * utilities, so callers don't have to hand-assemble that chain (and risk it drifting out
+	 * of sync with the real wrap, as getWrapWidth() exists to prevent).
+	 */
+	int countWrappedLines(const std::string & text, int windowWidth, const std::unordered_map<std::string,std::string> & format);
 
 	/**
 	 * @brief Prints a plain string directly to a curses window, bypassing the

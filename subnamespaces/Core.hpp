@@ -130,10 +130,12 @@ namespace stevensTerminal::glyph
     inline constexpr std::string_view smallTriangleDown      = "\xE2\x96\xBE"; // U+25BE BLACK DOWN-POINTING SMALL TRIANGLE
     inline constexpr std::string_view smallTriangleLeft      = "\xE2\x97\x82"; // U+25C2 BLACK LEFT-POINTING SMALL TRIANGLE
 
-    // Left partial blocks for smooth horizontal bar fill (see Bar.hpp's smoothPartial).
-    // ⚠ NOT YET machine-verified in Consolas like the glyphs above: leftHalfBlock (U+258C)
-    // is CP437-safe so it's a certainty, but the finer eighth steps are extended Block
-    // Elements and must be confirmed on a Windows/Consolas build (fallback: BarSpec::halfChar).
+    // Block-fill glyphs for Bar.hpp's BarSpec::fillChars. fullBlock + leftHalfBlock are
+    // both CP437-safe and confirmed present in Consolas -- they're the default (2-step)
+    // fill precision. The finer eighth steps below are extended Block Elements characters
+    // NOT confirmed in Consolas (empirically produced tofu boxes there as of Aug 2026) --
+    // opt into them via BarSpec::fillChars only on platforms/fonts known to support them.
+    inline constexpr std::string_view fullBlock               = "\xE2\x96\x88"; // U+2588 FULL BLOCK (CP437-safe)
     inline constexpr std::string_view leftOneEighthBlock     = "\xE2\x96\x8F"; // U+258F LEFT ONE EIGHTH BLOCK
     inline constexpr std::string_view leftOneQuarterBlock    = "\xE2\x96\x8E"; // U+258E LEFT ONE QUARTER BLOCK
     inline constexpr std::string_view leftThreeEighthsBlock  = "\xE2\x96\x8D"; // U+258D LEFT THREE EIGHTHS BLOCK

@@ -12,6 +12,7 @@
 #endif
 #include <limits>
 #include <fstream>
+#include <spdlog/spdlog.h>
 
 #include "classes/PrintToken.hpp"
 #include "classes/PrintTokenHelper.hpp"
@@ -345,19 +346,46 @@ short extractBackgroundColor(int colorPairNum) {
 
 // ==================== STYLING.HPP IMPLEMENTATIONS ====================
 
-std::string addStyleToken(std::string str,
-                          std::unordered_map<std::string,std::string> styleMap)
+std::string styleRandomTextColorPerCharacter(std::string str,
+                                             std::unordered_map<std::string,int> colorPool)
 {
-    // Read the contents of the style map into a std::string list of keys and values associated by '=' and delimited by ','
-    std::string styleString = stevensStringLib::stringifyMap(styleMap, "=", ",");
-    str = "{" + str + "}$[" + styleString + "]";
-    return str;
+    if(colorPool.empty())
+    {
+        colorPool = Colors::curses_colors;
+        colorPool.erase("black");
+    }
+
+    std::string result;
+    for(const std::string & codepoint : stevensStringLib::separate(str, ""))
+    {
+        result += style(codepoint, {{"textColor", stevensMapLib::getRandomKey(colorPool)}});
+    }
+    return result;
 }
+
+const std::unordered_map<std::string, std::function<std::string(const std::string&)>> styleMacros = {
+    {"randomTextColorPerCharacter", [](const std::string & str) { return styleRandomTextColorPerCharacter(str); }}
+};
 
 std::string style(std::string str,
                   std::unordered_map<std::string,std::string> styleMap)
 {
-    return addStyleToken(std::move(str), std::move(styleMap));
+    // A style macro request takes over entirely - it names a code-driven styling procedure
+    // instead of literal key=value token attributes.
+    if(styleMap.contains(styleMacroKey))
+    {
+        auto macroIt = styleMacros.find(styleMap.at(styleMacroKey));
+        if(macroIt != styleMacros.end())
+        {
+            return macroIt->second(str);
+        }
+        spdlog::error("style(): unknown styleMacro requested: {}", styleMap.at(styleMacroKey));
+    }
+
+    // Read the contents of the style map into a std::string list of keys and values associated by '=' and delimited by ','
+    std::string styleString = stevensStringLib::stringifyMap(styleMap, "=", ",");
+    str = "{" + str + "}$[" + styleString + "]";
+    return str;
 }
 
 void insertStyleToken(std::string & str,
@@ -397,7 +425,8 @@ std::string removeAllStyleTokenization(std::string str)
     return str;
 }
 
-std::string resizeStyledString(std::string str, const size_t desiredLength, const char fillChar)
+std::string resizeStyledString(std::string str, const size_t desiredLength, const char fillChar,
+                               const std::string & truncationSuffix)
 {
     // Measure the display width of the plain content (all token markup stripped).
     std::string contentString = removeAllStyleTokenization(str);
@@ -414,6 +443,7 @@ std::string resizeStyledString(std::string str, const size_t desiredLength, cons
         // This preserves all nested token structure intact — no strip-and-reinsert needed,
         // so inner tokens (e.g. bright-green value inside a bright-yellow response line)
         // survive and are correctly flattened later by tokenizePrintString/preprocessNestedTokens.
+        // truncationSuffix is ignored here -- it only ever applies to a cut, never a pad.
         str.append(desiredLength - currentWidth, fillChar);
         return str;
     }
@@ -424,11 +454,24 @@ std::string resizeStyledString(std::string str, const size_t desiredLength, cons
     // pre-existing limitation of the strip-and-reinsert approach, and truncation with nested
     // styled strings is rare in practice.
 
+    // If a truncation suffix was given, the plain content is truncated to
+    // (desiredLength - suffix length) instead, so the suffix still fits inside desiredLength --
+    // unless the suffix alone would be as long as desiredLength, in which case it's dropped and
+    // this falls back to plain truncation rather than emitting only the suffix (mirrors
+    // stevensStringLib::resizeToDisplayWidth's own suffix handling).
+    size_t truncateWidth = desiredLength;
+    std::string suffix;
+    if (!truncationSuffix.empty() && truncationSuffix.length() < desiredLength)
+    {
+        truncateWidth = desiredLength - truncationSuffix.length();
+        suffix = truncationSuffix;
+    }
+
     // If there are no style tokens, just resize the plain content
     std::vector<PrintToken> tokens = PrintTokenHelper::getAllTokens(str);
     if (tokens.empty())
     {
-        return stevensStringLib::resizeToCodepoints(contentString, desiredLength, fillChar);
+        return stevensStringLib::resizeToCodepoints(contentString, truncateWidth, fillChar) + suffix;
     }
 
     // getAllTokens() reports each token's existsAtIndex as a byte position in the ORIGINAL
@@ -450,7 +493,7 @@ std::string resizeStyledString(std::string str, const size_t desiredLength, cons
 
     // We resize this std::string by codepoint, not byte, so multi-byte content (Cyrillic, CJK, etc.)
     // isn't torn in half by truncation or padded to the wrong displayed width
-    contentString = stevensStringLib::resizeToCodepoints(contentString, desiredLength, fillChar);
+    contentString = stevensStringLib::resizeToCodepoints(contentString, truncateWidth, fillChar);
     std::string resizedStr = contentString;
     // We now place the style tokens back into this resized std::string. insertStyleToken() mutates
     // resizedStr in place, growing it by each token's wrapper overhead - so every later token's
@@ -478,7 +521,7 @@ std::string resizeStyledString(std::string str, const size_t desiredLength, cons
         }
     }
 
-    return resizedStr;
+    return resizedStr + suffix;
 }
 
 // NOTE: printHorizontalBorder() (plain std::cout ANSI-styling-era border
@@ -848,6 +891,24 @@ namespace stevensTerminal
 												style,
 												format,
 												textStyling	);
+	}
+
+// ==================== getWrapWidth ====================
+	int getWrapWidth(int windowWidth, const std::unordered_map<std::string,std::string> & format)
+	{
+		return PrintHelper::getWrapWidth(windowWidth, format);
+	}
+
+// ==================== countWrappedLines ====================
+	int countWrappedLines(const std::string & text, int windowWidth, const std::unordered_map<std::string,std::string> & format)
+	{
+		if(text.empty())
+		{
+			return 0;
+		}
+
+		std::string wrapped = stevensStringLib::wrapToWidth(removeAllStyleTokenization(text), getWrapWidth(windowWidth, format));
+		return stevensStringLib::countLines(wrapped);
 	}
 
 // ==================== curses_wprintDirect ====================

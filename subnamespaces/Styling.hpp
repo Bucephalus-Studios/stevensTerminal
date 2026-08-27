@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <functional>
 #include "../classes/PrintToken.hpp"
 #include <sstream>
 
@@ -22,30 +23,61 @@
 namespace stevensTerminal
 {
     /**
-     * @brief Create a style token around a std::string with given styles
+     * @brief Style key used to request a style macro (see styleMacros below)
+     */
+    inline const std::string styleMacroKey = "styleMacro";
+
+    /**
+     * @brief Registry of style macros: named, code-driven styling procedures a style map can request
+     *
+     * A "style macro" is to style() what a CSS class is to inline styles - a single named key that
+     * expands into a more complex styling procedure (e.g. per-character coloring) instead of a
+     * literal key=value attribute. Request one by including {styleMacroKey, "<name>"} in a styleMap
+     * passed to style(); style() looks up <name> here and, if found, delegates entirely to that
+     * macro's function instead of building a plain token.
+     *
+     * Register a new macro by adding an entry here plus its dedicated helper function (see
+     * styleRandomTextColorPerCharacter() below for the pattern).
+     */
+    extern const std::unordered_map<std::string, std::function<std::string(const std::string&)>> styleMacros;
+
+    /**
+     * @brief Wrap a std::string in a style token with the given styles
      *
      * Given a std::string and some styles in an unordered map, create a token of the whole std::string which
      * associates the given styles to the string. When the std::string is then printed with a token printing
      * function from stevensTerminal, the styles will be applied to the printed text.
      *
-     * @param str The std::string to encapsulate with a style token
-     * @param styleMap The styles to include in the token
-     * @return The original std::string encapsulated with a style token that has the styles from the input styleMap associated with it
-     */
-    std::string addStyleToken(std::string str,
-                              std::unordered_map<std::string,std::string> styleMap);
-
-
-    /**
-     * @brief Wrap a std::string in a style token with the given styles. Cleaner-named alias for
-     *        addStyleToken(), e.g. style(text, {{"textColor","bright-magenta"}}).
+     * If styleMap contains styleMacroKey ("styleMacro"), its value is looked up in styleMacros and,
+     * if found, str is passed to that macro's function instead of building a plain token (other keys
+     * in styleMap are ignored in that case - the macro takes over entirely).
      *
      * @param str The std::string to style
-     * @param styleMap The styles to apply (e.g. {{"textColor","bright-magenta"},{"bgColor","black"}})
-     * @return str wrapped in a style token carrying the given styles
+     * @param styleMap The styles to apply (e.g. {{"textColor","bright-magenta"},{"bgColor","black"}}),
+     *                 or a style macro request (e.g. {{"styleMacro","randomTextColorPerCharacter"}})
+     * @return str wrapped in a style token carrying the given styles, or the result of the requested macro
      */
     std::string style(std::string str,
                       std::unordered_map<std::string,std::string> styleMap);
+
+
+    /**
+     * @brief Style macro: wrap each character of str in its own independently random text color
+     *
+     * Splits str into individual codepoints (UTF-8 safe - a multi-byte character is kept whole,
+     * never split mid-character) and wraps each one in its own style() token with a color picked
+     * at random (with replacement) from colorPool. Useful for a "rainbow"/celebratory text effect,
+     * e.g. a "Randomized!" toast message. Registered in styleMacros under the name
+     * "randomTextColorPerCharacter".
+     *
+     * @param str The plain-text std::string to style (should not already contain style tokens)
+     * @param colorPool Map of candidate color names to numeric color codes to pick from at random
+     *                  per character. If empty (the default), uses stevensTerminal::Colors::curses_colors
+     *                  with "black" excluded (black text would be invisible against the default background).
+     * @return str with every character wrapped in its own randomly-colored style token
+     */
+    std::string styleRandomTextColorPerCharacter(std::string str,
+                                                 std::unordered_map<std::string,int> colorPool = {});
 
 
     /**
@@ -91,9 +123,15 @@ namespace stevensTerminal
      * @param str The styled std::string we are resizing
      * @param desiredLength The desired length of content we want the std::string str to have after resizing
      * @param fillChar Character to use for padding if growing the std::string
+     * @param truncationSuffix Appended when truncating (e.g. "..."), so a cut-off value reads as
+     *        truncated rather than merely short. Ignored when padding. Counted against
+     *        desiredLength: if the suffix alone is as long as desiredLength, it's dropped and the
+     *        cut falls back to plain truncation rather than emitting only the suffix. The suffix
+     *        itself is appended as plain text, after any style tokens have been reinserted.
      * @return The styled std::string str resized to the desired length of content
      */
-    std::string resizeStyledString(std::string str, const size_t desiredLength, const char fillChar = ' ');
+    std::string resizeStyledString(std::string str, const size_t desiredLength, const char fillChar = ' ',
+                                   const std::string & truncationSuffix = "");
 
 
     // NOTE: printHorizontalBorder() was removed — unreachable dead code. See

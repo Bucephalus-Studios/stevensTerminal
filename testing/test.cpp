@@ -830,12 +830,12 @@ TEST(CoreModule, displayMode_validation_functions)
 }
 
 /*** Styling.hpp Module Tests ***/
-TEST(StylingModule, addStyleToken_basic_functionality)
+TEST(StylingModule, style_basic_functionality)
 {
     // Test basic style token creation
     std::string text = "Hello World";
     std::unordered_map<std::string, std::string> styles = {{"textColor", "red"}, {"bold", "true"}};
-    std::string styledText = stevensTerminal::addStyleToken(text, styles);
+    std::string styledText = stevensTerminal::style(text, styles);
     
     ASSERT_NE(styledText.find("{"), std::string::npos);
     ASSERT_NE(styledText.find("}$["), std::string::npos);
@@ -843,12 +843,12 @@ TEST(StylingModule, addStyleToken_basic_functionality)
     ASSERT_NE(styledText.find("bold=true"), std::string::npos);
 }
 
-TEST(StylingModule, addStyleToken_empty_styles)
+TEST(StylingModule, style_empty_styles)
 {
     // Test with empty style map
     std::string text = "Test";
     std::unordered_map<std::string, std::string> emptyStyles;
-    std::string result = stevensTerminal::addStyleToken(text, emptyStyles);
+    std::string result = stevensTerminal::style(text, emptyStyles);
     
     ASSERT_NE(result.find("{Test}$["), std::string::npos);
     ASSERT_FALSE(result.empty());
@@ -859,7 +859,7 @@ TEST(StylingModule, removeAllStyleTokenization_basic)
     // Test removing style tokens
     std::string text = "Hello World";
     std::unordered_map<std::string, std::string> styles = {{"textColor", "red"}};
-    std::string styledText = stevensTerminal::addStyleToken(text, styles);
+    std::string styledText = stevensTerminal::style(text, styles);
     std::string cleanText = stevensTerminal::removeAllStyleTokenization(styledText);
     
     ASSERT_STREQ(cleanText.c_str(), text.c_str());
@@ -880,7 +880,7 @@ TEST(StylingModule, resizeStyledString_basic)
     // Test resizing styled strings
     std::string text = "Hello World";
     std::unordered_map<std::string, std::string> styles = {{"textColor", "red"}};
-    std::string styledText = stevensTerminal::addStyleToken(text, styles);
+    std::string styledText = stevensTerminal::style(text, styles);
     std::string resized = stevensTerminal::resizeStyledString(styledText, 5);
     std::string resizedClean = stevensTerminal::removeAllStyleTokenization(resized);
     
@@ -893,7 +893,7 @@ TEST(StylingModule, resizeStyledString_zero_length)
     // Test resize to zero length
     std::string text = "Test";
     std::unordered_map<std::string, std::string> styles = {{"textColor", "blue"}};
-    std::string styledText = stevensTerminal::addStyleToken(text, styles);
+    std::string styledText = stevensTerminal::style(text, styles);
     std::string resized = stevensTerminal::resizeStyledString(styledText, 0);
     std::string resizedClean = stevensTerminal::removeAllStyleTokenization(resized);
     
@@ -905,12 +905,90 @@ TEST(StylingModule, resizeStyledString_expand_with_fill)
     // Test expanding string with fill character
     std::string text = "Hi";
     std::unordered_map<std::string, std::string> styles = {{"textColor", "green"}};
-    std::string styledText = stevensTerminal::addStyleToken(text, styles);
+    std::string styledText = stevensTerminal::style(text, styles);
     std::string resized = stevensTerminal::resizeStyledString(styledText, 5, '*');
     std::string resizedClean = stevensTerminal::removeAllStyleTokenization(resized);
     
     ASSERT_EQ(resizedClean.length(), 5);
     ASSERT_STREQ(resizedClean.c_str(), "Hi***");
+}
+
+/*** styleRandomTextColorPerCharacter() / styleMacro dispatch tests
+ * All use an explicit colorPool so they don't depend on Colors::curses_colors having been
+ * populated by curses_prepare_color() (which requires a live ncurses session -- see the
+ * HeadlessNcursesColorTest fixture further down for tests that exercise the real global palette). */
+TEST(StyleRandomTextColorPerCharacter, preservesContentAndWrapsEachCharacterInItsOwnToken)
+{
+    std::string original = "Randomized!";
+    std::unordered_map<std::string,int> pool = {{"magenta", 5}};
+    std::string styled = stevensTerminal::styleRandomTextColorPerCharacter(original, pool);
+
+    // Visible content round-trips exactly
+    ASSERT_EQ(stevensTerminal::removeAllStyleTokenization(styled), original);
+
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintTokenHelper::getAllTokens(styled);
+    ASSERT_EQ(tokens.size(), original.size());
+    for(size_t i = 0; i < tokens.size(); ++i)
+    {
+        EXPECT_EQ(tokens[i].content, std::string(1, original[i]));
+        EXPECT_EQ(tokens[i].textColor, "magenta");
+    }
+}
+
+TEST(StyleRandomTextColorPerCharacter, doesNotSplitMultiByteUtf8Characters)
+{
+    std::string original = "caf\xC3\xA9"; // "café" -- 'é' is a 2-byte UTF-8 codepoint
+    std::unordered_map<std::string,int> pool = {{"magenta", 5}};
+    std::string styled = stevensTerminal::styleRandomTextColorPerCharacter(original, pool);
+
+    ASSERT_EQ(stevensTerminal::removeAllStyleTokenization(styled), original);
+
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintTokenHelper::getAllTokens(styled);
+    ASSERT_EQ(tokens.size(), 4u); // c, a, f, é -- 4 codepoints, not 5 bytes
+    EXPECT_EQ(tokens[3].content, "\xC3\xA9");
+}
+
+TEST(StyleMacro, unknownStyleMacroFallsBackToPlainToken)
+{
+    std::string result = stevensTerminal::style("Test", {{"styleMacro", "doesNotExist"}});
+
+    // Falls through to normal token building rather than crashing or silently dropping content
+    ASSERT_NE(result.find("{Test}$["), std::string::npos);
+}
+
+/***** Regression test for a real cultgame bug: toast messages were pre-wrapped via
+ * stevensStringLib::wrapToWidth() BEFORE ever reaching the token-aware printer. wrapToWidth() has
+ * zero concept of {content}$[style] markup -- it measures raw bytes/display-width of whatever
+ * string it's given -- so a string built from many small back-to-back tokens (much longer in raw
+ * byte length than in visible width, e.g. styleRandomTextColorPerCharacter()'s output for a short
+ * word) gets force-broken in the middle of a token's markup, corrupting it. In production this
+ * showed up as ncurses "Color pair 'X' does not exist" errors with garbled/merged color names.
+ * Reproduced here at the pure string level with a fixed color (deterministic token length, so the
+ * forced break's position is exactly predictable -- no reliance on real curses color state). *****/
+TEST(WrapToWidth, PreWrappingManyBackToBackSingleCharacterTokensCorruptsTokenMarkup)
+{
+    std::string original = "Randomized!"; // 11 visible characters
+    std::unordered_map<std::string,int> pool = {{"magenta", 5}};
+    std::string styled = stevensTerminal::styleRandomTextColorPerCharacter(original, pool);
+
+    // The raw markup is far longer than the visible text -- exactly what makes the naive
+    // byte-oriented wrap dangerous here (11 tokens * 23 raw chars/token = 253 raw chars).
+    ASSERT_GT(styled.length(), 80u);
+
+    // This is the exact anti-pattern the real bug used: wrap the ALREADY-TOKENIZED string
+    // directly, with no awareness of token boundaries.
+    std::string corrupted = stevensStringLib::wrapToWidth(styled, 80);
+
+    // A correctly-formed styled string always has exactly one token per character and
+    // reconstructs to the original visible text when stripped. The corrupted version does not.
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintTokenHelper::getAllTokens(corrupted);
+    std::string recoveredText = stevensTerminal::removeAllStyleTokenization(corrupted);
+
+    bool tokenCountCorrupted = (tokens.size() != original.size());
+    bool contentCorrupted = (recoveredText != original);
+    EXPECT_TRUE(tokenCountCorrupted || contentCorrupted)
+        << "Expected wrapToWidth() to corrupt the token stream here, reproducing the real bug -- "
+           "if this now passes cleanly, something about wrapToWidth()'s behavior has changed.";
 }
 
 /*** Input.hpp Module Tests ***/
@@ -950,7 +1028,7 @@ TEST(ModularIntegration, all_modules_accessible_through_main_header)
     ASSERT_GT(screenSize.first, 0);
     
     // Styling functionality
-    std::string styledText = stevensTerminal::addStyleToken("test", {{"textColor", "red"}});
+    std::string styledText = stevensTerminal::style("test", {{"textColor", "red"}});
     ASSERT_FALSE(styledText.empty());
     
     // Input validation functionality
@@ -973,7 +1051,7 @@ TEST(ModularIntegration, cross_module_functionality)
     
     std::string testText = "Integration Test";
     std::unordered_map<std::string, std::string> styles = {{"textColor", "green"}};
-    std::string styledText = stevensTerminal::addStyleToken(testText, styles);
+    std::string styledText = stevensTerminal::style(testText, styles);
     std::string cleanText = stevensTerminal::removeAllStyleTokenization(styledText);
     
     ASSERT_STREQ(cleanText.c_str(), testText.c_str());
@@ -984,7 +1062,7 @@ TEST(ModularIntegration, cross_module_functionality)
 TEST(ErrorHandling, styling_with_empty_strings)
 {
     // Test styling functions with empty strings
-    std::string result = stevensTerminal::addStyleToken("", {{"textColor", "red"}});
+    std::string result = stevensTerminal::style("", {{"textColor", "red"}});
     ASSERT_FALSE(result.empty());
     
     std::string cleaned = stevensTerminal::removeAllStyleTokenization(result);
@@ -1560,6 +1638,81 @@ TEST_F(HeadlessNcursesTest, CursesWwrapWithTokens_OrphanWordDefersToFreshRowInst
     EXPECT_EQ(row0, "Devotion to Nature: 0");
     EXPECT_EQ(row1, "Ardor: 0"); // whole word deferred to its own row, not split into "Ard" / "or: 0"
     delwin(narrowWin);
+}
+
+/***** Fixture for tests that need real color-pair resolution (Colors::curses_colors /
+ * Colors::curses_colorPairs actually populated) -- extends HeadlessNcursesTest with the same
+ * color setup cultgame's own startup (stevensTerminal::initialize() -> curses_prepare_color())
+ * does, since a bare newterm() session has no colors registered. *****/
+class HeadlessNcursesColorTest : public HeadlessNcursesTest {
+protected:
+    void SetUp() override {
+        HeadlessNcursesTest::SetUp();
+        stevensTerminal::curses_prepare_color();
+    }
+};
+
+TEST_F(HeadlessNcursesColorTest, StyleMacro_DispatchesToRandomTextColorPerCharacterWithRealPalette)
+{
+    // Exercises the macro's default colorPool (real Colors::curses_colors, populated above) --
+    // can't pin an exact color since it's randomly chosen, but every token must land on a
+    // genuinely registered color name.
+    std::string original = "Hi";
+    std::string styled = stevensTerminal::style(original, {{"styleMacro", "randomTextColorPerCharacter"}});
+
+    std::vector<stevensTerminal::PrintToken> tokens = stevensTerminal::PrintTokenHelper::getAllTokens(styled);
+    ASSERT_EQ(tokens.size(), original.size());
+    for(size_t i = 0; i < tokens.size(); ++i)
+    {
+        EXPECT_EQ(tokens[i].content, std::string(1, original[i]));
+        EXPECT_TRUE(stevensTerminal::Colors::curses_colors.contains(tokens[i].textColor))
+            << "Token color '" << tokens[i].textColor << "' is not a registered color name";
+    }
+}
+
+/***** Regression coverage for the real cultgame toast-message corruption bug (see the
+ * WrapToWidth.PreWrappingManyBackToBackSingleCharacterTokensCorruptsTokenMarkup test above for the
+ * pure string-level version). These two go all the way through curses_wprint() with a real color
+ * palette registered, to prove which pattern is actually safe to render and which one reproduces
+ * the "Color pair does not exist" errors seen in-game. Uses a fixed single-color pool so the
+ * token length -- and therefore exactly where the forced wrap break lands -- is deterministic. *****/
+TEST_F(HeadlessNcursesColorTest, CursesWprint_RawManyTokenRainbowText_RendersCleanlyWithNoColorPairErrors)
+{
+    // The SAFE pattern: pass the tokenized string directly into curses_wprint's own token-aware
+    // wrap, exactly like cultgame's view.prompt handling (never pre-wrapped via wrapToWidth()).
+    std::string original = "Randomized!";
+    std::unordered_map<std::string,int> pool = {{"magenta", 5}};
+    std::string styled = stevensTerminal::styleRandomTextColorPerCharacter(original, pool);
+
+    testing::internal::CaptureStderr();
+    stevensTerminal::curses_wprint(win, 0, 0, styled, {}, {{"wrap","true"}});
+    std::string errOutput = testing::internal::GetCapturedStderr();
+
+    EXPECT_TRUE(errOutput.empty()) << "Unexpected color pair error(s): " << errOutput;
+    EXPECT_EQ(readRow(0), original);
+}
+
+TEST_F(HeadlessNcursesColorTest, CursesWprint_PreWrappedManyTokenRainbowText_ReproducesColorPairCorruptionBug)
+{
+    // The UNSAFE pattern that caused the real bug: pre-wrap the already-tokenized string via
+    // stevensStringLib::wrapToWidth() (token-blind) before ever printing it -- this is what
+    // cultgame's toast message pipeline used to do.
+    std::string original = "Randomized!";
+    std::unordered_map<std::string,int> pool = {{"magenta", 5}};
+    std::string styled = stevensTerminal::styleRandomTextColorPerCharacter(original, pool);
+    std::string preWrapped = stevensStringLib::wrapToWidth(styled, 80);
+
+    testing::internal::CaptureStderr();
+    stevensTerminal::curses_wprint(win, 0, 0, preWrapped, {}, {{"wrap","true"}});
+    std::string errOutput = testing::internal::GetCapturedStderr();
+
+    // Reproduces the real-world bug: either a "does not exist" color pair error is thrown, or the
+    // visible text no longer matches the original -- proving the pre-wrap step is unsafe.
+    bool threwColorPairError = (errOutput.find("does not exist") != std::string::npos);
+    bool visibleTextCorrupted = (readRow(0) != original);
+    EXPECT_TRUE(threwColorPairError || visibleTextCorrupted)
+        << "Expected the pre-wrap anti-pattern to corrupt rendering here, matching the real bug "
+           "report -- if this now passes cleanly, wrapToWidth()'s behavior may have changed.";
 }
 
 /***** INPUT VALIDATION COMPREHENSIVE TESTS *****/
