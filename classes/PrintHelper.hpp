@@ -1087,10 +1087,13 @@ namespace PrintHelper
 		int lineStart = 0;
 		int lineEnd = winWidth + 1;
 		//If we are avoiding window borders while printing, we make sure are starting our printing within the window size
+		bool avoidBorders = false;
 		if(format.contains("avoid borders"))
 		{
 			if(stevensStringLib::stringToBool(format["avoid borders"]))
 			{
+				avoidBorders = true;
+
 				//Don't print on the left border
 				if(xMove < 1)
 				{
@@ -1138,8 +1141,37 @@ namespace PrintHelper
 			//Turn on the attributes specified in our styles
 			curses_wAttrOn(win, curses_attribute_data);
 
+			// Clip this token's content to lineEnd before printing -- lineStart/lineEnd above
+			// define the bounds "avoid borders" is supposed to keep content within, but nothing
+			// actually enforced that here (unlike curses_wwrap_withTokens, which wraps content
+			// to stay in bounds). A caller that mismeasures a row's width would previously print
+			// straight through the right border cell -- e.g. a background-color-styled row a few
+			// characters too wide painted its overflow directly onto the border. Only single-line
+			// content is clipped this way (this function doesn't wrap to a new row); content with
+			// an embedded newline is left untouched to preserve its existing pass-through-to-curses
+			// behavior, since lineDisplayWidth() requires single-line input.
+			std::string content = tokens[i].content;
+			if(avoidBorders && content.find('\n') == std::string::npos)
+			{
+				// lineEnd is the last valid interior column (inclusive), not an exclusive bound
+				// -- e.g. an 82-wide window's interior spans columns 1..80, so lineEnd is 80. The
+				// number of columns available from xMove through lineEnd is therefore
+				// lineEnd - xMove + 1, not lineEnd - xMove (which undercounts by one and was
+				// clipping the last character -- and its background color -- off any row built to
+				// exactly fill the interior width).
+				int availableWidth = lineEnd - xMove + 1;
+				if(availableWidth < 0)
+				{
+					availableWidth = 0;
+				}
+				if((int)stevensStringLib::lineDisplayWidth(content) > availableWidth)
+				{
+					content = stevensStringLib::resizeToDisplayWidth(content, static_cast<size_t>(availableWidth));
+				}
+			}
+
 			//Print!
-			mvwprintw(win, yMove, xMove, "%s", tokens[i].content.c_str());
+			mvwprintw(win, yMove, xMove, "%s", content.c_str());
 			// Advance position so the next token continues from where this one ended
 			getyx(win, yMove, xMove);
 
