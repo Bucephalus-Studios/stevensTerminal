@@ -143,6 +143,15 @@ namespace stevensTerminal::glyph
     inline constexpr std::string_view leftFiveEighthsBlock   = "\xE2\x96\x8B"; // U+258B LEFT FIVE EIGHTHS BLOCK
     inline constexpr std::string_view leftThreeQuartersBlock = "\xE2\x96\x8A"; // U+258A LEFT THREE QUARTERS BLOCK
     inline constexpr std::string_view leftSevenEighthsBlock  = "\xE2\x96\x89"; // U+2589 LEFT SEVEN EIGHTHS BLOCK
+
+    // Added for badge/indicator use (e.g. a faction leader's name marker) -- NOT yet confirmed
+    // against Consolas/Ubuntu Mono coverage like the audited entries above. Test before relying
+    // on one of these; fall back to plain ASCII (e.g. '*') for anything that doesn't render.
+    inline constexpr std::string_view star       = "\xE2\x98\x85"; // U+2605 BLACK STAR
+    inline constexpr std::string_view whiteStar  = "\xE2\x98\x86"; // U+2606 WHITE STAR
+    inline constexpr std::string_view checkMark  = "\xE2\x9C\x93"; // U+2713 CHECK MARK
+    inline constexpr std::string_view crossMark  = "\xE2\x9C\x97"; // U+2717 BALLOT X
+    inline constexpr std::string_view bullet     = "\xE2\x80\xA2"; // U+2022 BULLET
 }
 
 

@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <functional>
 #include "../classes/PrintToken.hpp"
+#include "../classes/StyleStruct.hpp"
 #include <sstream>
 
 
