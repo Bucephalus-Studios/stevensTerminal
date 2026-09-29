@@ -47,8 +47,20 @@ WindowManager& windowManager() {
 
 #if defined(_WIN32)
 std::pair<int, int> get_screen_size() {
+    // CONOUT$, not STD_OUTPUT_HANDLE: PDCurses' wincon backend draws into its own console
+    // screen buffer and makes that the active one, leaving STD_OUTPUT_HANDLE on the original
+    // buffer - which stays at its launch size (conhost default 120x30) through resizes.
+    // CONOUT$ always opens whichever buffer is currently active.
+    HANDLE activeBuffer = CreateFileW(L"CONOUT$", GENERIC_READ | GENERIC_WRITE,
+                                      FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                                      OPEN_EXISTING, 0, nullptr);
+    const bool openedActiveBuffer = (activeBuffer != INVALID_HANDLE_VALUE);
     CONSOLE_SCREEN_BUFFER_INFO csbi;
-    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+    GetConsoleScreenBufferInfo(openedActiveBuffer ? activeBuffer : GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+    if (openedActiveBuffer)
+    {
+        CloseHandle(activeBuffer);
+    }
     return std::pair<int, int>(csbi.srWindow.Right - csbi.srWindow.Left + 1,
                                csbi.srWindow.Bottom - csbi.srWindow.Top + 1);
 }
