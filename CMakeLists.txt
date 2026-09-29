@@ -42,7 +42,7 @@ FetchContent_Declare(stevensFileLib
 )
 FetchContent_MakeAvailable(spdlog stevensMathLib stevensMapLib stevensVectorLib stevensStringLib stevensFileLib)
 
-add_library(stevensTerminal STATIC stevensTerminal.cpp)
+add_library(stevensTerminal STATIC stevensTerminal.cpp TerminalEnvironments.cpp)
 
 target_compile_features(stevensTerminal PUBLIC cxx_std_23)
 
@@ -59,6 +59,10 @@ target_link_libraries(stevensTerminal PUBLIC
     stevensFileLib
 )
 
+option(STEVENSTERMINAL_STATIC_CURSES
+    "Link ncursesw/tinfo statically so shipped binaries don't depend on the user's shared libraries"
+    ON)
+
 if(UNIX AND NOT APPLE)
     # Without this, FindCurses may resolve to the narrow (non-wide-character) ncurses library
     # even when ncursesw is installed - narrow ncurses cannot correctly buffer multi-byte UTF-8
@@ -67,8 +71,29 @@ if(UNIX AND NOT APPLE)
     # this makes stevensTerminal's own standalone test/benchmark builds do the same.
     set(CURSES_NEED_WIDE TRUE)
     find_package(Curses REQUIRED)
-    target_link_libraries(stevensTerminal PUBLIC ${CURSES_LIBRARIES})
     target_include_directories(stevensTerminal PUBLIC ${CURSES_INCLUDE_DIR})
+
+    if(STEVENSTERMINAL_STATIC_CURSES)
+        # FindCurses returns full paths to the shared objects, and a full .so path is linked
+        # dynamically regardless of -Wl,-Bstatic, so the static archives must be found explicitly.
+        # A dynamic ncurses crashes inside Steam's Linux Runtime container, whose own libtinfo is
+        # version-incompatible with the host's libncursesw.
+        find_library(STEVENSTERMINAL_NCURSESW_STATIC NAMES libncursesw.a)
+        # Optional: some distros (e.g. Arch) build tinfo into ncursesw instead of a separate library.
+        find_library(STEVENSTERMINAL_TINFO_STATIC NAMES libtinfo.a)
+        if(NOT STEVENSTERMINAL_NCURSESW_STATIC)
+            message(FATAL_ERROR
+                "STEVENSTERMINAL_STATIC_CURSES is ON but libncursesw.a was not found. Install the "
+                "static ncurses archives (Debian/Ubuntu: libncurses-dev, Fedora: ncurses-static) or "
+                "configure with -DSTEVENSTERMINAL_STATIC_CURSES=OFF to link the shared libraries.")
+        endif()
+        target_link_libraries(stevensTerminal PUBLIC ${STEVENSTERMINAL_NCURSESW_STATIC})
+        if(STEVENSTERMINAL_TINFO_STATIC)
+            target_link_libraries(stevensTerminal PUBLIC ${STEVENSTERMINAL_TINFO_STATIC})
+        endif()
+    else()
+        target_link_libraries(stevensTerminal PUBLIC ${CURSES_LIBRARIES})
+    endif()
 elseif(WIN32)
     # PDC_SDL2_BUILD/PDC_SDL2_DEPS_BUILD/PDC_GL_BUILD are PDCursesMod's real
     # option names (see cmake/build_options.cmake) — we only need the wincon
