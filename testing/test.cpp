@@ -1449,7 +1449,10 @@ TEST(ResizeStyledString, resize_no_tokens)
 
 /***** Headless ncurses fixture - real rendering correctness tests for curses_wwrap()/
  * curses_wwrap_withTokens(), since neither had any prior test coverage and both were
- * substantially rewritten to use the display-width-aware stevensStringLib::wrapToWidth(). *****/
+ * substantially rewritten to use the display-width-aware stevensStringLib::wrapToWidth().
+ *
+ * TODO: get these tests running with PDCurses on Windows too. This fixture is ncurses-only
+ * (newterm() on /dev/null), so the rendering tests currently only run on Linux/WSL. *****/
 class HeadlessNcursesTest : public ::testing::Test {
 protected:
     WINDOW* win = nullptr;
@@ -1790,5 +1793,118 @@ TEST(DisplayModes, modes_have_valid_configurations)
         // Vertical menu width should be positive
         ASSERT_GT(mode.second.verticalMenuWidth, 0);
     }
+}
+
+/***** Styled token starting on an exactly-full row must not print over the right border.
+ * Reproduces two real cultgame ritual prompts, printed exactly as cultgame's prompt window
+ * does: an 82-column bordered window, curses_wprint() at (1,1) with wrap + avoid borders.
+ * In both, the text before a styled word fills its row right up to the last interior column,
+ * leaving 0 columns for the styled word - which was force-split, putting its first letter on
+ * the border column (81) and the rest on the next row. *****/
+namespace
+{
+    // Draws a box border, prints like cultgame's prompt window, then returns every row whose
+    // right border column (81) no longer holds the border character.
+    std::vector<int> printPromptAndFindOverwrittenBorderRows(WINDOW * win, const std::string & prompt)
+    {
+        box(win, '|', '-');
+        stevensTerminal::curses_wprint(win, 1, 1, prompt, {}, {{"wrap", "true"}, {"avoid borders", "true"}});
+        std::vector<int> overwritten;
+        int height, width;
+        getmaxyx(win, height, width);
+        for(int y = 1; y < height - 1; y++)
+        {
+            if((mvwinch(win, y, width - 1) & A_CHARTEXT) != '|')
+            {
+                overwritten.push_back(y);
+            }
+        }
+        return overwritten;
+    }
+
+    std::string readWindowRow(WINDOW * win, int y)
+    {
+        std::vector<char> buf(512, '\0');
+        mvwinnstr(win, y, 0, buf.data(), 511);
+        return std::string(buf.data());
+    }
+}
+
+TEST_F(HeadlessNcursesColorTest, CursesWprint_SacrificeRitualStyledWordDoesNotOverwriteRightBorder)
+{
+    WINDOW * promptWin = newwin(8, 82, 0, 0);
+    // "...you may gain " is exactly 80 columns, filling interior columns 1-80.
+    std::string prompt = "Sacrifice a life to the god Morgar. In exchange for your offering, you may gain "
+                         "{faith}$[textColor=cyan], various blessings, or new theological revelations.";
+
+    EXPECT_TRUE(printPromptAndFindOverwrittenBorderRows(promptWin, prompt).empty());
+    // "faith" moves to the next row whole, instead of splitting into "f" / "aith"
+    EXPECT_EQ(readWindowRow(promptWin, 2).substr(1, 6), "faith,");
+    delwin(promptWin);
+}
+
+TEST_F(HeadlessNcursesColorTest, CursesWprint_SummonBloodDemonRitualStyledWordDoesNotOverwriteRightBorder)
+{
+    WINDOW * promptWin = newwin(8, 82, 0, 0);
+    // Row 2's "...blood tithe of " + styled "1" + " " fills interior columns 1-80 exactly.
+    std::string prompt = "Beseech the dark auspices to enter into contract with a demon -- a creature of wrath. "
+                         "They will obey your commands so long as you fulfill the blood tithe of "
+                         "{1}$[textColor=red] {blood}$[textColor=red] per month.";
+
+    EXPECT_TRUE(printPromptAndFindOverwrittenBorderRows(promptWin, prompt).empty());
+    // "blood" moves to the next row whole, instead of splitting into "b" / "lood"
+    EXPECT_EQ(readWindowRow(promptWin, 3).substr(1, 5), "blood");
+    delwin(promptWin);
+}
+
+// Edge cases of the same zero-columns-left situation, in a 12-column bordered window
+// (interior columns 1-10), where the first token "0123456789" fills row 1 exactly.
+namespace
+{
+    WINDOW * printTokensAfterFullRow(const std::vector<std::string> & followingTokens)
+    {
+        WINDOW * boxWin = newwin(6, 12, 0, 0);
+        box(boxWin, '|', '-');
+        std::vector<stevensTerminal::PrintToken> tokens = { stevensTerminal::PrintToken("0123456789") };
+        for(const std::string & t : followingTokens)
+        {
+            tokens.push_back(stevensTerminal::PrintToken(t));
+        }
+        stevensTerminal::PrintHelper::curses_wwrap_withTokens(boxWin, 1, 1, tokens, {}, {{"avoid borders", "true"}}, true);
+        return boxWin;
+    }
+
+    bool rightBorderIntact(WINDOW * boxWin)
+    {
+        for(int y = 1; y <= 4; y++)
+        {
+            if((mvwinch(boxWin, y, 11) & A_CHARTEXT) != '|') return false;
+        }
+        return true;
+    }
+}
+
+TEST_F(HeadlessNcursesTest, CursesWwrapWithTokens_LeadingSpaceTokenAfterFullRowStartsNextRowUnindented)
+{
+    WINDOW * boxWin = printTokensAfterFullRow({" abc"});
+    EXPECT_TRUE(rightBorderIntact(boxWin));
+    EXPECT_EQ(readWindowRow(boxWin, 2).substr(1, 3), "abc"); // not " ab" - the break drops the space
+    delwin(boxWin);
+}
+
+TEST_F(HeadlessNcursesTest, CursesWwrapWithTokens_SpacesOnlyTokenAfterFullRowPrintsNothing)
+{
+    WINDOW * boxWin = printTokensAfterFullRow({"   ", "abc"});
+    EXPECT_TRUE(rightBorderIntact(boxWin));
+    EXPECT_EQ(readWindowRow(boxWin, 2).substr(1, 3), "abc");
+    delwin(boxWin);
+}
+
+TEST_F(HeadlessNcursesTest, CursesWwrapWithTokens_NewlineTokenAfterFullRowAdvancesExactlyOneRow)
+{
+    WINDOW * boxWin = printTokensAfterFullRow({"\n", "abc"});
+    EXPECT_TRUE(rightBorderIntact(boxWin));
+    EXPECT_EQ(readWindowRow(boxWin, 2).substr(1, 3), "abc"); // no blank row skipped
+    delwin(boxWin);
 }
 

@@ -1362,11 +1362,17 @@ namespace PrintHelper
 	 * standalone line, but wrong for one token continuing on from prior ones on the same row
 	 * when a fresh row (with the full row width available) is one line down.
 	 *
+	 * Also true when the current row has no room left at all (firstSegmentWidth <= 0) and the
+	 * token has something to print on it: wrapping with a zero-column budget would otherwise
+	 * force its first character onto the row anyway - past the last column, over the border.
+	 * The exception is a token that starts with a newline, which already moves to the next
+	 * row by itself (deferring it too would skip a line).
+	 *
 	 * False - i.e. wrap in place - whenever there's nowhere better to send the word: we're
 	 * already at the start of a row (xMove == resetXMove, so a fresh row wouldn't be any
-	 * wider than this one), there's no room left at all to compare against (firstSegmentWidth
-	 * <= 0), the leading word can't be measured (empty, or containing a literal newline -
-	 * lineDisplayWidth() only supports single lines), or the leading word simply fits already.
+	 * wider than this one), the leading word can't be measured (empty, or containing a literal
+	 * newline - lineDisplayWidth() only supports single lines), or the leading word simply
+	 * fits already.
 	 *
 	 * @param content The token's own text content (not yet wrapped).
 	 * @param xMove Current print column (where this token would start).
@@ -1380,9 +1386,13 @@ namespace PrintHelper
 										int resetXMove,
 										int firstSegmentWidth	)
 	{
-		if(xMove == resetXMove || firstSegmentWidth <= 0)
+		if(xMove == resetXMove)
 		{
 			return false;
+		}
+		if(firstSegmentWidth <= 0)
+		{
+			return !content.empty() && content.front() != '\n';
 		}
 
 		size_t firstWordEnd = content.find(' ');
@@ -1523,6 +1533,16 @@ namespace PrintHelper
 			// own content - gets the full reset-position width.
 			int constantWidth = (width - borderAdjustment) - resetXMove;
 			int firstSegmentWidth = (width - borderAdjustment) - xMove;
+
+			// A row with no room left can't take even a space - leading spaces would print past
+			// the last column, over the border - so drop them, the same way a normal wrap drops
+			// the space it breaks at. Whatever remains then defers to a fresh row (below), prints
+			// nothing if it was all spaces, or starts with a newline that moves on by itself.
+			if(firstSegmentWidth <= 0 && xMove != resetXMove)
+			{
+				size_t firstNonSpace = tokens[i].content.find_first_not_of(' ');
+				tokens[i].content = (firstNonSpace == std::string::npos) ? "" : tokens[i].content.substr(firstNonSpace);
+			}
 
 			// Concretely: "Ardor: 0" (whose first space is 6 columns in, after "Ardor:")
 			// landing with only 3 columns left on the row was splitting into "Ard" / "or: 0"
