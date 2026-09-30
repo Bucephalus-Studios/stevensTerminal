@@ -12,6 +12,8 @@ CMakeFiles/
 cmake_install.cmake
 Makefile
 *.cmake
+# ...except the hand-written PDCursesMod patch scripts, which the Windows build needs.
+!cmake/*.cmake
 
 # Downloaded dependencies (now using FetchContent)
 testing/googletest-*
