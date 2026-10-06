@@ -117,6 +117,7 @@ namespace stevensTerminal::glyph
     inline constexpr std::string_view diamond     = "\xE2\x99\xA6"; // U+2666 BLACK DIAMOND SUIT
     inline constexpr std::string_view approxEqual = "\xE2\x89\x88"; // U+2248 ALMOST EQUAL TO
     inline constexpr std::string_view delta       = "\xCE\x94";     // U+0394 GREEK CAPITAL LETTER DELTA
+    inline constexpr std::string_view dagger      = "\xE2\x80\xA0"; // U+2020 DAGGER (East Asian Ambiguous width -- may render 2 cells wide in CJK locales)
 
     // Added while auditing item/UI symbols against Consolas coverage.
     inline constexpr std::string_view upTriangle       = "\xE2\x96\xB2"; // U+25B2 BLACK UP-POINTING TRIANGLE
