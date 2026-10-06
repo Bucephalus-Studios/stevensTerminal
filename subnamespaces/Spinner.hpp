@@ -40,10 +40,52 @@ namespace stevensTerminal
     };
 
     /**
+     * @brief A spinner animation over a discrete set of frames, stepped by its owner.
+     *
+     * Call advance() once per redraw of whatever loop owns the curses screen, then read
+     * currentFrame() to draw it -- so the animation speed is that loop's redraw rate. Holds no
+     * curses state and never draws on its own (curses is not thread-safe; drawing stays with the
+     * single loop that owns the screen), and needs no animation thread or shared counter.
+     */
+    class Spinner
+    {
+    public:
+        explicit Spinner(const SpinnerSpec & spec = {}) : spec(spec) {}
+
+        /** @brief Step to the next frame, wrapping back to the first after the last. */
+        void advance()
+        {
+            if (spec.frames.empty())
+            {
+                return;
+            }
+            frameIndex = (frameIndex + 1) % static_cast<int>(spec.frames.size());
+        }
+
+        /** @brief The glyph for the current frame (empty string if the spec has no frames). */
+        const std::string & currentFrame() const
+        {
+            static const std::string NO_FRAME;
+            if (spec.frames.empty())
+            {
+                return NO_FRAME;
+            }
+            return spec.frames[frameIndex];
+        }
+
+        const SpinnerSpec & getSpec() const { return spec; }
+
+    private:
+        SpinnerSpec spec;
+        int frameIndex = 0;
+    };
+
+    /**
      * @brief Render one frame of a spinner animation into a curses window.
      *
-     * Advance `frame` by 1 each tick (e.g. via an atomic counter in an animation
-     * thread) and call this on the main thread to show the current frame.
+     * Advance `frame` by 1 each redraw of the loop that owns the curses screen (a Spinner
+     * object does this bookkeeping for you), and call this from that same loop -- curses is not
+     * thread-safe, so drawing belongs to that loop, and no separate animation thread is needed.
      *
      * @param win    The curses window to render into.
      * @param y      Row in the window (0-based).
