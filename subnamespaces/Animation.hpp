@@ -2,6 +2,20 @@
 /**
  * @file Animation.hpp
  * @brief General-purpose animation loop for stevensTerminal.
+ *
+ * TODO (long-term): unify animation so it can drive particle effects too.
+ *   - An Animation interface: update(dt), render(WINDOW*), isFinished(), and an end behaviour
+ *     (restore and show / restore only / clear). ParticleEffect, Spinner and caller timelines
+ *     (e.g. a skill check roll) implement it.
+ *   - A scheduler that owns the frame loop on the calling (UI) thread. Windows are designated
+ *     as animated and share one framerate: each tick, restore each window's base layer, render
+ *     its animations in layer order, wnoutrefresh; then one doupdate(). Curses is not
+ *     thread-safe -- background threads may only produce data, never draw.
+ *   - A base layer per animated window, generalising ParticleWindowRegistry's snapshots. It must
+ *     be re-saved whenever the caller redraws that window's real content.
+ *   - Sequencing primitives (Sequence, Delay, Parallel) to replace hand-written sleep_for timelines.
+ *   - Decide between blocking (runUntilFinished) and non-blocking (the caller's input loop polls
+ *     with wtimeout and ticks the scheduler); non-blocking reaches into every caller's input path.
  */
 
 #include <atomic>

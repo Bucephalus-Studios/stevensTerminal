@@ -1908,3 +1908,26 @@ TEST_F(HeadlessNcursesTest, CursesWwrapWithTokens_NewlineTokenAfterFullRowAdvanc
     delwin(boxWin);
 }
 
+
+TEST_F(HeadlessNcursesColorTest, CursesWprint_NestedTokenInsideStyledLine_WrapsAtVisibleWidth)
+{
+    // Regression test for a real cultgame toast: a bright-green line containing a faction
+    // leader's name, whose trailing "*" badge is its own nested style token. The visible text is
+    // 74 columns, so it fits on one row of an 82-wide bordered window (80 interior columns) --
+    // and countWrappedLines(), which strips tokens before measuring, agrees. It was printing on
+    // two rows instead, breaking before "Ellsworth", so the window was sized for one row while
+    // the text took two.
+    const std::string visible = "Sacrificing Gaspar Hartwell * to god Malevh planned for Avelina Ellsworth";
+    const std::string toast = stevensTerminal::style(
+        "Sacrificing Gaspar Hartwell {*}$[textColor=bright-yellow] to god Malevh planned for Avelina Ellsworth",
+        {{"textColor", "bright-green"}});
+
+    WINDOW * boxWin = newwin(6, 82, 0, 0);
+    box(boxWin, '|', '-');
+    stevensTerminal::curses_wprint(boxWin, 1, 1, toast, {}, {{"wrap", "true"}, {"avoid borders", "true"}});
+
+    EXPECT_EQ(stevensTerminal::countWrappedLines(toast, 82, {{"avoid borders", "true"}}), 1);
+    EXPECT_EQ(readWindowRow(boxWin, 1).substr(1, visible.size()), visible);
+    EXPECT_EQ(readWindowRow(boxWin, 2).find_first_not_of(" |"), std::string::npos); // nothing spilled onto row 2
+    delwin(boxWin);
+}

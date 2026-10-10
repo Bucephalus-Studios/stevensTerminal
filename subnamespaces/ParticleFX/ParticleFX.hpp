@@ -9,11 +9,11 @@
  *
  * Usage:
  *   using namespace stevensTerminal::ParticleFX;
- *   ParticleSystem particles(myWindow);
- *   particles.spawnBurst({40, 15}, 50, Particle()
- *       .setPhysics(ParticlePresets::Firework())
- *       .setColorPair(brightYellow)
- *       .setLifetime(2.0f));
+ *   Particle particle;
+ *   particle.setPhysics(ParticlePresets::Firework());
+ *   particle.setColorPair(brightYellow);
+ *   particle.setLifetime(2.0f);
+ *   spawnBurst(myWindow, {{40, 15}}, particle, { .duration = 1.0f });
  *
  * FUTURE ENHANCEMENT - Particle-to-Content Layering:
  * ===================================================
@@ -44,6 +44,7 @@
  * Per-particle layer mixing would require multiple snapshot layers (more complex).
  */
 
+#include <cstdint>
 #include <vector>
 #include <tuple>
 #include <cmath>
@@ -520,19 +521,41 @@ public:
     }
 };
 
+
+/**
+ * @brief What a particle animation leaves on screen when it finishes.
+ */
+enum class ParticleEndBehavior : uint8_t
+{
+    RestoreAndShow,  // Put the window's pre-effect content back and push it to the screen
+    RestoreOnly      // Put it back in the window buffer only -- the caller refreshes (e.g. batched with other windows)
+};
+
+
+/**
+ * @brief Options for spawnBurst().
+ */
+struct ParticleBurstOptions
+{
+    float duration = 0.5f;          // How long to animate the effect, in seconds
+    int particlesPerPoint = 3;      // How many particles spawn from each point
+    float minSpeed = 6.0f;          // Minimum particle speed
+    float maxSpeed = 12.0f;         // Maximum particle speed
+    ParticleEndBehavior onEnd = ParticleEndBehavior::RestoreAndShow;
+};
+
+
 /**
  * @brief Spawn a burst particle effect and animate it for a specified duration
  *
  * This is a high-level helper function that creates, spawns, animates, and cleans up
  * a particle burst effect. Useful for quick one-off effects like success celebrations.
+ * Blocks for options.duration.
  *
  * @param window The window to render particles on
  * @param spawnPoints Vector of positions where particles will burst from
  * @param prototype The particle template (physics, color, lifetime, etc.)
- * @param duration How long to animate the effect in seconds (default: 0.5s)
- * @param particlesPerPoint How many particles spawn from each point (default: 3)
- * @param minSpeed Minimum particle speed (default: 6.0)
- * @param maxSpeed Maximum particle speed (default: 12.0)
+ * @param options Duration, density, speed range, and what's left on screen afterwards
  *
  * Example usage:
  * @code
@@ -542,16 +565,13 @@ public:
  * p.setColorPair(greenColorPair);
  * p.setLifetime(0.5f);
  * p.setModifyBg(true);
- * spawnBurst(myWindow, points, p);
+ * spawnBurst(myWindow, points, p, { .duration = 1.0f });
  * @endcode
  */
 inline void spawnBurst(WINDOW* window,
                        const std::vector<Vec2>& spawnPoints,
                        const Particle& prototype,
-                       float duration = 0.5f,
-                       int particlesPerPoint = 3,
-                       float minSpeed = 6.0f,
-                       float maxSpeed = 12.0f)
+                       const ParticleBurstOptions& options = {})
 {
     // Register window (creates snapshot if first effect on this window)
     ParticleWindowRegistry::registerWindow(window);
@@ -564,8 +584,8 @@ inline void spawnBurst(WINDOW* window,
     for (const Vec2& point : spawnPoints) {
         effect.addSpawnPoint(point.x, point.y);
     }
-    effect.setParticlesPerPoint(particlesPerPoint);
-    effect.setSpeedRange(minSpeed, maxSpeed);
+    effect.setParticlesPerPoint(options.particlesPerPoint);
+    effect.setSpeedRange(options.minSpeed, options.maxSpeed);
 
     // Spawn particles
     effect.spawn(prototype);
@@ -576,7 +596,7 @@ inline void spawnBurst(WINDOW* window,
     while (true) {
         auto currentTime = std::chrono::high_resolution_clock::now();
         std::chrono::duration<float> elapsed = currentTime - startTime;
-        if (elapsed.count() >= duration) break;
+        if (elapsed.count() >= options.duration) break;
 
         float deltaTime = 0.016f;  // ~60 FPS
         effect.update(deltaTime);
@@ -593,6 +613,13 @@ inline void spawnBurst(WINDOW* window,
 
     // Unregister window (restores and cleans up snapshot if last effect)
     ParticleWindowRegistry::unregisterWindow(window);
+
+    // The restore above only reaches the window buffer -- without pushing it, the last particle
+    // frame stays on the physical screen until something else redraws this window
+    if (options.onEnd == ParticleEndBehavior::RestoreAndShow) {
+        wnoutrefresh(window);
+        doupdate();
+    }
 }
 
 } // namespace ParticleFX
