@@ -9,11 +9,10 @@
  *
  * Usage:
  *   using namespace stevensTerminal::ParticleFX;
- *   Particle particle;
- *   particle.setPhysics(ParticlePresets::Firework());
- *   particle.setColorPair(brightYellow);
- *   particle.setLifetime(2.0f);
- *   spawnBurst(myWindow, {{40, 15}}, particle, { .duration = 1.0f });
+ *   ParticleEmitterSettings settings = ParticleEmitterPresets::Sparks();
+ *   settings.colors = ParticleColors::Rainbow();
+ *   settings.colorDistribution = ColorDistribution::SequencePerSpawnPoint;
+ *   spawnBurst(myWindow, {{40, 15}, {41, 15}}, settings, { .duration = 1.0f });
  *
  * FUTURE ENHANCEMENT - Particle-to-Content Layering:
  * ===================================================
@@ -45,6 +44,7 @@
  */
 
 #include <cstdint>
+#include <string>
 #include <vector>
 #include <tuple>
 #include <cmath>
@@ -57,13 +57,54 @@
 // Include ParticleFX components
 #include "Vec2.hpp"
 #include "ParticlePhysics.hpp"
+#include "ParticleColors.hpp"
 #include "ParticleWindowRegistry.hpp"
+#include <RouletteWheel.hpp>
 
 namespace stevensTerminal {
 namespace ParticleFX {
 
 /**
- * @brief A single particle in the particle system
+ * @brief What an emitter's particles start with -- everything a ParticleEffect needs to create
+ *        them, separate from the live particles themselves. Every field has a working default, so
+ *        designated initializers only name what differs:
+ * @code
+ * ParticleEmitterSettings sparks = { .colors = {"bright-green_on_bright-green"}, .modifyChar = true };
+ * ParticleEmitterSettings rainbow = { .colors = ParticleColors::Rainbow(),
+ *                                     .colorDistribution = ColorDistribution::SequencePerSpawnPoint };
+ * @endcode
+ */
+struct ParticleEmitterSettings
+{
+    ParticlePhysics physics = ParticlePresets::Firework();
+    std::vector<std::string> colors;     // "foreground_on_background" pair names handed out at spawn; empty = default pair (0)
+    std::vector<float> colorWeights;     // ColorDistribution::Random only, parallel to colors; empty = even
+    ColorDistribution colorDistribution = ColorDistribution::Random;
+    float lifetime = 1.0f;               // Total lifetime in seconds
+    char character = ' ';                // Character to display (or ' ' for background-only)
+    bool modifyBg = true;                // Should particle change background color?
+    bool modifyFg = false;               // Should particle change foreground color? (not yet read by render())
+    bool modifyChar = false;             // Should particle change the character?
+    int layer = 0;                       // Z-order for layering (higher = in front)
+};
+
+/**
+ * @brief Ready-made emitter settings for common looks, alongside ParticlePresets' physics.
+ *        Start from one and set what differs (usually just colors).
+ */
+namespace ParticleEmitterPresets {
+    /**
+     * @brief Solid blocks of color that burst outward and fall like fireworks -- the cells they
+     *        cross are blanked to their color while they pass.
+     */
+    inline ParticleEmitterSettings Sparks() {
+        return { .physics = ParticlePresets::Firework(), .character = ' ', .modifyChar = true };
+    }
+}
+
+/**
+ * @brief A single live particle in the particle system. Created by a ParticleEffect from its
+ *        ParticleEmitterSettings, with one resolved color pair.
  */
 class Particle {
 private:
@@ -98,6 +139,26 @@ public:
         , layer(0)
     {}
 
+    /**
+     * @brief A particle starting from an emitter's `settings`, at rest at the origin, with the
+     *        color pair the emitter picked for it from settings.colors.
+     */
+    Particle(const ParticleEmitterSettings& settings, int colorPairParam)
+        : position(0, 0)
+        , velocity(0, 0)
+        , physics(settings.physics)
+        , lifetime(settings.lifetime)
+        , age(0.0f)
+        , colorPair(0)
+        , character(settings.character)
+        , modifyBg(settings.modifyBg)
+        , modifyFg(settings.modifyFg)
+        , modifyChar(settings.modifyChar)
+        , layer(settings.layer)
+    {
+        setColorPair(colorPairParam);
+    }
+
     // Setters
     void setPosition(float x, float y) { position = Vec2(x, y); }
     void setPosition(Vec2 pos) { position = pos; }
@@ -115,6 +176,15 @@ public:
         } else {
             colorPair = cp;
         }
+    }
+
+    /**
+     * @brief Set the color pair by "foreground_on_background" name (e.g. "bright-green_on_bright-green").
+     *        Unregistered names fall back to the default pair (0).
+     */
+    void setColorPair(const std::string& colorPairName) {
+        auto pairIt = stevensTerminal::Colors::curses_colorPairs.find(colorPairName);
+        setColorPair(pairIt != stevensTerminal::Colors::curses_colorPairs.end() ? pairIt->second : 0);
     }
 
     void setCharacter(char c) { character = c; }
@@ -194,6 +264,61 @@ public:
             position.y = maxY - 1;
             velocity.y = -std::abs(velocity.y) * physics.bounce;
         }
+    }
+};
+
+/**
+ * @brief Hands out an emitter's colors to the particles one spawn call creates, per its
+ *        ColorDistribution. Resolves the pair names to pair numbers once, up front, so the
+ *        per-particle pick is just an index or one weighted draw.
+ */
+class ColorPicker {
+private:
+    std::vector<int> colorPairs;                    // Resolved pair numbers; unregistered names -> default pair (0)
+    ColorDistribution distribution;
+    RouletteWheel<size_t, float> randomIndexWheel;  // Indices into colorPairs, for ColorDistribution::Random
+
+public:
+    explicit ColorPicker(const ParticleEmitterSettings& settings)
+        : distribution(settings.colorDistribution)
+    {
+        for (const std::string& colorPairName : settings.colors) {
+            auto pairIt = stevensTerminal::Colors::curses_colorPairs.find(colorPairName);
+            colorPairs.push_back(pairIt != stevensTerminal::Colors::curses_colorPairs.end() ? pairIt->second : 0);
+        }
+        if (colorPairs.empty()) {
+            colorPairs.push_back(0);
+        }
+
+        // Even weights unless settings give a positive one per color
+        const bool hasValidWeights = settings.colorWeights.size() == colorPairs.size() &&
+                                     std::all_of(settings.colorWeights.begin(), settings.colorWeights.end(),
+                                                 [](float weight) { return weight > 0.0f; });
+        std::vector<std::tuple<size_t, float>> indexWeights;
+        for (size_t i = 0; i < colorPairs.size(); ++i) {
+            indexWeights.emplace_back(i, hasValidWeights ? settings.colorWeights[i] : 1.0f);
+        }
+        randomIndexWheel = RouletteWheel<size_t, float>(indexWeights);
+    }
+
+    /**
+     * @brief The color pair for the next particle.
+     * @param spawnPointIndex Which spawn point it comes from (0-based), for SequencePerSpawnPoint
+     * @param particleIndex How many particles this spawn has created before it, for SequencePerParticle
+     */
+    int pick(size_t spawnPointIndex, size_t particleIndex) const {
+        if (colorPairs.size() == 1) {
+            return colorPairs.front();
+        }
+        switch (distribution) {
+            case ColorDistribution::Random:
+                return colorPairs[randomIndexWheel.select()];
+            case ColorDistribution::SequencePerParticle:
+                return colorPairs[particleIndex % colorPairs.size()];
+            case ColorDistribution::SequencePerSpawnPoint:
+                return colorPairs[spawnPointIndex % colorPairs.size()];
+        }
+        return colorPairs.front();
     }
 };
 
@@ -380,50 +505,59 @@ public:
         return spawnPoints.size();
     }
 
+
     /**
      * @brief Spawn particles from all configured spawn points
      *
      * Creates a burst effect from each spawn point added via addSpawnPoint()
-     * or addSpawnPointsFromText().
+     * or addSpawnPointsFromText(), each particle starting from `settings`.
      */
-    void spawn(const Particle& prototype) {
+    void spawn(const ParticleEmitterSettings& settings) {
         std::uniform_real_distribution<float> angleDist(0.0f, 2.0f * std::numbers::pi_v<float>);
         std::uniform_real_distribution<float> speedDist(minSpeed, maxSpeed);
+
+        const ColorPicker colorPicker(settings);
+        size_t spawnPointIndex = 0;   // Which spawn point we're on, for ColorDistribution::SequencePerSpawnPoint
+        size_t particleIndex = 0;     // Particles spawned so far, for ColorDistribution::SequencePerParticle
 
         for (const Vec2& origin : spawnPoints) {
             for (int i = 0; i < particlesPerPoint; ++i) {
                 float angle = angleDist(rng);
                 float speed = speedDist(rng);
 
-                Particle p = prototype;
+                Particle p(settings, colorPicker.pick(spawnPointIndex, particleIndex));
                 p.setPosition(origin);
                 p.setVelocity(std::cos(angle) * speed, std::sin(angle) * speed);
 
                 particles.push_back(p);
+                ++particleIndex;
             }
+            ++spawnPointIndex;
         }
     }
 
+    
     // ========== Legacy Spawn Methods (for compatibility) ==========
 
     /**
      * @brief Spawn particles in a burst pattern from an origin point
      * @param origin Center point of the burst
      * @param count Number of particles to spawn
-     * @param prototype Particle template to copy
+     * @param settings What each particle starts with
      * @param minSpeed Minimum initial speed
      * @param maxSpeed Maximum initial speed
      */
-    void spawnBurst(Vec2 origin, int count, const Particle& prototype,
+    void spawnBurst(Vec2 origin, int count, const ParticleEmitterSettings& settings,
                     float minSpeed = 5.0f, float maxSpeed = 15.0f) {
         std::uniform_real_distribution<float> angleDist(0.0f, 2.0f * std::numbers::pi_v<float>);
         std::uniform_real_distribution<float> speedDist(minSpeed, maxSpeed);
+        const ColorPicker colorPicker(settings);
 
         for (int i = 0; i < count; ++i) {
             float angle = angleDist(rng);
             float speed = speedDist(rng);
 
-            Particle p = prototype;
+            Particle p(settings, colorPicker.pick(0, i));
             p.setPosition(origin);
             p.setVelocity(std::cos(angle) * speed, std::sin(angle) * speed);
 
@@ -435,21 +569,23 @@ public:
      * @brief Spawn particles in a fountain pattern (upward spray)
      * @param origin Base point of the fountain
      * @param count Number of particles to spawn
-     * @param prototype Particle template to copy
+     * @param settings What each particle starts with
      * @param angle Spray angle in radians (0 = straight up)
      * @param spread Angle spread (how wide the spray is)
      */
-    void spawnFountain(Vec2 origin, int count, const Particle& prototype,
+    void spawnFountain(Vec2 origin, int count, const ParticleEmitterSettings& settings,
                        float angle = -std::numbers::pi_v<float>/2, float spread = std::numbers::pi_v<float>/6,
-                       float minSpeed = 8.0f, float maxSpeed = 15.0f) {
+                       float minSpeed = 8.0f, float maxSpeed = 15.0f)
+    {
         std::uniform_real_distribution<float> angleDist(angle - spread/2, angle + spread/2);
         std::uniform_real_distribution<float> speedDist(minSpeed, maxSpeed);
+        const ColorPicker colorPicker(settings);
 
         for (int i = 0; i < count; ++i) {
             float particleAngle = angleDist(rng);
             float speed = speedDist(rng);
 
-            Particle p = prototype;
+            Particle p(settings, colorPicker.pick(0, i));
             p.setPosition(origin);
             p.setVelocity(std::cos(particleAngle) * speed, std::sin(particleAngle) * speed);
 
@@ -462,17 +598,18 @@ public:
      * @param minXPos Left boundary for rain
      * @param maxXPos Right boundary for rain
      * @param count Number of particles to spawn
-     * @param prototype Particle template to copy
+     * @param settings What each particle starts with
      */
-    void spawnRain(int minXPos, int maxXPos, int count, const Particle& prototype) {
+    void spawnRain(int minXPos, int maxXPos, int count, const ParticleEmitterSettings& settings) {
         std::uniform_int_distribution<int> xDist(minXPos, maxXPos);
         std::uniform_real_distribution<float> speedDist(2.0f, 5.0f);
+        const ColorPicker colorPicker(settings);
 
         for (int i = 0; i < count; ++i) {
             int x = xDist(rng);
             float speed = speedDist(rng);
 
-            Particle p = prototype;
+            Particle p(settings, colorPicker.pick(0, i));
             p.setPosition(x, minY);
             p.setVelocity(0, speed);
 
@@ -485,14 +622,15 @@ public:
      * @param start Starting point
      * @param end Ending point
      * @param count Number of particles to spawn
-     * @param prototype Particle template to copy
+     * @param settings What each particle starts with
      */
-    void spawnLine(Vec2 start, Vec2 end, int count, const Particle& prototype) {
+    void spawnLine(Vec2 start, Vec2 end, int count, const ParticleEmitterSettings& settings) {
+        const ColorPicker colorPicker(settings);
         for (int i = 0; i < count; ++i) {
             float t = static_cast<float>(i) / (count - 1);
             Vec2 pos = start + (end - start) * t;
 
-            Particle p = prototype;
+            Particle p(settings, colorPicker.pick(0, i));
             p.setPosition(pos);
 
             particles.push_back(p);
@@ -554,23 +692,20 @@ struct ParticleBurstOptions
  *
  * @param window The window to render particles on
  * @param spawnPoints Vector of positions where particles will burst from
- * @param prototype The particle template (physics, color, lifetime, etc.)
+ * @param settings What each particle starts with (physics, colors, lifetime, etc.)
  * @param options Duration, density, speed range, and what's left on screen afterwards
  *
  * Example usage:
  * @code
  * std::vector<Vec2> points = {{10, 5}, {12, 5}, {14, 5}};
- * Particle p;
- * p.setPhysics(ParticlePresets::Firework());
- * p.setColorPair(greenColorPair);
- * p.setLifetime(0.5f);
- * p.setModifyBg(true);
- * spawnBurst(myWindow, points, p, { .duration = 1.0f });
+ * ParticleEmitterSettings sparks = ParticleEmitterPresets::Sparks();
+ * sparks.colors = {"bright-green_on_bright-green"};
+ * spawnBurst(myWindow, points, sparks, { .duration = 1.0f });
  * @endcode
  */
 inline void spawnBurst(WINDOW* window,
                        const std::vector<Vec2>& spawnPoints,
-                       const Particle& prototype,
+                       const ParticleEmitterSettings& settings,
                        const ParticleBurstOptions& options = {})
 {
     // Register window (creates snapshot if first effect on this window)
@@ -588,7 +723,7 @@ inline void spawnBurst(WINDOW* window,
     effect.setSpeedRange(options.minSpeed, options.maxSpeed);
 
     // Spawn particles
-    effect.spawn(prototype);
+    effect.spawn(settings);
 
     // Animate for specified duration
     auto startTime = std::chrono::high_resolution_clock::now();

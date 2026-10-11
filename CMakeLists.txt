@@ -40,7 +40,13 @@ FetchContent_Declare(stevensFileLib
     GIT_REPOSITORY https://github.com/Bucephalus-Studios/stevensFileLib.git
     GIT_TAG main
 )
-FetchContent_MakeAvailable(spdlog stevensMathLib stevensMapLib stevensVectorLib stevensStringLib stevensFileLib)
+# Weighted picks (e.g. ParticleFX's ColorDistribution::Random). Same declaration as cultgame's, so
+# it's a no-op when stevensTerminal is fetched as one of cultgame's dependencies.
+FetchContent_Declare(RouletteWheel
+    GIT_REPOSITORY https://github.com/Bucephalus-Studios/RouletteWheel.git
+    GIT_TAG main
+)
+FetchContent_MakeAvailable(spdlog stevensMathLib stevensMapLib stevensVectorLib stevensStringLib stevensFileLib RouletteWheel)
 
 add_library(stevensTerminal STATIC stevensTerminal.cpp TerminalEnvironments.cpp)
 
@@ -57,6 +63,7 @@ target_link_libraries(stevensTerminal PUBLIC
     stevensVectorLib
     stevensStringLib
     stevensFileLib
+    RouletteWheel
 )
 
 option(STEVENSTERMINAL_STATIC_CURSES
