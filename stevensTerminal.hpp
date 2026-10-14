@@ -467,10 +467,24 @@ namespace stevensTerminal
 									elementGrid.at(rowIndex).at(columnIndex) +
 									appendTextGrid.at(rowIndex).at(columnIndex);
 
+				//An "auto" width only pads a cell out to its column's widest cell -- that padding exists
+				//to line up the column AFTER it, so the last populated cell in a row has nothing to line
+				//up and is left at its natural length. Padding it anyway put invisible trailing spaces on
+				//every row: in a single-column list with one long (wrapping) entry, every short entry
+				//was padded past the window's width and wrapped onto a blank-looking second line. (Same
+				//reasoning as the separator below never trailing a row.) Explicit integer widths still
+				//apply to the last column, since those may be meant to pad or truncate a cell.
+				const bool isLastCellInRow = ( columnIndex == static_cast<int>(elementGrid.at(rowIndex).size()) - 1 );
+				const bool columnWidthIsAuto = columnWidths.contains(columnIndex)
+											   ? !stevensStringLib::isInteger( columnWidths.at(columnIndex) )
+											   : ( defaultColumnWidth == "auto" );
+				const bool skipTrailingAutoPadding = isLastCellInRow && columnWidthIsAuto;
+
 				//Before we add the cell to the print string, check to see if we have a specific width for this column
 				//or if we are using a default column width
-				if( (columnWidths.contains(columnIndex)) ||
-					(defaultColumnWidth != "none") )
+				if( !skipTrailingAutoPadding &&
+					( (columnWidths.contains(columnIndex)) ||
+					  (defaultColumnWidth != "none") ) )
 				{
 					//Get the width of the column that we can print to. A per-column columnWidths entry
 					//always wins; otherwise fall back to defaultColumnWidth - either "auto" (pad to

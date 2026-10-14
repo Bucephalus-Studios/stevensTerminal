@@ -544,10 +544,11 @@ TEST(printVector_str, autoColumnWidth)
                                                                 {"defaultColumnWidth", "auto"},
                                                                 {"horizontal separator", "     "}    }   );
     //Assert
+    // The last column has nothing after it to line up, so it isn't padded
     ASSERT_STREQ(   result.c_str(), "Actions            Monthly Report\n"
-                                    "World Map          Settings      \n"
-                                    "Theology           End Month     \n"
-                                    "Infrastructure     Quit          \n");
+                                    "World Map          Settings\n"
+                                    "Theology           End Month\n"
+                                    "Infrastructure     Quit\n");
 }
 
 TEST(printVector_str, customHorizontalSeparator_spaces)
@@ -602,7 +603,7 @@ TEST(printVector_str, autoColumnWidth_alignsColumnStartsDespiteRaggedCellLengths
                                                                 {"rows",    "2"},
                                                                 {"defaultColumnWidth", "auto"},
                                                                 {"horizontal separator", "     "}    }   );
-    ASSERT_STREQ( result.c_str(), "1 - Hello     3 - Goodbye\n2 - Hola      4 - Adios  \n");
+    ASSERT_STREQ( result.c_str(), "1 - Hello     3 - Goodbye\n2 - Hola      4 - Adios\n");
 
     // Column 2 ("3 - Goodbye" / "4 - Adios") must start at the identical byte offset on both rows
     std::istringstream in(result);
@@ -610,6 +611,44 @@ TEST(printVector_str, autoColumnWidth_alignsColumnStartsDespiteRaggedCellLengths
     std::getline(in, row0);
     std::getline(in, row1);
     EXPECT_EQ(row0.find("3 - Goodbye"), row1.find("4 - Adios"));
+}
+
+TEST(printVector_str, autoColumnWidth_singleColumnLeavesEveryCellAtItsNaturalLength)
+{
+    // Regression test: "auto" pads a cell to its column's widest cell only to line up the column
+    // after it. A single column has no column after it, so no cell may be padded -- padding short
+    // entries out to one long entry's width is what made every response in a cultgame event
+    // (where one response's effect text ran past the window) wrap onto a blank-looking second line.
+    std::vector<std::string> vec = {"1 - Short", "2 - A considerably longer response than the others", "3 - Mid length"};
+    std::string result = stevensTerminal::printVector_str(  vec,
+                                                            {   {"columns", "1"},
+                                                                {"defaultColumnWidth", "auto"}    }   );
+    ASSERT_STREQ( result.c_str(), "1 - Short\n2 - A considerably longer response than the others\n3 - Mid length\n");
+}
+
+TEST(printVector_str, autoColumnWidth_shortTrailingRowIsNotPadded)
+{
+    // In a column-major grid whose last row is short, that row's last populated cell is in an
+    // earlier column -- still nothing after it to line up, so it isn't padded either.
+    // Column 0 is "AAAA"/"B"; row 1 holds only "B", which the old padding widened to "B   ".
+    std::vector<std::string> vec = {"AAAA", "B", "C"};
+    std::string result = stevensTerminal::printVector_str(  vec,
+                                                            {   {"columns", "2"},
+                                                                {"rows",    "2"},
+                                                                {"defaultColumnWidth", "auto"},
+                                                                {"horizontal separator", " "}    }   );
+    ASSERT_STREQ( result.c_str(), "AAAA C\nB\n");
+}
+
+TEST(printVector_str, explicitIntegerColumnWidthStillPadsTheLastColumn)
+{
+    // Only "auto" widths skip the last column -- an explicit integer width is a deliberate size
+    // (tables rely on it to pad/truncate), so it still applies there.
+    std::vector<std::string> vec = {"A", "BB"};
+    std::string result = stevensTerminal::printVector_str(  vec,
+                                                            {   {"columns", "1"},
+                                                                {"defaultColumnWidth", "4"}    }   );
+    ASSERT_STREQ( result.c_str(), "A   \nBB  \n");
 }
 
 TEST(printVector_str, numericDefaultColumnWidthPadsEveryColumnToThatExactWidth)
@@ -659,7 +698,7 @@ TEST(printVector_str, PrintFormatOverloadMatchesEquivalentFormatMap)
             .horizontalSeparator = "     "
         }   );
     ASSERT_EQ(fromMap, fromStruct);
-    ASSERT_STREQ(fromStruct.c_str(), "A      CCC \nBB     DDDD\n");
+    ASSERT_STREQ(fromStruct.c_str(), "A      CCC\nBB     DDDD\n");
 }
 
 /*** formatTableAsString() cell wrapping (multi-byte UTF-8 correctness) ***/
@@ -1582,6 +1621,28 @@ TEST_F(HeadlessNcursesTest, CursesWwrapWithTokens_LongTokenWrapsAcrossRows)
     EXPECT_FALSE(row1.empty()); // content actually continued onto a second row
     // Neither row should have been cut mid-word
     EXPECT_NE(row0.back(), ' ');
+}
+
+TEST_F(HeadlessNcursesTest, CursesMvwPrintVector_ShortResponsesStayOnOneRowBesideAWrappingOne)
+{
+    // Regression test for the cultgame response-list bug: with defaultColumnWidth "auto", every
+    // response in a one-column list was padded with trailing spaces to the width of the longest
+    // one. When that one was wider than the window, the padding made every short response wrap
+    // too, leaving a blank-looking row under each. Only the long response may take two rows.
+    std::vector<std::string> responses = {
+        "1 - Scream \"NO!\" and slam the door in her face",
+        "2 - \"Of course! I love supporting the local kids.\" (-10 gold, +10 local opinion, +1 Teenyscout Cookies)",
+        "3 - \"Sorry, no thanks. Good luck though!\""
+    };
+    stevensTerminal::curses_mvw_printVector(responses, win, {},
+                                            {   {"columns", "1"},
+                                                {"defaultColumnWidth", "auto"},
+                                                {"wrap", "true"}    },
+                                            0, 0);
+    EXPECT_EQ(readRow(0), "1 - Scream \"NO!\" and slam the door in her face");
+    EXPECT_EQ(readRow(1).rfind("2 - ", 0), 0u);  // the long response starts right on the next row
+    EXPECT_FALSE(readRow(2).empty());            // ...and wraps onto one more
+    EXPECT_EQ(readRow(3), "3 - \"Sorry, no thanks. Good luck though!\"");
 }
 
 TEST_F(HeadlessNcursesTest, CursesWwrapWithTokens_BareNewlineTokenForcesRowAdvance)
