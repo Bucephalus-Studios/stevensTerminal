@@ -1992,3 +1992,59 @@ TEST_F(HeadlessNcursesColorTest, CursesWprint_NestedTokenInsideStyledLine_WrapsA
     EXPECT_EQ(readWindowRow(boxWin, 2).find_first_not_of(" |"), std::string::npos); // nothing spilled onto row 2
     delwin(boxWin);
 }
+
+
+/***** "subsequent indent" - a hanging indent for every row after the first. *****/
+
+TEST(CountWrappedLines, SubsequentIndentNarrowsEveryRowAfterTheFirst)
+{
+    // 20 interior columns: unindented this wraps "aaaa bbbb cccc dddd" / "eeee ffff gggg", but
+    // indented 8, the second row only has 12 columns, pushing "gggg" onto a third.
+    const std::string text = "aaaa bbbb cccc dddd eeee ffff gggg";
+    EXPECT_EQ(stevensTerminal::countWrappedLines(text, 22, {{"avoid borders", "true"}}), 2);
+    EXPECT_EQ(stevensTerminal::countWrappedLines(text, 22, {{"avoid borders", "true"}, {"subsequent indent", "8"}}), 3);
+}
+
+TEST(CountWrappedLines, SubsequentIndentTooWideForTheRowIsIgnored)
+{
+    const std::string text = "aaaa bbbb cccc dddd eeee ffff gggg";
+    EXPECT_EQ(stevensTerminal::countWrappedLines(text, 22, {{"avoid borders", "true"}, {"subsequent indent", "20"}}), 2);
+}
+
+TEST(CountWrappedVectorLines, SubsequentIndentAppliesWithinEachElement)
+{
+    // Indented 8, element 1 takes 2 rows ("1 - aaaa bbbb cccc" / "dddd eeee" on a 20-then-12
+    // column budget) and element 2 takes 1 - its first row starts unindented, at full width.
+    const std::vector<std::string> responses = {"1 - aaaa bbbb cccc dddd eeee", "2 - short"};
+    const std::unordered_map<std::string,std::string> format = {{"wrap", "true"}, {"avoid borders", "true"}, {"subsequent indent", "8"}};
+    EXPECT_EQ(stevensTerminal::countWrappedVectorLines(responses, 22, format), 3);
+}
+
+TEST(CountWrappedVectorLines, SubsequentIndentIgnoredInMultiColumnGrids)
+{
+    const std::vector<std::string> responses = {"1 - aaaa", "2 - bbbb", "3 - cccc", "4 - dddd"};
+    std::unordered_map<std::string,std::string> format = {{"wrap", "true"}, {"avoid borders", "true"}, {"columns", "2"}, {"rows", "2"}};
+    int unindentedLines = stevensTerminal::countWrappedVectorLines(responses, 22, format);
+    format["subsequent indent"] = "4";
+    EXPECT_EQ(stevensTerminal::countWrappedVectorLines(responses, 22, format), unindentedLines);
+}
+
+TEST_F(HeadlessNcursesTest, CursesMvwPrintVector_SubsequentIndentHangsEachElementsContinuationRows)
+{
+    // 22-wide bordered window: interior columns 1-20.
+    WINDOW * boxWin = newwin(8, 22, 0, 0);
+    box(boxWin, '|', '-');
+    const std::vector<std::string> responses = {"1 - aaaa bbbb cccc dddd eeee",
+                                                "2 - short",
+                                                "3 - {line}$[textColor=red] one\nline two"};
+    const std::unordered_map<std::string,std::string> format = {{"wrap", "true"}, {"avoid borders", "true"}, {"subsequent indent", "4"}};
+    stevensTerminal::curses_mvw_printVector(responses, boxWin, {}, format, 1, 1);
+
+    EXPECT_EQ(readWindowRow(boxWin, 1).substr(1, 18), "1 - aaaa bbbb cccc");
+    EXPECT_EQ(readWindowRow(boxWin, 2).substr(1, 13), "    dddd eeee");  // wrapped row: indented
+    EXPECT_EQ(readWindowRow(boxWin, 3).substr(1, 9), "2 - short");       // next element: not indented
+    EXPECT_EQ(readWindowRow(boxWin, 4).substr(1, 12), "3 - line one");
+    EXPECT_EQ(readWindowRow(boxWin, 5).substr(1, 12), "    line two");   // explicit newline: indented too
+    EXPECT_EQ(stevensTerminal::countWrappedVectorLines(responses, 22, format), 5);
+    delwin(boxWin);
+}

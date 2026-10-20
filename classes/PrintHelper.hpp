@@ -1193,6 +1193,8 @@ namespace PrintHelper
 	 * 	std::unordered_map<std::string,std::string> format - Any advanced formatting options we wish to apply while printing to the curses window.
 	 * 													Valid key-value pairs are:
 	 * 													{
+	 * 														{"subsequent indent", "N"} - With "wrap", indents every row
+	 * 															after the first by N columns (see getSubsequentIndent())
 	 * 													}
 	 * 	bool textStyling - True if we are styling our text. False if we're not styling our text.
 	 * 
@@ -1442,6 +1444,36 @@ namespace PrintHelper
 
 
 	/**
+	 * @brief Reads format["subsequent indent"] - the number of columns every row after the first
+	 *        is indented by when wrapping (named after Python textwrap's subsequent_indent), whether
+	 *        that row comes from a wrap or from an explicit newline. Produces a hanging indent, e.g.
+	 *        a "1 - " response whose wrapped lines line up with its text rather than its "1".
+	 *
+	 * Shared by curses_wwrap_withTokens() and countWrappedLines() so the printed wrap and the
+	 * predicted line count can't disagree about when the indent applies.
+	 *
+	 * @param format The same format options map passed to curses_wprint().
+	 * @param availableWidth The columns a row has from its start position to its end. An indent
+	 *                       that would leave no room for text on a row is ignored.
+	 *
+	 * @retval int The indent to apply, or 0 if unset, invalid, or too wide for availableWidth.
+	*/
+	inline int getSubsequentIndent(const std::unordered_map<std::string,std::string> & format, int availableWidth)
+	{
+		if(!format.contains("subsequent indent") || !stevensStringLib::isInteger(format.at("subsequent indent")))
+		{
+			return 0;
+		}
+		int subsequentIndent = std::stoi(format.at("subsequent indent"));
+		if(subsequentIndent <= 0 || subsequentIndent >= availableWidth)
+		{
+			return 0;
+		}
+		return subsequentIndent;
+	}
+
+
+	/**
 	 * Given a vector of tokens, style and print each of them to a curses window.
 	 *
 	 * @warning If a row's printed width lands EXACTLY on the available wrap width, the
@@ -1510,6 +1542,12 @@ namespace PrintHelper
 		// after every printed row below - so it's used directly, with no separate tracking needed.
 		int resetXMove = retainXMoveOnNewline ? xMoveOrigin : (avoidBorders ? 1 : 0);
 
+		// Every row after the first of this call starts subsequentIndent columns past resetXMove
+		// (see getSubsequentIndent()). The indent cells are skipped over, never printed, so they
+		// stay unstyled - e.g. a highlighted response's background doesn't fill them.
+		int continuationXMove = resetXMove + getSubsequentIndent(format, (width - borderAdjustment) - resetXMove);
+		bool onFirstRow = true;
+
 		//For each token we are printing:
 		for(int i = 0; i < tokens.size(); i++)
 		{
@@ -1531,14 +1569,17 @@ namespace PrintHelper
 			// if it's continuing mid-row from the previous token (or from before this call);
 			// every row after that - whether from a wrap or an explicit newline in the token's
 			// own content - gets the full reset-position width.
-			int constantWidth = (width - borderAdjustment) - resetXMove;
+			int constantWidth = (width - borderAdjustment) - continuationXMove;
 			int firstSegmentWidth = (width - borderAdjustment) - xMove;
+			// Where the row we're currently on started - so "are we at the start of a row" checks
+			// work on the first row (unindented) and continuation rows (indented) alike.
+			int rowStartXMove = onFirstRow ? resetXMove : continuationXMove;
 
 			// A row with no room left can't take even a space - leading spaces would print past
 			// the last column, over the border - so drop them, the same way a normal wrap drops
 			// the space it breaks at. Whatever remains then defers to a fresh row (below), prints
 			// nothing if it was all spaces, or starts with a newline that moves on by itself.
-			if(firstSegmentWidth <= 0 && xMove != resetXMove)
+			if(firstSegmentWidth <= 0 && xMove != rowStartXMove)
 			{
 				size_t firstNonSpace = tokens[i].content.find_first_not_of(' ');
 				tokens[i].content = (firstNonSpace == std::string::npos) ? "" : tokens[i].content.substr(firstNonSpace);
@@ -1547,11 +1588,12 @@ namespace PrintHelper
 			// Concretely: "Ardor: 0" (whose first space is 6 columns in, after "Ardor:")
 			// landing with only 3 columns left on the row was splitting into "Ard" / "or: 0"
 			// without this check - see tokenShouldDeferToFreshRow()'s doc comment.
-			if(detail::tokenShouldDeferToFreshRow(tokens[i].content, xMove, resetXMove, firstSegmentWidth))
+			if(detail::tokenShouldDeferToFreshRow(tokens[i].content, xMove, rowStartXMove, firstSegmentWidth))
 			{
 				spdlog::debug("[curses_wwrap_withTokens] token {} deferred to fresh row (yMove {} -> {})", i, yMove, yMove + 1);
 				yMove++;
-				xMove = resetXMove;
+				xMove = continuationXMove;
+				onFirstRow = false;
 				wmove(win, yMove, xMove);
 				firstSegmentWidth = constantWidth;
 			}
@@ -1606,7 +1648,8 @@ namespace PrintHelper
 				if(moreRowsThisToken)
 				{
 					yMove++;
-					xMove = resetXMove;
+					xMove = continuationXMove;
+					onFirstRow = false;
 					wmove(win, yMove, xMove);
 				}
 			}
@@ -1622,7 +1665,8 @@ namespace PrintHelper
 			if(!tokens[i].content.empty() && tokens[i].content.back() == '\n')
 			{
 				yMove++;
-				xMove = resetXMove;
+				xMove = continuationXMove;
+				onFirstRow = false;
 				wmove(win, yMove, xMove);
 			}
 

@@ -577,6 +577,81 @@ namespace stevensTerminal
 		return printVector_str(vec, format.toFormatMap(), style, columnWidths);
 	}
 
+	namespace detail {
+
+	/**
+	 * @brief True when curses_mvw_printVector() should print (and countWrappedVectorLines() should
+	 *        count) each element on its own so format["subsequent indent"] applies within each
+	 *        element rather than across the whole joined list - otherwise element 2's first line
+	 *        would be indented as if it continued element 1.
+	 *
+	 * Only for a wrapped, single-column list: in a multi-column grid each printed line holds
+	 * several elements, so there is no one element for a hanging indent to belong to.
+	 *
+	 * @param elementCount The number of elements in the vector being printed.
+	 * @param format The format map passed to curses_mvw_printVector().
+	*/
+	inline bool usesPerElementSubsequentIndent(size_t elementCount, const std::unordered_map<std::string,std::string> & format)
+	{
+		if(!format.contains("subsequent indent") || !format.contains("wrap") || !stevensStringLib::stringToBool(format.at("wrap")))
+		{
+			return false;
+		}
+		int columns = 1;
+		if(format.contains("columns") && stevensStringLib::isNumber(format.at("columns")))
+		{
+			columns = std::stoi(format.at("columns"));
+		}
+		int rows = -1;
+		if(format.contains("rows") && stevensStringLib::isNumber(format.at("rows")))
+		{
+			rows = std::stoi(format.at("rows"));
+		}
+		bool allowOverflow = format.contains("allowOverflow") && format.at("allowOverflow") == "true";
+		//Overflow past `rows` elements spills into extra columns
+		bool overflowsIntoColumns = allowOverflow && rows > 0 && elementCount > static_cast<size_t>(rows);
+		return columns <= 1 && !overflowsIntoColumns;
+	}
+
+	/**
+	 * @brief Splits what printVector_str() would print for a single-column list into one string
+	 *        per element (each ending in its own "\n"), by running printVector_str() on each
+	 *        element alone. Elements past `rows` are dropped, as printVector_str() drops them.
+	 *
+	 * Only meaningful when usesPerElementSubsequentIndent() is true.
+	*/
+	template<typename T>
+	std::vector<std::string> printVector_elementStrs(	const std::vector<T> & vec,
+														const std::unordered_map<std::string,std::string> & format	)
+	{
+		size_t elementCount = vec.size();
+		if(format.contains("rows") && stevensStringLib::isNumber(format.at("rows")) && std::stoi(format.at("rows")) > 0)
+		{
+			elementCount = std::min(elementCount, static_cast<size_t>(std::stoi(format.at("rows"))));
+		}
+
+		std::unordered_map<std::string,std::string> elementFormat = format;
+		elementFormat.erase("rows");
+		elementFormat.erase("columns");
+		elementFormat.erase("listType");
+		std::string prependString = format.contains("prependString") ? format.at("prependString") : "";
+		bool numbered = format.contains("listType") && format.at("listType") == "numbered";
+
+		std::vector<std::string> elementStrs;
+		for(size_t elementIndex = 0; elementIndex < elementCount; elementIndex++)
+		{
+			//Numbering would restart at 1 for every single-element call, so add each element's own number here
+			if(numbered)
+			{
+				elementFormat["prependString"] = std::to_string(elementIndex + 1) + " - " + prependString;
+			}
+			elementStrs.push_back(printVector_str(std::vector<T>{vec.at(elementIndex)}, elementFormat));
+		}
+		return elementStrs;
+	}
+
+	} // namespace detail
+
 	/**
 	 * @brief Takes a maplike object as input and converts its contents to a printable std::string.
 	 */
@@ -614,6 +689,10 @@ namespace stevensTerminal
 	 * 													Valid key-value pairs:
 	 * 													"printOverBorders" - "true"/"false" - Contains all of the text we print to be within
 	 * 																						  a window's border of size 1
+	 * 													"subsequent indent" - int as string - Indents every row after
+	 * 																		  the first of EACH element (a hanging indent),
+	 * 																		  in wrapped single-column lists only; ignored
+	 * 																		  otherwise. See detail::usesPerElementSubsequentIndent().
 	 * 	WINDOW * win - The n/pd curses library window object that we're printing to.
 	 * 	int yMove - The y coordinate in the window we're moving towards to start printing the vector
 	 * 	int xMove - The x coordinate in the window we're moving towards to start printing the vector
@@ -627,6 +706,21 @@ namespace stevensTerminal
 									int yMove = 0,
 									int xMove = 0	)
 	{
+		//Print each element on its own so the subsequent indent restarts at every element's first line
+		if(detail::usesPerElementSubsequentIndent(vec.size(), format))
+		{
+			for(const std::string & elementStr : detail::printVector_elementStrs(vec, format))
+			{
+				PrintHelper::curses_wprint(win, yMove, xMove, elementStr, style, format, textStyling);
+				//Each element string ends in "\n", which leaves the cursor on the row the next one starts on
+				int cursorX;
+				getyx(win, yMove, cursorX);
+			}
+			return;
+		}
+		//Anywhere else, an indent would apply across the whole joined list rather than per element
+		format.erase("subsequent indent");
+
 		//Get the vector we would like to print
 		std::string printString = stevensTerminal::printVector_str(vec, format);
 
@@ -680,6 +774,37 @@ namespace stevensTerminal
 	 * of sync with the real wrap, as getWrapWidth() exists to prevent).
 	 */
 	int countWrappedLines(const std::string & text, int windowWidth, const std::unordered_map<std::string,std::string> & format);
+
+	/**
+	 * @brief Predicts how many lines curses_mvw_printVector() will print vec on, given the same
+	 * windowWidth and format - countWrappedLines() for a whole list. Mirrors the per-element
+	 * "subsequent indent" rule curses_mvw_printVector() applies, so callers sizing a window
+	 * around a list don't have to.
+	 */
+	template<typename T>
+	int countWrappedVectorLines(const std::vector<T> & vec, int windowWidth, std::unordered_map<std::string,std::string> format)
+	{
+		if(detail::usesPerElementSubsequentIndent(vec.size(), format))
+		{
+			int lines = 0;
+			for(const std::string & elementStr : detail::printVector_elementStrs(vec, format))
+			{
+				lines += countWrappedLines(elementStr, windowWidth, format);
+			}
+			return lines;
+		}
+		format.erase("subsequent indent");
+		return countWrappedLines(printVector_str(vec, format), windowWidth, format);
+	}
+
+	/**
+	 * @brief PrintFormat overload of countWrappedVectorLines() - see PrintFormat.hpp.
+	 */
+	template<typename T>
+	int countWrappedVectorLines(const std::vector<T> & vec, int windowWidth, const PrintFormat & format)
+	{
+		return countWrappedVectorLines(vec, windowWidth, format.toFormatMap());
+	}
 
 	/**
 	 * @brief Prints a plain string directly to a curses window, bypassing the

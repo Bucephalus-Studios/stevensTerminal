@@ -919,7 +919,13 @@ namespace stevensTerminal
 			return 0;
 		}
 
-		std::string wrapped = stevensStringLib::wrapToWidth(removeAllStyleTokenization(text), getWrapWidth(windowWidth, format));
+		int wrapWidth = getWrapWidth(windowWidth, format);
+		// Same indent rule curses_wwrap_withTokens() applies: the first row gets the full width,
+		// every row after it (wrapped or after an explicit newline) loses subsequentIndent columns.
+		int subsequentIndent = PrintHelper::getSubsequentIndent(format, wrapWidth);
+		std::string wrapped = stevensStringLib::wrapToWidth(	removeAllStyleTokenization(text),
+																wrapWidth - subsequentIndent,
+																wrapWidth	);
 		return stevensStringLib::countLines(wrapped);
 	}
 

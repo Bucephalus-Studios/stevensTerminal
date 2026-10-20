@@ -48,6 +48,9 @@ struct PrintFormat
     bool avoidBorders = false;                  // keep printed content clear of a 1-cell border
     bool retainXMoveOnNewline = false;          // resume at the original xMove after a wrap/newline instead of column 0
     std::string textAlign = "left";             // "left", "center", or "right" (right: reserved, unimplemented)
+    // Columns every wrapped/continued row is indented by, after the first (a hanging indent). In
+    // curses_mvw_printVector() it applies within each element, in single-column lists only.
+    int subsequentIndent = 0;
 
     /**
      * @brief Converts to the legacy string-keyed format map, so struct-based callers can share
@@ -71,6 +74,7 @@ struct PrintFormat
         format["avoid borders"] = avoidBorders ? "true" : "false";
         format["retain xmove on newline"] = retainXMoveOnNewline ? "true" : "false";
         format["textAlign"] = textAlign;
+        if(subsequentIndent > 0) { format["subsequent indent"] = std::to_string(subsequentIndent); }
         return format;
     }
 };
