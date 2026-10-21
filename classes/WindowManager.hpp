@@ -22,6 +22,10 @@
 
 namespace stevensTerminal {
 
+    /** @brief Declared in subnamespaces/Core.hpp, which includes this header before its own
+     *         declarations, so shutdown() below needs this forward declaration to call it. */
+    void restoreState();
+
     /**
      * @brief Simple data structure for window specifications
      */
@@ -158,8 +162,9 @@ namespace stevensTerminal {
          * 2. Terminate ncurses properly
          */
         void shutdown() {
-            cleanup();  // Clean up all managed windows first
-            endwin();   // Then terminate ncurses
+            cleanup();       // Clean up all managed windows first
+            restoreState();  // Undo our window-state changes while curses still owns the console
+            endwin();        // Then terminate ncurses
         }
     };
 

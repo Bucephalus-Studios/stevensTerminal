@@ -72,6 +72,46 @@ std::pair<int, int> get_screen_size() {
 }
 #endif
 
+#if defined(_WIN32)
+#ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+#define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004 // missing from some older MinGW headers
+#endif
+namespace
+{
+    /**
+     * @brief Writes a DECSCUSR cursor-shape escape sequence ("ESC [ n SP q") to the active console
+     *        screen buffer. Windows Terminal (the Windows 11 default) draws its own cursor and
+     *        ignores the console-API cursor size that curs_set() sets, but honors DECSCUSR, as
+     *        does conhost on Windows 10+.
+     *
+     * Writes through CONOUT$ for the same reason as get_screen_size(): PDCurses draws into its own
+     * screen buffer. VT processing is enabled only for this one write and the buffer's original
+     * mode restored afterwards, so PDCurses' own output mode is left exactly as it was. If VT
+     * processing can't be enabled (pre-Windows 10 consoles), nothing is written, since the
+     * sequence would otherwise print as literal "[1 q" text.
+     */
+    void writeCursorShapeSequence(const std::string & sequence)
+    {
+        HANDLE activeBuffer = CreateFileW(L"CONOUT$", GENERIC_READ | GENERIC_WRITE,
+                                          FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                                          OPEN_EXISTING, 0, nullptr);
+        if(activeBuffer == INVALID_HANDLE_VALUE)
+        {
+            return;
+        }
+        DWORD originalMode = 0;
+        if(GetConsoleMode(activeBuffer, &originalMode)
+           && SetConsoleMode(activeBuffer, originalMode | ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING))
+        {
+            DWORD written = 0;
+            WriteConsoleA(activeBuffer, sequence.c_str(), static_cast<DWORD>(sequence.size()), &written, nullptr);
+            SetConsoleMode(activeBuffer, originalMode);
+        }
+        CloseHandle(activeBuffer);
+    }
+}
+#endif
+
 void hideCursor() { curs_set(0); }
 
 void showCursor()
@@ -85,8 +125,22 @@ void showCursor()
         // maps to a 95%-of-cell-height block on wincon, matching Linux's
         // appearance.
         curs_set(2);
+        // Windows Terminal ignores the size curs_set() sets, so also request a
+        // blinking block directly. Sent after curs_set() so a console that maps
+        // the cursor-size call onto a shape can't override it.
+        writeCursorShapeSequence("\x1b[1 q");
     #else
         curs_set(1);
+    #endif
+}
+
+void restoreState()
+{
+    #if defined(_WIN32)
+        // DECSCUSR 0 = the terminal's own default shape. Windows Terminal keeps
+        // the last requested shape after the program exits, so without this the
+        // player's shell would be left with showCursor()'s block cursor.
+        writeCursorShapeSequence("\x1b[0 q");
     #endif
 }
 

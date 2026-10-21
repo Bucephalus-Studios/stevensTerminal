@@ -204,8 +204,22 @@ namespace stevensTerminal
      *
      * Use in views where the cursor position is meaningful to the user,
      * such as world-map navigation where it marks the selected tile.
+     *
+     * On Windows this requests a blinking block both through curs_set(2) (conhost) and a DECSCUSR
+     * escape sequence (Windows Terminal, which ignores curs_set()'s cursor size).
      */
     void showCursor();
+
+    /**
+     * @brief Undoes the changes stevensTerminal makes to the terminal window for this session, so a
+     *        shell window that outlives the program is left as the user had it. Only touches live
+     *        window state, never saved terminal settings (profiles, the registry, config files).
+     *
+     * Currently restores: the cursor shape showCursor() requests on Windows (a no-op elsewhere).
+     * Add new restorations here as stevensTerminal starts changing more window state. Called by
+     * WindowManager::shutdown() before endwin().
+     */
+    void restoreState();
 
 
     /**
