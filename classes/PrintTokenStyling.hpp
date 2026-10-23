@@ -1,6 +1,6 @@
 #pragma once
 /**
- * @file s_TerminalPrintTokenStyling.hpp
+ * @file PrintTokenStyling.hpp
  * @author Jeff Stevens jeff@bucephalusstudios.com
  * @brief Some functions used to help style PrintTokens.
  * @version 0.1

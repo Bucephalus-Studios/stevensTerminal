@@ -385,21 +385,21 @@ int main() {
 
 ```
 stevensTerminal/
-├── Core.hpp              # Platform detection, initialization, display modes
-├── Input.hpp             # User input validation
-├── Styling.hpp           # Style token manipulation
 ├── stevensTerminal.hpp   # Main header (includes all modules)
-├── classes/
-│   ├── WindowManager.hpp           # RAII window management
-│   ├── s_TerminalPrintToken.h      # Style token data structure
-│   ├── s_TerminalPrintTokenHelper.hpp  # Token parsing engine
-│   └── s_TerminalPrintHelper.h     # Core rendering engine
-└── libraries/
-    ├── stevensStringLib.h   # String utilities
-    ├── stevensVectorLib.hpp # Vector operations
-    ├── stevensMapLib.hpp    # Map operations
-    ├── stevensMathLib.h     # Math utilities
-    └── stevensFileLib.hpp   # File I/O
+├── stevensTerminal.cpp
+├── TerminalEnvironments.hpp/.cpp  # Terminal detection and per-terminal settings
+├── subnamespaces/
+│   ├── Core.hpp          # Platform detection, initialization, display modes
+│   ├── Input.hpp         # User input validation
+│   ├── Styling.hpp       # Style token manipulation
+│   ├── Colors.hpp        # Color names and pairs
+│   └── Animation.hpp, Bar.hpp, Spinner.hpp, ParticleFX/
+└── classes/
+    ├── WindowManager.hpp       # RAII window management
+    ├── PrintToken.hpp          # Style token data structure
+    ├── PrintTokenHelper.hpp    # Token parsing engine
+    ├── PrintHelper.hpp         # Core rendering engine
+    └── ...                     # DisplayMode, PrintFormat, TokenParser, etc.
 ```
 
 ### Design Principles
