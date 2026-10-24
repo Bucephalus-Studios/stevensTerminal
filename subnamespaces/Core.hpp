@@ -16,8 +16,14 @@
     // in this translation unit to pull it in): windows.h otherwise #defines
     // min/max macros that break every std::min/std::max call in this library
     // and its dependencies (stevensStringLib, PrintHelper, etc.).
-    #define NOMINMAX
-    #define WIN32_LEAN_AND_MEAN
+    // Guarded because MinGW's libstdc++ (bits/os_defines.h) already defines NOMINMAX, and an
+    // unguarded redefinition warns in every translation unit that includes a std header first.
+    #ifndef NOMINMAX
+        #define NOMINMAX
+    #endif
+    #ifndef WIN32_LEAN_AND_MEAN
+        #define WIN32_LEAN_AND_MEAN
+    #endif
 #endif
 
 // Standard library includes
