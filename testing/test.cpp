@@ -1486,6 +1486,48 @@ TEST(ResizeStyledString, resize_no_tokens)
     ASSERT_EQ(resized, "Plain");
 }
 
+/***** expandTabs - tabs become the spaces curses would draw, so layout measures what's printed *****/
+
+TEST(expandTabs, textWithoutTabsIsUnchanged)
+{
+    EXPECT_EQ(stevensTerminal::PrintHelper::detail::expandTabs("no tabs here", 3, 0, 8), "no tabs here");
+}
+
+TEST(expandTabs, tabReachesNextStop)
+{
+    // Column 2 -> next stop at 8: 6 spaces
+    EXPECT_EQ(stevensTerminal::PrintHelper::detail::expandTabs("ab\tX", 0, 0, 8), "ab      X");
+}
+
+TEST(expandTabs, tabWidthDependsOnStartColumn)
+{
+    // Same text printed from column 3: the tab starts at 3, so 5 spaces reach 8
+    EXPECT_EQ(stevensTerminal::PrintHelper::detail::expandTabs("\tX", 3, 0, 8), "     X");
+}
+
+TEST(expandTabs, tabAtAStopAdvancesAFullStop)
+{
+    // A tab starting exactly on a stop moves to the next one, as curses does
+    EXPECT_EQ(stevensTerminal::PrintHelper::detail::expandTabs("abcdefgh\tX", 0, 0, 8), "abcdefgh        X");
+}
+
+TEST(expandTabs, newlineRestartsAtNewlineColumn)
+{
+    // After the newline printing resumes at column 2, so the tab needs 6 spaces to reach 8
+    EXPECT_EQ(stevensTerminal::PrintHelper::detail::expandTabs("a\n\tX", 5, 2, 8), "a\n      X");
+}
+
+TEST(expandTabs, doubleWidthCharactersCountTwoColumns)
+{
+    // 世 takes 2 columns, so the tab starts at column 2 and needs 6 spaces
+    EXPECT_EQ(stevensTerminal::PrintHelper::detail::expandTabs("世\tX", 0, 0, 8), "世      X");
+}
+
+TEST(expandTabs, honorsTabSize)
+{
+    EXPECT_EQ(stevensTerminal::PrintHelper::detail::expandTabs("a\tX", 0, 0, 4), "a   X");
+}
+
 /***** Headless ncurses fixture - real rendering correctness tests for curses_wwrap()/
  * curses_wwrap_withTokens(), since neither had any prior test coverage and both were
  * substantially rewritten to use the display-width-aware stevensStringLib::wrapToWidth().
@@ -1607,6 +1649,19 @@ TEST_F(HeadlessNcursesTest, CursesWwrapWithTokens_MultipleTokensShareOneRow)
     };
     stevensTerminal::PrintHelper::curses_wwrap_withTokens(win, 0, 0, tokens, {}, {}, true);
     EXPECT_EQ(readRow(0), "Hello World");
+}
+
+TEST_F(HeadlessNcursesTest, CursesWwrapWithTokens_TokenAfterATabStartsWhereTheTabEnded)
+{
+    // Regression test (CultGame's world seed line): a tab counted as 0 columns put the next
+    // token back over the end of this one, so "booba" + "#1.31011" rendered as "b#1.31011".
+    // "Name: Foo " ends at column 10, so the tab draws 6 spaces to reach the stop at 16.
+    std::vector<stevensTerminal::PrintToken> tokens = {
+        stevensTerminal::PrintToken("Name: Foo \t Seed: booba"),
+        stevensTerminal::PrintToken("#1.31011")
+    };
+    stevensTerminal::PrintHelper::curses_wwrap_withTokens(win, 0, 0, tokens, {}, {}, true);
+    EXPECT_EQ(readRow(0), "Name: Foo        Seed: booba#1.31011");
 }
 
 TEST_F(HeadlessNcursesTest, CursesWwrapWithTokens_LongTokenWrapsAcrossRows)

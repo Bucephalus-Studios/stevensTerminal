@@ -1046,6 +1046,75 @@ namespace PrintHelper
 	}
 
 
+	namespace detail {
+
+	/**
+	 * @brief Replaces each tab with the spaces curses would draw for it: enough to reach the next
+	 *        tab stop (a multiple of curses' TABSIZE, counted from the window's left edge).
+	 *
+	 * Text is laid out by display width (stevensStringLib::lineDisplayWidth()), which counts a tab
+	 * as 0 columns, while curses draws it as 1..TABSIZE columns depending on where it starts. Left
+	 * as a literal tab, the two disagree about where text ends, so whatever is positioned after it
+	 * (the next styled token, a wrap point, a border clip) lands in the wrong column -- e.g. a
+	 * styled token following "Seed: \tbooba" was drawn back over "ooba". Expanding tabs before
+	 * measuring makes what's measured exactly what's printed. TABSIZE stays the one source of
+	 * truth for tab width, so this matches any tab curses still draws itself.
+	 *
+	 * @param text The text to expand. May contain newlines.
+	 * @param startColumn The window column the text's first character will be printed at.
+	 * @param newlineColumn The window column printing resumes at after each '\n'.
+	 * @param tabSize Columns between tab stops. Defaults to curses' TABSIZE; only tests pass it.
+	 *
+	 * @retval std::string The text with every tab replaced by spaces.
+	*/
+	inline std::string expandTabs(	const std::string & text,
+									int startColumn,
+									int newlineColumn,
+									int tabSize = TABSIZE	)
+	{
+		if(text.find('\t') == std::string::npos)
+		{
+			return text;
+		}
+		// Guard against an unset or invalid TABSIZE; 8 is curses' own default
+		if(tabSize <= 0)
+		{
+			tabSize = 8;
+		}
+
+		std::string expanded;
+		expanded.reserve(text.size() + static_cast<size_t>(tabSize));
+		int column = startColumn;
+		for(const std::string & character : stevensStringLib::separate(text, ""))
+		{
+			if(character == "\t")
+			{
+				int spaces = tabSize - (column % tabSize);
+				expanded.append(static_cast<size_t>(spaces), ' ');
+				column += spaces;
+			}
+			else if(character == "\n")
+			{
+				expanded += character;
+				column = newlineColumn;
+			}
+			else if(character == "\r")
+			{
+				// Takes no columns, and lineDisplayWidth() rejects it as a line break
+				expanded += character;
+			}
+			else
+			{
+				expanded += character;
+				column += static_cast<int>(stevensStringLib::lineDisplayWidth(character));
+			}
+		}
+		return expanded;
+	}
+
+	} // namespace detail
+
+
 	//TODO: Needs to be tested for multiple tokens, Needs to print individual lines at a time to account for fitting inside of borders
 	/**
 	 * Prints text with style tokens to a curses window.
@@ -1150,7 +1219,9 @@ namespace PrintHelper
 			// content is clipped this way (this function doesn't wrap to a new row); content with
 			// an embedded newline is left untouched to preserve its existing pass-through-to-curses
 			// behavior, since lineDisplayWidth() requires single-line input.
-			std::string content = tokens[i].content;
+			// Tabs become spaces first, so the clip below measures what's actually drawn
+			// (curses moves to column 0 after a newline it's handed)
+			std::string content = detail::expandTabs(tokens[i].content, xMove, 0);
 			if(avoidBorders && content.find('\n') == std::string::npos)
 			{
 				// lineEnd is the last valid interior column (inclusive), not an exclusive bound
@@ -1317,6 +1388,8 @@ namespace PrintHelper
 		// to printing unwrapped rather than looping - matches the previous behavior for this
 		// degenerate case.
 		int textWidth = width - xMove - (int)indent;
+		// Every row's text starts after the indent, so tab stops are measured from there
+		printString = detail::expandTabs(printString, xMove + (int)indent, xMove + (int)indent);
 		std::string wrapped = (textWidth > 0)
 			? stevensStringLib::wrapToWidth(printString, static_cast<size_t>(textWidth))
 			: printString;
@@ -1563,6 +1636,10 @@ namespace PrintHelper
 			}
 
 			PrintHelper::curses_wAttrOn(win, curses_attribute_data);
+
+			// Tabs become spaces before anything below measures this token, so where it ends -
+			// and where the next token starts - is where curses actually draws it
+			tokens[i].content = detail::expandTabs(tokens[i].content, xMove, continuationXMove);
 
 			// Wrap this token's content by display width, preferring to break at spaces (see
 			// stevensStringLib::wrapToWidth()). This token's first row may have a reduced budget
